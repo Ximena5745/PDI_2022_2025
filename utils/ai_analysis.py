@@ -17,10 +17,16 @@ def get_gemini_model():
     """
     try:
         import google.generativeai as genai
-        api_key = os.environ.get("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
+        api_key = os.environ.get("GOOGLE_API_KEY")
+        if not api_key:
+            try:
+                api_key = st.secrets.get("GOOGLE_API_KEY", None)
+            except Exception:
+                pass
         if api_key:
             genai.configure(api_key=api_key)
-            return genai.GenerativeModel('gemini-1.5-flash')
+            # Usar gemini-pro que es el modelo estándar gratuito
+            return genai.GenerativeModel('gemini-pro')
         return None
     except ImportError:
         return None

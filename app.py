@@ -303,15 +303,15 @@ st.session_state['pagina_actual'] = pagina
 
 # Importar y mostrar la página correspondiente
 if pagina == "📊 Dashboard General":
-    from pages import dashboard
+    from views import dashboard
     dashboard.mostrar_pagina()
 
 elif pagina == "📈 Análisis por Línea":
-    from pages import analisis_linea
+    from views import analisis_linea
     analisis_linea.mostrar_pagina()
 
 elif pagina == "🔍 Detalle de Indicadores":
-    from pages import detalle_indicador
+    from views import detalle_indicador
     detalle_indicador.mostrar_pagina()
 
 

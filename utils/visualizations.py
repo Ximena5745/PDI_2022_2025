@@ -152,11 +152,24 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
     Returns:
         Figura de Plotly
     """
-    if df_resumen.empty:
+    if df_resumen is None or df_resumen.empty:
+        return go.Figure()
+
+    # Validar que existan las columnas necesarias
+    if 'Linea' not in df_resumen.columns or 'Cumplimiento' not in df_resumen.columns:
+        return go.Figure()
+
+    # Crear copia y limpiar datos
+    df = df_resumen.copy()
+    df = df.dropna(subset=['Linea', 'Cumplimiento'])
+    df['Cumplimiento'] = pd.to_numeric(df['Cumplimiento'], errors='coerce').fillna(0)
+    df['Linea'] = df['Linea'].astype(str)
+
+    if df.empty:
         return go.Figure()
 
     # Ordenar por cumplimiento
-    df = df_resumen.sort_values('Cumplimiento', ascending=True)
+    df = df.sort_values('Cumplimiento', ascending=True)
 
     # Asignar colores según semáforo
     colores = [obtener_color_semaforo(c) for c in df['Cumplimiento']]
