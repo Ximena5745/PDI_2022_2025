@@ -1,5 +1,5 @@
 """
-Módulo de análisis con IA (Anthropic Claude) para el Dashboard Estratégico POLI.
+Módulo de análisis con IA (Google Gemini - GRATUITO) para el Dashboard Estratégico POLI.
 """
 
 import os
@@ -10,81 +10,80 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def get_anthropic_client():
+def get_gemini_model():
     """
-    Obtiene el cliente de Anthropic si está disponible.
+    Obtiene el modelo de Google Gemini si está disponible.
+    Gemini tiene un tier GRATUITO generoso (60 consultas/minuto).
     """
     try:
-        import anthropic
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        import google.generativeai as genai
+        api_key = os.environ.get("GOOGLE_API_KEY") or st.secrets.get("GOOGLE_API_KEY", None)
         if api_key:
-            return anthropic.Anthropic(api_key=api_key)
+            genai.configure(api_key=api_key)
+            return genai.GenerativeModel('gemini-1.5-flash')
         return None
     except ImportError:
+        return None
+    except Exception:
         return None
 
 
 def generar_analisis_con_ia(prompt, max_tokens=1000):
     """
-    Genera análisis usando la API de Anthropic.
+    Genera análisis usando la API de Google Gemini (GRATUITA).
 
     Args:
-        prompt: El prompt a enviar a Claude
+        prompt: El prompt a enviar a Gemini
         max_tokens: Máximo de tokens en la respuesta
 
     Returns:
         str: Texto del análisis o mensaje de error
     """
-    client = get_anthropic_client()
+    model = get_gemini_model()
 
-    if client is None:
+    if model is None:
         return generar_analisis_fallback(prompt)
 
     try:
-        message = client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=max_tokens,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                'max_output_tokens': max_tokens,
+                'temperature': 0.7
+            }
         )
-        return message.content[0].text
+        return response.text
     except Exception as e:
-        return f"⚠️ No se pudo generar el análisis con IA: {str(e)}\n\nPor favor configure ANTHROPIC_API_KEY en las variables de entorno."
+        return f"⚠️ No se pudo generar el análisis con IA: {str(e)}\n\nPor favor configure GOOGLE_API_KEY en las variables de entorno."
 
 
 def generar_analisis_fallback(prompt):
     """
-    Genera un análisis básico sin IA cuando la API no está disponible.
+    Genera un mensaje cuando la API no está disponible.
     """
     return """📊 **Análisis automático no disponible**
 
-Para habilitar el análisis inteligente con IA:
+Para habilitar el análisis inteligente con IA (GRATUITO):
 
-1. Obtenga una API Key de Anthropic en [console.anthropic.com](https://console.anthropic.com)
-2. Cree un archivo `.env` en el directorio del proyecto
-3. Agregue: `ANTHROPIC_API_KEY=su_api_key_aqui`
-4. Reinicie la aplicación
+1. Ve a [aistudio.google.com](https://aistudio.google.com/app/apikey)
+2. Crea una API Key gratuita
+3. En Streamlit Cloud: Settings > Secrets, agrega:
+   ```
+   GOOGLE_API_KEY = "tu_api_key"
+   ```
+4. O localmente, crea un archivo `.env` con:
+   ```
+   GOOGLE_API_KEY=tu_api_key
+   ```
 
-El análisis con IA proporciona insights personalizados sobre tendencias, brechas y recomendaciones estratégicas."""
+**Google Gemini es GRATUITO** (60 consultas por minuto)."""
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def generar_analisis_general(metricas_dict, cumplimiento_por_linea):
     """
     Genera el análisis general del dashboard.
-
-    Args:
-        metricas_dict: Diccionario con métricas generales
-        cumplimiento_por_linea: Lista de diccionarios con cumplimiento por línea
-
-    Returns:
-        str: Texto del análisis
     """
-    # Construir resumen de líneas estratégicas
     lineas_texto = "\n".join([
         f"- {item['linea']}: {item['cumplimiento']:.1f}% ({item['indicadores']} indicadores)"
         for item in cumplimiento_por_linea
@@ -117,17 +116,7 @@ Usa un tono profesional, conciso y orientado a la acción. Escribe en español."
 def generar_analisis_linea(nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data):
     """
     Genera análisis para una línea estratégica específica.
-
-    Args:
-        nombre_linea: Nombre de la línea estratégica
-        total_indicadores: Total de indicadores en la línea
-        cumplimiento_promedio: Cumplimiento promedio de la línea
-        objetivos_data: Lista de diccionarios con datos de objetivos
-
-    Returns:
-        str: Texto del análisis
     """
-    # Construir resumen de objetivos
     objetivos_texto = "\n".join([
         f"- {obj['objetivo']}: {obj['cumplimiento']:.1f}% ({obj['indicadores']} indicadores)"
         for obj in objetivos_data
@@ -159,24 +148,12 @@ Usa un tono profesional y enfocado en acciones concretas. Escribe en español.""
 def generar_analisis_indicador(nombre_indicador, linea, descripcion, historico_data, sentido="Creciente"):
     """
     Genera análisis detallado para un indicador específico.
-
-    Args:
-        nombre_indicador: Nombre del indicador
-        linea: Línea estratégica a la que pertenece
-        descripcion: Descripción del indicador
-        historico_data: Lista de diccionarios con datos históricos por año
-        sentido: Sentido del indicador (Creciente/Decreciente)
-
-    Returns:
-        str: Texto del análisis
     """
-    # Construir histórico
     historico_texto = "\n".join([
         f"- {item['año']}{' (Línea Base)' if item['año'] == 2021 else ''}: Meta: {item['meta']:.2f}, Ejecución: {item['ejecucion']:.2f}, Cumplimiento: {item['cumplimiento']:.1f}%"
         for item in historico_data
     ]) if historico_data else "No hay datos históricos disponibles"
 
-    # Calcular tendencia
     if historico_data and len(historico_data) >= 2:
         primer_cumpl = historico_data[0]['cumplimiento']
         ultimo_cumpl = historico_data[-1]['cumplimiento']
@@ -212,12 +189,6 @@ Sé conciso, profesional y enfocado en la acción. Escribe en español."""
 def preparar_historico_para_analisis(df_indicador):
     """
     Prepara los datos históricos de un indicador para el análisis con IA.
-
-    Args:
-        df_indicador: DataFrame con datos del indicador
-
-    Returns:
-        list: Lista de diccionarios con datos por año
     """
     if df_indicador.empty:
         return []
@@ -246,13 +217,6 @@ def preparar_historico_para_analisis(df_indicador):
 def preparar_objetivos_para_analisis(df_linea, año=None):
     """
     Prepara los datos de objetivos de una línea para el análisis con IA.
-
-    Args:
-        df_linea: DataFrame filtrado por línea
-        año: Año a considerar
-
-    Returns:
-        list: Lista de diccionarios con datos por objetivo
     """
     if df_linea.empty or 'Objetivo' not in df_linea.columns:
         return []
@@ -279,13 +243,6 @@ def preparar_objetivos_para_analisis(df_linea, año=None):
 def preparar_lineas_para_analisis(df_unificado, año=None):
     """
     Prepara los datos de líneas estratégicas para el análisis general.
-
-    Args:
-        df_unificado: DataFrame con todos los datos
-        año: Año a considerar
-
-    Returns:
-        list: Lista de diccionarios con datos por línea
     """
     if df_unificado is None or df_unificado.empty or 'Linea' not in df_unificado.columns:
         return []
