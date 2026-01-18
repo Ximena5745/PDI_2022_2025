@@ -8,13 +8,17 @@ import pandas as pd
 from .data_loader import COLORS, calcular_cumplimiento, obtener_color_semaforo
 
 
-def crear_grafico_historico(df_indicador, nombre_indicador):
+def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente', unidad='', periodicidad='Anual'):
     """
     Crea un gráfico de barras agrupadas con Meta vs Ejecución y línea de cumplimiento.
+    Soporta datos anuales y semestrales.
 
     Args:
-        df_indicador: DataFrame con columnas año, Meta, Ejecución
+        df_indicador: DataFrame con columnas Periodo (o Año), Meta, Ejecución
         nombre_indicador: Nombre del indicador para el título
+        sentido: 'Creciente' o 'Decreciente'
+        unidad: Unidad de medida (%, $, ENT, etc.)
+        periodicidad: 'Anual' o 'Semestral'
 
     Returns:
         Figura de Plotly
@@ -27,78 +31,101 @@ def crear_grafico_historico(df_indicador, nombre_indicador):
         df = df_indicador.copy()
 
         # Verificar columnas necesarias
-        required_cols = ['Año', 'Meta', 'Ejecución']
-        for col in required_cols:
-            if col not in df.columns:
-                return go.Figure()
+        if 'Meta' not in df.columns or 'Ejecución' not in df.columns:
+            return go.Figure()
+
+        # Determinar columna de periodo
+        if 'Periodo' in df.columns:
+            periodo_col = 'Periodo'
+            orden_col = 'Periodo_orden' if 'Periodo_orden' in df.columns else 'Periodo'
+        elif 'Año' in df.columns:
+            periodo_col = 'Año'
+            orden_col = 'Año'
+            df['Periodo'] = df['Año'].apply(lambda x: str(int(x)) if pd.notna(x) else '')
+        else:
+            return go.Figure()
 
         # Limpiar valores NaN
-        df = df.dropna(subset=['Año'])
         df['Meta'] = pd.to_numeric(df['Meta'], errors='coerce').fillna(0)
         df['Ejecución'] = pd.to_numeric(df['Ejecución'], errors='coerce').fillna(0)
+
+        # Filtrar filas con periodo válido
+        df = df[df['Periodo'].astype(str).str.strip() != '']
 
         if df.empty:
             return go.Figure()
 
-        # Asegurar orden por año
-        df = df.sort_values('Año')
+        # Ordenar
+        if orden_col in df.columns:
+            df = df.sort_values(orden_col)
 
         # Convertir a listas
-        años = [int(a) for a in df['Año'].tolist()]
+        periodos = df['Periodo'].astype(str).tolist()
         metas = [float(m) for m in df['Meta'].tolist()]
         ejecuciones = [float(e) for e in df['Ejecución'].tolist()]
 
-        # Crear etiquetas para el eje X (marcar 2021 como línea base)
-        etiquetas_años = []
-        for a in años:
-            if a == 2021:
-                etiquetas_años.append(f"{a}<br>(Linea Base)")
+        # Crear etiquetas para el eje X
+        etiquetas = []
+        for p in periodos:
+            if p == '2021' or p == '2021-1':
+                etiquetas.append(f"{p}<br>(Linea Base)")
             else:
-                etiquetas_años.append(str(a))
+                etiquetas.append(str(p))
 
         fig = go.Figure()
+
+        # Formatear valores según unidad
+        def formatear_valor(v):
+            if unidad == '%':
+                return f"{v:.1f}%"
+            elif unidad == '$':
+                return f"${v:,.0f}"
+            elif unidad == 'ENT':
+                return f"{v:,.0f}"
+            else:
+                return f"{v:.2f}"
 
         # Barras de Meta
         fig.add_trace(go.Bar(
             name='Meta',
-            x=etiquetas_años,
+            x=etiquetas,
             y=metas,
             marker_color=COLORS['accent'],
-            text=[f"{m:.2f}" for m in metas],
+            text=[formatear_valor(m) for m in metas],
             textposition='outside',
-            textfont=dict(size=10),
+            textfont=dict(size=9),
             hovertemplate='<b>Meta %{x}</b><br>Valor: %{y:.2f}<extra></extra>'
         ))
 
         # Barras de Ejecución
         fig.add_trace(go.Bar(
             name='Ejecucion',
-            x=etiquetas_años,
+            x=etiquetas,
             y=ejecuciones,
             marker_color=COLORS['primary'],
-            text=[f"{e:.2f}" for e in ejecuciones],
+            text=[formatear_valor(e) for e in ejecuciones],
             textposition='outside',
-            textfont=dict(size=10),
+            textfont=dict(size=9),
             hovertemplate='<b>Ejecucion %{x}</b><br>Valor: %{y:.2f}<extra></extra>'
         ))
 
-        # Calcular cumplimientos
+        # Calcular cumplimientos considerando el sentido
         cumplimientos = []
         for m, e in zip(metas, ejecuciones):
-            c = calcular_cumplimiento(m, e)
+            c = calcular_cumplimiento(m, e, sentido)
             cumplimientos.append(float(c) if c is not None else 0.0)
 
         # Línea de Cumplimiento en eje secundario
         fig.add_trace(go.Scatter(
             name='% Cumplimiento',
-            x=etiquetas_años,
+            x=etiquetas,
             y=cumplimientos,
             mode='lines+markers+text',
             line=dict(color=COLORS['secondary'], width=3),
-            marker=dict(size=12, symbol='circle', color=COLORS['secondary']),
+            marker=dict(size=10, symbol='circle', color=COLORS['secondary']),
             text=[f"{c:.1f}%" for c in cumplimientos],
             textposition='top center',
-            textfont=dict(size=11, color=COLORS['primary']),
+            textfont=dict(size=9, color=COLORS['primary']),
             yaxis='y2',
             hovertemplate='<b>Cumplimiento %{x}</b><br>%{y:.1f}%<extra></extra>'
         ))
@@ -108,23 +135,28 @@ def crear_grafico_historico(df_indicador, nombre_indicador):
         max_ejec = max(ejecuciones) if ejecuciones else 100
         max_valor = max(max_meta, max_ejec, 1)
 
+        # Título con info de sentido
+        sentido_texto = "(Mayor es mejor)" if sentido == 'Creciente' else "(Menor es mejor)"
+        titulo_completo = f"<b>Evolucion Historica</b><br><span style='font-size:12px'>{sentido_texto}</span>"
+
         fig.update_layout(
             title=dict(
-                text=f"<b>Evolucion Historica: {nombre_indicador}</b>",
-                font=dict(size=16, color=COLORS['primary']),
+                text=titulo_completo,
+                font=dict(size=14, color=COLORS['primary']),
                 x=0.5,
                 xanchor='center'
             ),
             xaxis=dict(
-                title="Ano",
+                title="Periodo" if periodicidad == 'Semestral' else "Ano",
                 titlefont=dict(size=12, color=COLORS['gray']),
-                tickfont=dict(size=11)
+                tickfont=dict(size=10),
+                tickangle=-45 if len(etiquetas) > 5 else 0
             ),
             yaxis=dict(
-                title="Valor (Meta / Ejecucion)",
+                title=f"Valor ({unidad})" if unidad else "Valor",
                 titlefont=dict(size=12, color=COLORS['gray']),
                 tickfont=dict(size=11),
-                range=[0, max_valor * 1.3]
+                range=[0, max_valor * 1.4]
             ),
             yaxis2=dict(
                 title="% Cumplimiento",
@@ -132,11 +164,11 @@ def crear_grafico_historico(df_indicador, nombre_indicador):
                 tickfont=dict(size=11, color=COLORS['secondary']),
                 overlaying='y',
                 side='right',
-                range=[0, 130],
+                range=[0, 150],
                 showgrid=False
             ),
             barmode='group',
-            bargap=0.2,
+            bargap=0.15,
             bargroupgap=0.1,
             hovermode='x unified',
             height=500,
@@ -151,7 +183,7 @@ def crear_grafico_historico(df_indicador, nombre_indicador):
                 x=0.5,
                 bgcolor='rgba(255,255,255,0.8)'
             ),
-            margin=dict(t=100, b=50, l=60, r=60)
+            margin=dict(t=100, b=80, l=60, r=60)
         )
 
         # Agregar líneas de referencia para semáforo

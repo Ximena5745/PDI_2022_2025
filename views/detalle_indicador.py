@@ -16,7 +16,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.data_loader import (
     COLORS, calcular_cumplimiento, obtener_color_semaforo,
     filtrar_por_linea, filtrar_por_objetivo, obtener_lista_objetivos,
-    obtener_lista_indicadores, obtener_historico_indicador
+    obtener_lista_indicadores, obtener_historico_indicador,
+    obtener_historico_indicador_completo
 )
 from utils.visualizations import (
     crear_grafico_historico, crear_grafico_tendencia,
@@ -211,26 +212,32 @@ def mostrar_pagina():
 
     st.markdown("---")
 
+    # Obtener histórico completo con manejo de periodicidad
+    df_historico, periodicidad_ind, sentido_ind, unidad_meta, unidad_ejec = obtener_historico_indicador_completo(
+        df_unificado, df_base, indicador_seleccionado
+    )
+
+    # Actualizar variables de sentido y periodicidad
+    sentido = sentido_ind if sentido_ind else sentido
+    periodicidad = periodicidad_ind if periodicidad_ind else periodicidad
+
     # Gráfico histórico
-    st.markdown("### 📊 Evolución Histórica 2021-2025")
+    titulo_periodo = "Evolución Histórica (Semestral)" if periodicidad.lower() == 'semestral' else "Evolución Histórica 2021-2025"
+    st.markdown(f"### 📊 {titulo_periodo}")
 
-    if 'Año' in df_indicador.columns:
-        # Preparar datos para el gráfico
-        df_historico = df_indicador.groupby('Año').agg({
-            'Meta': 'mean',
-            'Ejecución': 'mean'
-        }).reset_index()
-        df_historico = df_historico.sort_values('Año')
-
-        # Calcular cumplimiento
-        df_historico['Cumplimiento'] = df_historico.apply(
-            lambda x: calcular_cumplimiento(x['Meta'], x['Ejecución']),
-            axis=1
+    if not df_historico.empty:
+        # Crear gráfico con los nuevos parámetros
+        fig = crear_grafico_historico(
+            df_historico,
+            indicador_seleccionado,
+            sentido=sentido,
+            unidad=unidad_meta,
+            periodicidad=periodicidad
         )
-
-        # Crear gráfico
-        fig = crear_grafico_historico(df_historico, indicador_seleccionado)
         st.plotly_chart(fig, use_container_width=True)
+
+        # Info del indicador
+        st.info(f"**Sentido:** {sentido} {'(Mayor es mejor)' if sentido == 'Creciente' else '(Menor es mejor)'} | **Periodicidad:** {periodicidad} | **Unidad:** {unidad_meta if unidad_meta else 'N/D'}")
 
         # Gráfico de tendencia adicional
         with st.expander("📈 Ver gráfico de tendencia de cumplimiento"):
@@ -268,54 +275,55 @@ def mostrar_pagina():
     # Tabla de datos históricos detallados
     st.markdown("### 📋 Datos Históricos Detallados")
 
-    # Preparar tabla
-    if 'Año' in df_indicador.columns:
-        df_tabla = df_indicador.groupby('Año').agg({
-            'Meta': 'mean',
-            'Ejecución': 'mean'
-        }).reset_index()
-        df_tabla = df_tabla.sort_values('Año')
+    # Preparar tabla usando df_historico que ya tiene los datos filtrados
+    if not df_historico.empty:
+        df_tabla = df_historico.copy()
 
-        # Calcular cumplimiento
-        df_tabla['Cumplimiento'] = df_tabla.apply(
-            lambda x: calcular_cumplimiento(x['Meta'], x['Ejecución']),
+        # Calcular cumplimiento con sentido
+        df_tabla['Cumplimiento_calc'] = df_tabla.apply(
+            lambda x: calcular_cumplimiento(x['Meta'], x['Ejecución'], sentido),
             axis=1
         )
 
-        # Agregar estado y nota para línea base
-        df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
-            lambda x: '✅ Meta cumplida' if pd.notna(x) and x >= 90 else '⚠️ En progreso' if pd.notna(x) and x >= 70 else '❌ Requiere atención' if pd.notna(x) else 'N/D'
+        # Agregar estado
+        df_tabla['Estado'] = df_tabla['Cumplimiento_calc'].apply(
+            lambda x: '✅ Meta cumplida' if pd.notna(x) and x >= 90 else '⚠️ En progreso' if pd.notna(x) and x >= 70 else '❌ Requiere atencion' if pd.notna(x) else 'N/D'
         )
 
-        df_tabla['Nota'] = df_tabla['Año'].apply(
-            lambda x: '📍 Línea Base' if x == 2021 else ''
+        # Agregar nota para línea base
+        df_tabla['Nota'] = df_tabla['Periodo'].apply(
+            lambda x: 'Linea Base' if str(x) in ['2021', '2021-1'] else ''
         )
 
         # Formatear columnas
-        df_tabla['Meta'] = df_tabla['Meta'].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/D")
-        df_tabla['Ejecución'] = df_tabla['Ejecución'].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/D")
-        df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/D")
-        df_tabla['Año'] = df_tabla['Año'].astype(int)
+        def formatear_con_unidad(valor, unidad):
+            if pd.isna(valor):
+                return "N/D"
+            if unidad == '%':
+                return f"{valor:.1f}%"
+            elif unidad == '$':
+                return f"${valor:,.0f}"
+            elif unidad == 'ENT':
+                return f"{valor:,.0f}"
+            else:
+                return f"{valor:.2f}"
 
-        # Reordenar columnas
-        df_tabla = df_tabla[['Año', 'Meta', 'Ejecución', 'Cumplimiento', 'Estado', 'Nota']]
+        df_tabla['Meta_fmt'] = df_tabla['Meta'].apply(lambda x: formatear_con_unidad(x, unidad_meta))
+        df_tabla['Ejecucion_fmt'] = df_tabla['Ejecución'].apply(lambda x: formatear_con_unidad(x, unidad_ejec))
+        df_tabla['Cumplimiento_fmt'] = df_tabla['Cumplimiento_calc'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/D")
+
+        # Seleccionar y renombrar columnas para mostrar
+        columnas_mostrar = ['Periodo', 'Meta_fmt', 'Ejecucion_fmt', 'Cumplimiento_fmt', 'Estado', 'Nota']
+        df_display = df_tabla[columnas_mostrar].copy()
+        df_display.columns = ['Periodo', 'Meta', 'Ejecucion', 'Cumplimiento', 'Estado', 'Nota']
 
         st.dataframe(
-            df_tabla,
+            df_display,
             use_container_width=True,
             hide_index=True
         )
     else:
-        # Mostrar datos disponibles
-        columnas_mostrar = ['Meta', 'Ejecución', 'Cumplimiento']
-        columnas_disponibles = [c for c in columnas_mostrar if c in df_indicador.columns]
-
-        if columnas_disponibles:
-            st.dataframe(
-                df_indicador[columnas_disponibles],
-                use_container_width=True,
-                hide_index=True
-            )
+        st.warning("No hay datos disponibles para mostrar.")
 
     st.markdown("---")
 

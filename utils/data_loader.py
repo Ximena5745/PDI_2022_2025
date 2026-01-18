@@ -138,13 +138,31 @@ def procesar_datos_unificado(df):
     return df
 
 
-def calcular_cumplimiento(meta, ejecucion):
+def calcular_cumplimiento(meta, ejecucion, sentido='Creciente'):
     """
-    Calcula el porcentaje de cumplimiento.
+    Calcula el porcentaje de cumplimiento considerando el sentido del indicador.
+
+    Args:
+        meta: Valor de la meta
+        ejecucion: Valor de la ejecución
+        sentido: 'Creciente' (mayor es mejor) o 'Decreciente' (menor es mejor)
+
+    Returns:
+        Porcentaje de cumplimiento
     """
     if pd.isna(meta) or pd.isna(ejecucion) or meta == 0:
         return None
-    return (ejecucion / meta) * 100
+
+    if sentido == 'Decreciente':
+        # Para indicadores decrecientes, menor ejecución es mejor
+        # Si la ejecución es menor o igual a la meta, cumplimiento >= 100%
+        if ejecucion <= meta:
+            return 100 + ((meta - ejecucion) / meta) * 100
+        else:
+            return (meta / ejecucion) * 100
+    else:
+        # Indicador creciente (mayor es mejor)
+        return (ejecucion / meta) * 100
 
 
 def obtener_color_semaforo(cumplimiento):
@@ -279,6 +297,67 @@ def obtener_historico_indicador(df_unificado, indicador_id):
         df_ind = df_ind.sort_values('Año')
 
     return df_ind
+
+
+def obtener_historico_indicador_completo(df_unificado, df_base, indicador_nombre):
+    """
+    Obtiene el histórico completo de un indicador considerando periodicidad.
+
+    Args:
+        df_unificado: DataFrame con datos históricos
+        df_base: DataFrame con metadatos de indicadores
+        indicador_nombre: Nombre del indicador
+
+    Returns:
+        tuple: (df_historico, periodicidad, sentido, unidad_meta, unidad_ejecucion)
+    """
+    if df_unificado is None or df_unificado.empty:
+        return pd.DataFrame(), 'Anual', 'Creciente', '', ''
+
+    # Filtrar por indicador
+    df_ind = df_unificado[df_unificado['Indicador'] == indicador_nombre].copy()
+
+    if df_ind.empty:
+        return pd.DataFrame(), 'Anual', 'Creciente', '', ''
+
+    # Obtener metadatos del indicador
+    periodicidad = 'Anual'
+    sentido = 'Creciente'
+    unidad_meta = ''
+    unidad_ejecucion = ''
+
+    if df_base is not None and 'Indicador' in df_base.columns:
+        indicador_base = df_base[df_base['Indicador'] == indicador_nombre]
+        if not indicador_base.empty:
+            fila = indicador_base.iloc[0]
+            periodicidad = str(fila.get('Periodicidad', 'Anual')) if pd.notna(fila.get('Periodicidad')) else 'Anual'
+            sentido = str(fila.get('Sentido', 'Creciente')) if pd.notna(fila.get('Sentido')) else 'Creciente'
+            unidad_meta = str(fila.get('Meta s', '')) if pd.notna(fila.get('Meta s')) else ''
+            unidad_ejecucion = str(fila.get('Ejecución s', '')) if pd.notna(fila.get('Ejecución s')) else ''
+
+    # Procesar según periodicidad
+    if periodicidad.lower() == 'semestral' and 'Semestre' in df_ind.columns:
+        # Filtrar solo registros con semestre 1 o 2
+        df_ind = df_ind[df_ind['Semestre'].isin([1, 2, '1', '2'])]
+        df_ind['Semestre'] = pd.to_numeric(df_ind['Semestre'], errors='coerce').fillna(0).astype(int)
+
+        # Crear columna de periodo (Año-Semestre)
+        df_ind['Periodo'] = df_ind.apply(
+            lambda x: f"{int(x['Año'])}-{int(x['Semestre'])}" if pd.notna(x['Año']) else '',
+            axis=1
+        )
+        df_ind['Periodo_orden'] = df_ind['Año'] * 10 + df_ind['Semestre']
+        df_ind = df_ind.sort_values('Periodo_orden')
+    else:
+        # Anual: filtrar registros sin semestre o semestre vacío
+        if 'Semestre' in df_ind.columns:
+            df_ind = df_ind[df_ind['Semestre'].isna() | (df_ind['Semestre'] == '') | (df_ind['Semestre'] == 0)]
+
+        df_ind['Periodo'] = df_ind['Año'].apply(lambda x: str(int(x)) if pd.notna(x) else '')
+        df_ind['Periodo_orden'] = df_ind['Año']
+        df_ind = df_ind.sort_values('Año')
+
+    return df_ind, periodicidad, sentido, unidad_meta, unidad_ejecucion
 
 
 def filtrar_por_linea(df_unificado, linea):
