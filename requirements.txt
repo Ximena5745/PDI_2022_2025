@@ -1,0 +1,25 @@
+# Dashboard Estratégico POLI - Dependencias
+# Instalar con: pip install -r requirements.txt
+
+# Framework web
+streamlit>=1.30.0
+
+# Procesamiento de datos
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualizaciones
+plotly>=5.18.0
+
+# Lectura de Excel
+openpyxl>=3.1.0
+
+# Integración con IA (Anthropic Claude)
+anthropic>=0.18.0
+
+# Variables de entorno
+python-dotenv>=1.0.0
+
+# Exportación PDF (opcional)
+# fpdf2>=2.7.0
+# reportlab>=4.0.0

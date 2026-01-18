@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+Lib/
+Scripts/
+Include/
+pyvenv.cfg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.vs/
+
+# Environment variables (mantener .env.example)
+.env
+.env.local
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs y temporales
+*.log
+*.tmp
+temp_*
+
+# Cache
+.cache/
+
+# Archivo antiguo de streamlit
+streamlit-app.py
