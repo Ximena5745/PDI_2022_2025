@@ -19,126 +19,152 @@ def crear_grafico_historico(df_indicador, nombre_indicador):
     Returns:
         Figura de Plotly
     """
-    if df_indicador.empty:
+    if df_indicador is None or df_indicador.empty:
         return go.Figure()
 
-    # Asegurar orden por año
-    df = df_indicador.sort_values('Año')
-    años = df['Año'].tolist()
+    try:
+        # Crear copia y limpiar datos
+        df = df_indicador.copy()
 
-    # Crear etiquetas para el eje X (marcar 2021 como línea base)
-    etiquetas_años = []
-    for a in años:
-        if a == 2021:
-            etiquetas_años.append(f"{a}<br>(Línea Base)")
-        else:
-            etiquetas_años.append(str(a))
+        # Verificar columnas necesarias
+        required_cols = ['Año', 'Meta', 'Ejecución']
+        for col in required_cols:
+            if col not in df.columns:
+                return go.Figure()
 
-    fig = go.Figure()
+        # Limpiar valores NaN
+        df = df.dropna(subset=['Año'])
+        df['Meta'] = pd.to_numeric(df['Meta'], errors='coerce').fillna(0)
+        df['Ejecución'] = pd.to_numeric(df['Ejecución'], errors='coerce').fillna(0)
 
-    # Barras de Meta
-    fig.add_trace(go.Bar(
-        name='Meta',
-        x=etiquetas_años,
-        y=df['Meta'].tolist(),
-        marker_color=COLORS['accent'],
-        text=df['Meta'].round(2).tolist(),
-        textposition='outside',
-        textfont=dict(size=10),
-        hovertemplate='<b>Meta %{x}</b><br>Valor: %{y:.2f}<extra></extra>'
-    ))
+        if df.empty:
+            return go.Figure()
 
-    # Barras de Ejecución
-    fig.add_trace(go.Bar(
-        name='Ejecución',
-        x=etiquetas_años,
-        y=df['Ejecución'].tolist(),
-        marker_color=COLORS['primary'],
-        text=df['Ejecución'].round(2).tolist(),
-        textposition='outside',
-        textfont=dict(size=10),
-        hovertemplate='<b>Ejecución %{x}</b><br>Valor: %{y:.2f}<extra></extra>'
-    ))
+        # Asegurar orden por año
+        df = df.sort_values('Año')
 
-    # Calcular cumplimientos
-    cumplimientos = []
-    for _, row in df.iterrows():
-        c = calcular_cumplimiento(row['Meta'], row['Ejecución'])
-        cumplimientos.append(c if c is not None else 0)
+        # Convertir a listas
+        años = [int(a) for a in df['Año'].tolist()]
+        metas = [float(m) for m in df['Meta'].tolist()]
+        ejecuciones = [float(e) for e in df['Ejecución'].tolist()]
 
-    # Línea de Cumplimiento en eje secundario
-    fig.add_trace(go.Scatter(
-        name='% Cumplimiento',
-        x=etiquetas_años,
-        y=cumplimientos,
-        mode='lines+markers+text',
-        line=dict(color=COLORS['secondary'], width=3),
-        marker=dict(size=12, symbol='circle', color=COLORS['secondary']),
-        text=[f"{c:.1f}%" for c in cumplimientos],
-        textposition='top center',
-        textfont=dict(size=11, color=COLORS['primary']),
-        yaxis='y2',
-        hovertemplate='<b>Cumplimiento %{x}</b><br>%{y:.1f}%<extra></extra>'
-    ))
+        # Crear etiquetas para el eje X (marcar 2021 como línea base)
+        etiquetas_años = []
+        for a in años:
+            if a == 2021:
+                etiquetas_años.append(f"{a}<br>(Linea Base)")
+            else:
+                etiquetas_años.append(str(a))
 
-    # Configurar layout
-    max_valor = max(df['Meta'].max(), df['Ejecución'].max()) if not df.empty else 100
+        fig = go.Figure()
 
-    fig.update_layout(
-        title=dict(
-            text=f"<b>Evolución Histórica: {nombre_indicador}</b>",
-            font=dict(size=16, color=COLORS['primary']),
-            x=0.5,
-            xanchor='center'
-        ),
-        xaxis=dict(
-            title="Año",
-            titlefont=dict(size=12, color=COLORS['gray']),
-            tickfont=dict(size=11)
-        ),
-        yaxis=dict(
-            title="Valor (Meta / Ejecución)",
-            titlefont=dict(size=12, color=COLORS['gray']),
-            tickfont=dict(size=11),
-            range=[0, max_valor * 1.3]
-        ),
-        yaxis2=dict(
-            title="% Cumplimiento",
-            titlefont=dict(size=12, color=COLORS['secondary']),
-            tickfont=dict(size=11, color=COLORS['secondary']),
-            overlaying='y',
-            side='right',
-            range=[0, 130],
-            showgrid=False
-        ),
-        barmode='group',
-        bargap=0.2,
-        bargroupgap=0.1,
-        hovermode='x unified',
-        height=500,
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        font=dict(family="Arial, sans-serif"),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="center",
-            x=0.5,
-            bgcolor='rgba(255,255,255,0.8)'
-        ),
-        margin=dict(t=100, b=50, l=60, r=60)
-    )
+        # Barras de Meta
+        fig.add_trace(go.Bar(
+            name='Meta',
+            x=etiquetas_años,
+            y=metas,
+            marker_color=COLORS['accent'],
+            text=[f"{m:.2f}" for m in metas],
+            textposition='outside',
+            textfont=dict(size=10),
+            hovertemplate='<b>Meta %{x}</b><br>Valor: %{y:.2f}<extra></extra>'
+        ))
 
-    # Agregar líneas de referencia para semáforo
-    fig.add_hline(y=90, line_dash="dash", line_color=COLORS['success'],
-                  annotation_text="Meta (90%)", annotation_position="right",
-                  yref='y2', opacity=0.5)
-    fig.add_hline(y=70, line_dash="dash", line_color=COLORS['warning'],
-                  annotation_text="Progreso (70%)", annotation_position="right",
-                  yref='y2', opacity=0.5)
+        # Barras de Ejecución
+        fig.add_trace(go.Bar(
+            name='Ejecucion',
+            x=etiquetas_años,
+            y=ejecuciones,
+            marker_color=COLORS['primary'],
+            text=[f"{e:.2f}" for e in ejecuciones],
+            textposition='outside',
+            textfont=dict(size=10),
+            hovertemplate='<b>Ejecucion %{x}</b><br>Valor: %{y:.2f}<extra></extra>'
+        ))
 
-    return fig
+        # Calcular cumplimientos
+        cumplimientos = []
+        for m, e in zip(metas, ejecuciones):
+            c = calcular_cumplimiento(m, e)
+            cumplimientos.append(float(c) if c is not None else 0.0)
+
+        # Línea de Cumplimiento en eje secundario
+        fig.add_trace(go.Scatter(
+            name='% Cumplimiento',
+            x=etiquetas_años,
+            y=cumplimientos,
+            mode='lines+markers+text',
+            line=dict(color=COLORS['secondary'], width=3),
+            marker=dict(size=12, symbol='circle', color=COLORS['secondary']),
+            text=[f"{c:.1f}%" for c in cumplimientos],
+            textposition='top center',
+            textfont=dict(size=11, color=COLORS['primary']),
+            yaxis='y2',
+            hovertemplate='<b>Cumplimiento %{x}</b><br>%{y:.1f}%<extra></extra>'
+        ))
+
+        # Configurar layout
+        max_meta = max(metas) if metas else 100
+        max_ejec = max(ejecuciones) if ejecuciones else 100
+        max_valor = max(max_meta, max_ejec, 1)
+
+        fig.update_layout(
+            title=dict(
+                text=f"<b>Evolucion Historica: {nombre_indicador}</b>",
+                font=dict(size=16, color=COLORS['primary']),
+                x=0.5,
+                xanchor='center'
+            ),
+            xaxis=dict(
+                title="Ano",
+                titlefont=dict(size=12, color=COLORS['gray']),
+                tickfont=dict(size=11)
+            ),
+            yaxis=dict(
+                title="Valor (Meta / Ejecucion)",
+                titlefont=dict(size=12, color=COLORS['gray']),
+                tickfont=dict(size=11),
+                range=[0, max_valor * 1.3]
+            ),
+            yaxis2=dict(
+                title="% Cumplimiento",
+                titlefont=dict(size=12, color=COLORS['secondary']),
+                tickfont=dict(size=11, color=COLORS['secondary']),
+                overlaying='y',
+                side='right',
+                range=[0, 130],
+                showgrid=False
+            ),
+            barmode='group',
+            bargap=0.2,
+            bargroupgap=0.1,
+            hovermode='x unified',
+            height=500,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            font=dict(family="Arial, sans-serif"),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="center",
+                x=0.5,
+                bgcolor='rgba(255,255,255,0.8)'
+            ),
+            margin=dict(t=100, b=50, l=60, r=60)
+        )
+
+        # Agregar líneas de referencia para semáforo
+        fig.add_hline(y=90, line_dash="dash", line_color=COLORS['success'],
+                      annotation_text="Meta (90%)", annotation_position="right",
+                      yref='y2', opacity=0.5)
+        fig.add_hline(y=70, line_dash="dash", line_color=COLORS['warning'],
+                      annotation_text="Progreso (70%)", annotation_position="right",
+                      yref='y2', opacity=0.5)
+
+        return fig
+    except Exception:
+        return go.Figure()
 
 
 def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégica"):
