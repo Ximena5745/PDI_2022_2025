@@ -171,51 +171,60 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
     # Ordenar por cumplimiento
     df = df.sort_values('Cumplimiento', ascending=True)
 
-    # Asignar colores según semáforo
-    colores = [obtener_color_semaforo(c) for c in df['Cumplimiento']]
+    try:
+        # Asignar colores según semáforo
+        colores = [obtener_color_semaforo(float(c)) for c in df['Cumplimiento']]
 
-    fig = go.Figure()
+        fig = go.Figure()
 
-    fig.add_trace(go.Bar(
-        y=df['Linea'],
-        x=df['Cumplimiento'],
-        orientation='h',
-        marker_color=colores,
-        text=[f"{c:.1f}%" for c in df['Cumplimiento']],
-        textposition='outside',
-        textfont=dict(size=12, color=COLORS['primary']),
-        hovertemplate='<b>%{y}</b><br>Cumplimiento: %{x:.1f}%<extra></extra>'
-    ))
+        # Convertir a listas para evitar problemas con tipos de datos
+        lineas_list = df['Linea'].tolist()
+        cumpl_list = [float(c) for c in df['Cumplimiento'].tolist()]
 
-    fig.update_layout(
-        title=dict(
-            text=f"<b>{titulo}</b>",
-            font=dict(size=16, color=COLORS['primary']),
-            x=0.5,
-            xanchor='center'
-        ),
-        xaxis=dict(
-            title="% Cumplimiento",
-            titlefont=dict(size=12, color=COLORS['gray']),
-            range=[0, 120],
-            ticksuffix='%'
-        ),
-        yaxis=dict(
-            title="",
-            tickfont=dict(size=11)
-        ),
-        height=max(300, len(df) * 50),
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        margin=dict(l=200, r=80, t=60, b=40),
-        showlegend=False
-    )
+        fig.add_trace(go.Bar(
+            y=lineas_list,
+            x=cumpl_list,
+            orientation='h',
+            marker_color=colores,
+            text=[f"{c:.1f}%" for c in cumpl_list],
+            textposition='outside',
+            textfont=dict(size=12, color=COLORS['primary']),
+            hovertemplate='<b>%{y}</b><br>Cumplimiento: %{x:.1f}%<extra></extra>'
+        ))
 
-    # Líneas de referencia
-    fig.add_vline(x=90, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
-    fig.add_vline(x=70, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
+        altura = max(300, len(df) * 50)
 
-    return fig
+        fig.update_layout(
+            title=dict(
+                text=f"<b>{titulo}</b>",
+                font=dict(size=16, color=COLORS['primary']),
+                x=0.5,
+                xanchor='center'
+            ),
+            xaxis=dict(
+                title="% Cumplimiento",
+                titlefont=dict(size=12, color=COLORS['gray']),
+                range=[0, 120],
+                ticksuffix='%'
+            ),
+            yaxis=dict(
+                title="",
+                tickfont=dict(size=11)
+            ),
+            height=altura,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            margin=dict(l=200, r=80, t=60, b=40),
+            showlegend=False
+        )
+
+        # Líneas de referencia
+        fig.add_vline(x=90, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
+        fig.add_vline(x=70, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
+
+        return fig
+    except Exception:
+        return go.Figure()
 
 
 def crear_grafico_semaforo(metas_cumplidas, en_progreso, requieren_atencion):

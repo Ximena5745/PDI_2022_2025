@@ -25,8 +25,14 @@ def get_gemini_model():
                 pass
         if api_key:
             genai.configure(api_key=api_key)
-            # Usar gemini-pro que es el modelo estándar gratuito
-            return genai.GenerativeModel('gemini-pro')
+            # Intentar con diferentes versiones del modelo
+            modelos = ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash']
+            for modelo in modelos:
+                try:
+                    return genai.GenerativeModel(modelo)
+                except Exception:
+                    continue
+            return None
         return None
     except ImportError:
         return None
