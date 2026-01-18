@@ -1,13 +1,56 @@
 """
 Módulo de análisis con IA (Google Gemini - GRATUITO) para el Dashboard Estratégico POLI.
+Soporta análisis pre-generados desde archivo cache para evitar llamadas a la API.
 """
 
 import os
+import json
 import streamlit as st
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
 load_dotenv()
+
+# Cache de análisis pre-generados
+_analisis_cache = None
+
+
+def cargar_cache_analisis():
+    """
+    Carga el cache de análisis pre-generados desde archivo JSON.
+    """
+    global _analisis_cache
+    if _analisis_cache is not None:
+        return _analisis_cache
+
+    try:
+        # Buscar archivo de cache
+        base_path = Path(__file__).parent.parent
+        cache_path = base_path / 'Data' / 'analisis_cache.json'
+
+        if cache_path.exists():
+            with open(cache_path, 'r', encoding='utf-8') as f:
+                _analisis_cache = json.load(f)
+            return _analisis_cache
+    except Exception:
+        pass
+
+    _analisis_cache = {}
+    return _analisis_cache
+
+
+def obtener_analisis_cache(indicador_nombre):
+    """
+    Obtiene el análisis pre-generado de un indicador desde el cache.
+
+    Returns:
+        str o None: El análisis si existe, None si no está en cache.
+    """
+    cache = cargar_cache_analisis()
+    if indicador_nombre in cache:
+        return cache[indicador_nombre].get('analisis', None)
+    return None
 
 
 def get_gemini_model():
@@ -160,11 +203,18 @@ Usa un tono profesional y enfocado en acciones concretas. Escribe en español.""
 def generar_analisis_indicador(nombre_indicador, linea, descripcion, historico_data, sentido="Creciente"):
     """
     Genera análisis detallado para un indicador específico.
+    Primero busca en el cache de análisis pre-generados, si no existe genera con API.
     """
+    # Primero intentar obtener del cache pre-generado
+    analisis_cache = obtener_analisis_cache(nombre_indicador)
+    if analisis_cache:
+        return f"📊 **Análisis del Indicador**\n\n{analisis_cache}"
+
+    # Si no está en cache, generar con API
     historico_texto = "\n".join([
-        f"- {item['año']}{' (Línea Base)' if item['año'] == 2021 else ''}: Meta: {item['meta']:.2f}, Ejecución: {item['ejecucion']:.2f}, Cumplimiento: {item['cumplimiento']:.1f}%"
+        f"- {item['año']}{' (Linea Base)' if item['año'] == 2021 else ''}: Meta: {item['meta']:.2f}, Ejecucion: {item['ejecucion']:.2f}, Cumplimiento: {item['cumplimiento']:.1f}%"
         for item in historico_data
-    ]) if historico_data else "No hay datos históricos disponibles"
+    ]) if historico_data else "No hay datos historicos disponibles"
 
     if historico_data and len(historico_data) >= 2:
         primer_cumpl = historico_data[0]['cumplimiento']
@@ -175,25 +225,25 @@ def generar_analisis_indicador(nombre_indicador, linea, descripcion, historico_d
         tendencia = "no determinada"
         variacion = 0
 
-    prompt = f"""Eres un analista estratégico del Politécnico Grancolombiano. Analiza el siguiente indicador del PDI 2021-2025:
+    prompt = f"""Eres un analista estrategico del Politecnico Grancolombiano. Analiza el siguiente indicador del PDI 2021-2025:
 
 **Indicador:** {nombre_indicador}
-**Línea Estratégica:** {linea}
-**Descripción:** {descripcion if descripcion else 'No disponible'}
+**Linea Estrategica:** {linea}
+**Descripcion:** {descripcion if descripcion else 'No disponible'}
 **Sentido:** {sentido} (el indicador se considera positivo si {'aumenta' if sentido == 'Creciente' else 'disminuye'})
 
-**Histórico de Desempeño:**
+**Historico de Desempeno:**
 {historico_texto}
 
-**Tendencia calculada:** {tendencia} (variación de {variacion:+.1f} puntos porcentuales desde la línea base)
+**Tendencia calculada:** {tendencia} (variacion de {variacion:+.1f} puntos porcentuales desde la linea base)
 
-Genera un ANÁLISIS de máximo 100 palabras que incluya:
-1. Evaluación de la tendencia desde la línea base (2021)
-2. Evolución del cumplimiento año a año
-3. Identificación de brechas significativas entre meta y ejecución
-4. Una recomendación específica y accionable para mejorar el indicador
+Genera un ANALISIS de maximo 100 palabras que incluya:
+1. Evaluacion de la tendencia desde la linea base (2021)
+2. Evolucion del cumplimiento ano a ano
+3. Identificacion de brechas significativas entre meta y ejecucion
+4. Una recomendacion especifica y accionable para mejorar el indicador
 
-Sé conciso, profesional y enfocado en la acción. Escribe en español."""
+Se conciso, profesional y enfocado en la accion. Escribe en espanol."""
 
     return generar_analisis_con_ia(prompt)
 
