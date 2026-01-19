@@ -667,13 +667,21 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
 
             elif nivel == 4:
                 # Nivel 4: Indicador
-                key_meta = f"{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}"
-                id_meta = contador_meta.get(key_meta, "")
+                # Si el indicador no tiene Meta_PDI (N/D), su parent es el Objetivo (nivel 2)
+                # Si tiene Meta_PDI, su parent es el nivel 3
+                if row['Meta_PDI'] == 'N/D' or pd.isna(row['Meta_PDI']):
+                    # Parent es el objetivo
+                    key_obj = f"{row['Linea']}-{row['Objetivo']}"
+                    id_parent = contador_obj.get(key_obj, "")
+                else:
+                    # Parent es la meta PDI
+                    key_meta = f"{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}"
+                    id_parent = contador_meta.get(key_meta, "")
 
                 id_ind = f"L4-{idx}"
                 ind_label = row['Indicador'][:35] + "..." if len(row['Indicador']) > 35 else row['Indicador']
                 labels.append(ind_label)
-                parents.append(id_meta)
+                parents.append(id_parent)
                 # Usar el tono más claro
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
