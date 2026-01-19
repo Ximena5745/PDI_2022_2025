@@ -35,29 +35,49 @@ def normalizar_columnas(df):
     """
     Normaliza los nombres de columnas para manejar tildes y caracteres especiales.
     """
-    # Buscar columnas con tildes y crear alias
-    columnas_normalizadas = {}
+    # Mapeo directo de columnas con problemas de encoding comunes
+    mapeo_directo = {}
     for col in df.columns:
-        # Normalizar removiendo acentos para comparación
-        col_normalizado = unicodedata.normalize('NFKD', str(col)).encode('ASCII', 'ignore').decode('ASCII')
-        col_normalizado = col_normalizado.strip()
+        col_lower = col.lower()
+        # Detectar columnas por patrones conocidos
+        if col_lower in ['año', 'ano', 'a�o', 'aã±o', 'aã\x91o']:
+            mapeo_directo[col] = 'Año'
+        elif col_lower in ['ejecución', 'ejecucion', 'ejecuci�n', 'ejecuciã³n']:
+            mapeo_directo[col] = 'Ejecución'
+        elif col_lower in ['clasificación', 'clasificacion', 'clasificaci�n']:
+            mapeo_directo[col] = 'Clasificación'
+        elif col_lower in ['proyección', 'proyeccion', 'proyecci�n']:
+            mapeo_directo[col] = 'Proyección'
+        elif col_lower in ['característica', 'caracteristica', 'caracter�stica']:
+            mapeo_directo[col] = 'CARACTERÍSTICA'
+        elif col_lower in ['ejecución s', 'ejecucion s', 'ejecuci�n s']:
+            mapeo_directo[col] = 'Ejecución s'
 
-        # Mapear nombres comunes a versiones con tilde para consistencia
-        # col_normalizado ya no tiene tildes (fue normalizado con ASCII)
-        if col_normalizado == 'Ano':
-            columnas_normalizadas[col] = 'Año'
-        elif col_normalizado == 'Ejecucion':
-            columnas_normalizadas[col] = 'Ejecución'
-        elif col_normalizado == 'Clasificacion':
-            columnas_normalizadas[col] = 'Clasificación'
-        elif col_normalizado == 'Proyeccion':
-            columnas_normalizadas[col] = 'Proyección'
-        elif col_normalizado == 'CARACTERISTICA':
-            columnas_normalizadas[col] = 'CARACTERÍSTICA'
+    # Si no se encontraron por comparación directa, intentar normalización Unicode
+    for col in df.columns:
+        if col not in mapeo_directo:
+            try:
+                col_normalizado = unicodedata.normalize('NFKD', str(col)).encode('ASCII', 'ignore').decode('ASCII')
+                col_normalizado = col_normalizado.strip()
 
-    # Renombrar columnas si es necesario
-    if columnas_normalizadas:
-        df = df.rename(columns=columnas_normalizadas)
+                if col_normalizado == 'Ano' and col != 'Año':
+                    mapeo_directo[col] = 'Año'
+                elif col_normalizado == 'Ejecucion' and col != 'Ejecución':
+                    mapeo_directo[col] = 'Ejecución'
+                elif col_normalizado == 'Clasificacion' and col != 'Clasificación':
+                    mapeo_directo[col] = 'Clasificación'
+                elif col_normalizado == 'Proyeccion' and col != 'Proyección':
+                    mapeo_directo[col] = 'Proyección'
+                elif col_normalizado == 'CARACTERISTICA' and col != 'CARACTERÍSTICA':
+                    mapeo_directo[col] = 'CARACTERÍSTICA'
+                elif col_normalizado == 'Ejecucion s' and col != 'Ejecución s':
+                    mapeo_directo[col] = 'Ejecución s'
+            except Exception:
+                pass
+
+    # Renombrar columnas
+    if mapeo_directo:
+        df = df.rename(columns=mapeo_directo)
 
     return df
 
