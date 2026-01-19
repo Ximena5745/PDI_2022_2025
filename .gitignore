@@ -12,6 +12,8 @@ Lib/
 Scripts/
 Include/
 pyvenv.cfg
+etc/
+share/
 
 # IDE
 .idea/
