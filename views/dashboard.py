@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import io
+import re
 
 import sys
 from pathlib import Path
@@ -128,9 +129,13 @@ def mostrar_pagina():
 
             analisis = generar_analisis_general(metricas, lineas_data)
 
+            # Convertir markdown a HTML
+            analisis_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', analisis)
+            analisis_html = analisis_html.replace('\n', '<br>')
+
             st.markdown(f"""
             <div class="ai-analysis">
-                {analisis}
+                {analisis_html}
             </div>
             """, unsafe_allow_html=True)
 

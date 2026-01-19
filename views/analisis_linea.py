@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import re
 
 import sys
 from pathlib import Path
@@ -141,9 +142,13 @@ def mostrar_pagina():
                 objetivos_data=objetivos_data
             )
 
+            # Convertir markdown a HTML
+            analisis_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', analisis)
+            analisis_html = analisis_html.replace('\n', '<br>')
+
             st.markdown(f"""
             <div class="ai-analysis">
-                {analisis}
+                {analisis_html}
             </div>
             """, unsafe_allow_html=True)
 

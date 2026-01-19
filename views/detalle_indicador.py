@@ -8,6 +8,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime
 import io
+import re
 
 import sys
 from pathlib import Path
@@ -264,9 +265,13 @@ def mostrar_pagina():
                 sentido=sentido
             )
 
+            # Convertir markdown a HTML para renderizado correcto
+            analisis_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', analisis)
+            analisis_html = analisis_html.replace('\n', '<br>')
+
             st.markdown(f"""
             <div class="ai-analysis">
-                {analisis}
+                {analisis_html}
             </div>
             """, unsafe_allow_html=True)
 

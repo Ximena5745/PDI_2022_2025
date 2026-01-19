@@ -349,9 +349,22 @@ def obtener_historico_indicador_completo(df_unificado, df_base, indicador_nombre
         df_ind['Periodo_orden'] = df_ind['Año'] * 10 + df_ind['Semestre']
         df_ind = df_ind.sort_values('Periodo_orden')
     else:
-        # Anual: filtrar registros sin semestre o semestre vacío
+        # Anual: agrupar por año si hay múltiples registros
         if 'Semestre' in df_ind.columns:
-            df_ind = df_ind[df_ind['Semestre'].isna() | (df_ind['Semestre'] == '') | (df_ind['Semestre'] == 0)]
+            # Intentar filtrar registros sin semestre
+            df_anual = df_ind[df_ind['Semestre'].isna() | (df_ind['Semestre'] == '') | (df_ind['Semestre'] == 0)]
+            # Si el filtro dejó vacío el dataframe, usar todos los datos agrupados por año
+            if df_anual.empty:
+                df_ind = df_ind.groupby('Año').agg({
+                    'Meta': 'mean',
+                    'Ejecución': 'mean',
+                    'Cumplimiento': 'mean',
+                    'Indicador': 'first',
+                    'Linea': 'first',
+                    'Objetivo': 'first'
+                }).reset_index()
+            else:
+                df_ind = df_anual
 
         df_ind['Periodo'] = df_ind['Año'].apply(lambda x: str(int(x)) if pd.notna(x) else '')
         df_ind['Periodo_orden'] = df_ind['Año']
