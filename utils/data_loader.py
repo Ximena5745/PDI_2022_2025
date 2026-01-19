@@ -22,12 +22,14 @@ COLORS = {
 
 # Colores representativos de cada Línea Estratégica
 COLORES_LINEAS = {
-    "Expansión": "#2c5f8d",
-    "Transformación organizacional": "#1e3a5f",
-    "Calidad": "#4a90c8",
-    "Experiencia": "#5ca3d6",
-    "Sostenibilidad": "#2ecc71",
-    "Educación para toda la vida": "#3498db"
+    "Expansión": "#FBAF17",
+    "Transformación organizacional": "#42F2F2",
+    "Transformación_Organizacional": "#42F2F2",  # Soporte para nombre con guiones bajos
+    "Calidad": "#EC0677",
+    "Experiencia": "#1FB2DE",
+    "Sostenibilidad": "#A6CE38",
+    "Educación para toda la vida": "#0F385A",
+    "Educación_para_toda_la_vida": "#0F385A"  # Soporte para nombre con guiones bajos
 }
 
 # Líneas estratégicas del PDI

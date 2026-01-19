@@ -233,7 +233,8 @@ def mostrar_pagina():
             indicador_seleccionado,
             sentido=sentido,
             unidad=unidad_meta,
-            periodicidad=periodicidad
+            periodicidad=periodicidad,
+            linea_estrategica=linea_seleccionada
         )
         config = {'displayModeBar': True, 'responsive': True}
         st.plotly_chart(fig, use_container_width=True, config=config)

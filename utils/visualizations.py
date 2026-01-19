@@ -9,7 +9,7 @@ import streamlit as st
 from .data_loader import COLORS, COLORES_LINEAS, calcular_cumplimiento, obtener_color_semaforo
 
 
-def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente', unidad='', periodicidad='Anual'):
+def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente', unidad='', periodicidad='Anual', linea_estrategica=None):
     """
     Crea un gráfico de barras agrupadas con Meta vs Ejecución y línea de cumplimiento.
     Soporta datos anuales y semestrales.
@@ -20,6 +20,7 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
         sentido: 'Creciente' o 'Decreciente'
         unidad: Unidad de medida (%, $, ENT, etc.)
         periodicidad: 'Anual' o 'Semestral'
+        linea_estrategica: Nombre de la línea estratégica (opcional)
 
     Returns:
         Figura de Plotly
@@ -86,12 +87,24 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
             else:
                 return f"{v:.2f}"
 
+        # Determinar colores para Meta y Ejecución
+        # Meta usa el color de la línea estratégica (si está disponible)
+        # Ejecución usa un tono más oscuro de la misma paleta
+        if linea_estrategica and linea_estrategica in COLORES_LINEAS:
+            color_meta = COLORES_LINEAS[linea_estrategica]
+            # Crear un color más oscuro para Ejecución
+            color_ejecucion = COLORS['primary']  # Color oscuro de la paleta
+        else:
+            # Colores por defecto si no se especifica línea
+            color_meta = COLORS['accent']
+            color_ejecucion = COLORS['primary']
+
         # Barras de Meta
         fig.add_trace(go.Bar(
             name='Meta',
             x=etiquetas,
             y=metas,
-            marker_color=COLORS['accent'],
+            marker_color=color_meta,
             text=[formatear_valor(m) for m in metas],
             textposition='outside',
             textfont=dict(size=9),
@@ -103,7 +116,7 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
             name='Ejecucion',
             x=etiquetas,
             y=ejecuciones,
-            marker_color=COLORS['primary'],
+            marker_color=color_ejecucion,
             text=[formatear_valor(e) for e in ejecuciones],
             textposition='outside',
             textfont=dict(size=9),
@@ -117,16 +130,19 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
             cumplimientos.append(float(c) if c is not None else 0.0)
 
         # Línea de Cumplimiento en eje secundario
+        # Usar un color distintivo para el cumplimiento (magenta/fucsia)
+        color_cumplimiento = '#E91E63'  # Color distintivo para cumplimiento
+
         fig.add_trace(go.Scatter(
             name='% Cumplimiento',
             x=etiquetas,
             y=cumplimientos,
             mode='lines+markers+text',
-            line=dict(color=COLORS['secondary'], width=3),
-            marker=dict(size=10, symbol='circle', color=COLORS['secondary']),
+            line=dict(color=color_cumplimiento, width=3),
+            marker=dict(size=10, symbol='circle', color=color_cumplimiento),
             text=[f"{c:.1f}%" for c in cumplimientos],
             textposition='top center',
-            textfont=dict(size=9, color=COLORS['primary']),
+            textfont=dict(size=9, color=color_cumplimiento),
             yaxis='y2',
             hovertemplate='<b>Cumplimiento %{x}</b><br>%{y:.1f}%<extra></extra>'
         ))
@@ -166,9 +182,9 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
             yaxis2=dict(
                 title=dict(
                     text="% Cumplimiento",
-                    font=dict(size=12, color=COLORS['secondary'])
+                    font=dict(size=12, color='#E91E63')
                 ),
-                tickfont=dict(size=11, color=COLORS['secondary']),
+                tickfont=dict(size=11, color='#E91E63'),
                 overlaying='y',
                 side='right',
                 range=[0, 150],
@@ -247,6 +263,9 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
         lineas_list = df['Linea'].tolist()
         cumpl_list = [float(c) for c in df['Cumplimiento'].tolist()]
 
+        # Color distintivo para los labels de cumplimiento
+        color_label_cumplimiento = '#E91E63'  # Color distintivo para destacar
+
         fig.add_trace(go.Bar(
             y=lineas_list,
             x=cumpl_list,
@@ -254,7 +273,7 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
             marker_color=colores,
             text=[f"{c:.1f}%" for c in cumpl_list],
             textposition='outside',
-            textfont=dict(size=12, color=COLORS['primary']),
+            textfont=dict(size=12, color=color_label_cumplimiento, weight='bold'),
             hovertemplate='<b>%{y}</b><br>Cumplimiento: %{x:.1f}%<extra></extra>'
         ))
 
