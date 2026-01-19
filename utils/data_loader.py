@@ -20,6 +20,16 @@ COLORS = {
     'white': '#ffffff'
 }
 
+# Colores representativos de cada Línea Estratégica
+COLORES_LINEAS = {
+    "Expansión": "#2c5f8d",
+    "Transformación organizacional": "#1e3a5f",
+    "Calidad": "#4a90c8",
+    "Experiencia": "#5ca3d6",
+    "Sostenibilidad": "#2ecc71",
+    "Educación para toda la vida": "#3498db"
+}
+
 # Líneas estratégicas del PDI
 LINEAS_ESTRATEGICAS = [
     'Calidad',
@@ -345,9 +355,9 @@ def obtener_historico_indicador_completo(df_unificado, df_base, indicador_nombre
         df_ind = df_ind[df_ind['Semestre'].isin([1, 2, '1', '2'])]
         df_ind['Semestre'] = pd.to_numeric(df_ind['Semestre'], errors='coerce').fillna(0).astype(int)
 
-        # Crear columna de periodo (Año-Semestre)
+        # Crear columna de periodo (Año-S#)
         df_ind['Periodo'] = df_ind.apply(
-            lambda x: f"{int(x['Año'])}-{int(x['Semestre'])}" if pd.notna(x['Año']) else '',
+            lambda x: f"{int(x['Año'])}-S{int(x['Semestre'])}" if pd.notna(x['Año']) else '',
             axis=1
         )
         df_ind['Periodo_orden'] = df_ind['Año'] * 10 + df_ind['Semestre']

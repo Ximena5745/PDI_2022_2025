@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import (
-    COLORS, calcular_metricas_generales, obtener_color_semaforo,
+    COLORS, COLORES_LINEAS, calcular_metricas_generales, obtener_color_semaforo,
     filtrar_por_linea, obtener_lista_objetivos, LINEAS_ESTRATEGICAS
 )
 from utils.visualizations import (
@@ -256,12 +256,15 @@ def mostrar_pagina():
         fig_hist.add_hrect(y0=70, y1=90, fillcolor=COLORS['warning'], opacity=0.1, line_width=0)
         fig_hist.add_hrect(y0=0, y1=70, fillcolor=COLORS['danger'], opacity=0.1, line_width=0)
 
+        # Obtener color de la línea seleccionada
+        color_linea = COLORES_LINEAS.get(linea_seleccionada, COLORS['primary'])
+
         fig_hist.add_trace(go.Scatter(
             x=etiquetas,
             y=df_historico['Cumplimiento'],
             mode='lines+markers+text',
-            line=dict(color=COLORS['primary'], width=3),
-            marker=dict(size=12, color=COLORS['primary']),
+            line=dict(color=color_linea, width=3),
+            marker=dict(size=12, color=color_linea),
             text=[f"{c:.1f}%" for c in df_historico['Cumplimiento']],
             textposition='top center',
             hovertemplate='<b>Año %{x}</b><br>Cumplimiento: %{y:.1f}%<extra></extra>'

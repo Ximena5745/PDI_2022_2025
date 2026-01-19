@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 import streamlit as st
-from .data_loader import COLORS, calcular_cumplimiento, obtener_color_semaforo
+from .data_loader import COLORS, COLORES_LINEAS, calcular_cumplimiento, obtener_color_semaforo
 
 
 def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente', unidad='', periodicidad='Anual'):
@@ -68,7 +68,7 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
         # Crear etiquetas para el eje X
         etiquetas = []
         for p in periodos:
-            if p == '2021' or p == '2021-1':
+            if p == '2021' or p == '2021-S1':
                 etiquetas.append(f"{p}<br>(Linea Base)")
             else:
                 etiquetas.append(str(p))
@@ -238,8 +238,8 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
     df = df.sort_values('Cumplimiento', ascending=True)
 
     try:
-        # Asignar colores según semáforo
-        colores = [obtener_color_semaforo(float(c)) for c in df['Cumplimiento']]
+        # Asignar colores según la línea estratégica
+        colores = [COLORES_LINEAS.get(linea, COLORS['primary']) for linea in df['Linea']]
 
         fig = go.Figure()
 
