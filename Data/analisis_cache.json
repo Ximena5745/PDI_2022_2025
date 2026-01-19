@@ -1,1 +1,324 @@
-{}
+{
+  "Total Población": {
+    "analisis": "El indicador \"Total Población\" muestra una tendencia creciente, contraria al sentido positivo (disminución).  Las brechas más significativas se observan en 2025, con incumplimiento en la meta y un aumento considerable. Recomiendo: revisar la metodología de cálculo de la meta, ajustando las proyecciones a la baja o revisando las estrategias de expansión para impactar positivamente en la reducción de este indicador.\n",
+    "linea": "Expansión",
+    "objetivo": "Crecer con compromiso social ",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:54:08"
+  },
+  "Estudiantes Presencial": {
+    "analisis": "**Análisis Indicador Estudiantes Presencial**\n\nLa tendencia del indicador muestra un crecimiento constante, a pesar de ser un indicador positivo que busca disminuir. Se observa un cumplimiento constante de las metas a partir de 2022. La brecha más significativa se encuentra en el cumplimiento de la meta para el 2025. Se recomienda revisar y ajustar las estrategias de expansión para el formato presencial, enfocándose en la retención y la atracción de estudiantes, considerando las preferencias del mercado y la oferta académica.\n",
+    "linea": "Expansión",
+    "objetivo": "Crecer con compromiso social ",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:54:15"
+  },
+  "Estudiantes Virtual": {
+    "analisis": "El indicador \"Estudiantes Virtuales\" presenta una tendencia ascendente, contraria al objetivo de disminución. Se observa una brecha significativa entre la meta (0) y la ejecución, especialmente en los años 2018-2021 y 2025. La expansión se ha traducido en un aumento de estudiantes virtuales.\n\n**Recomendación:** Revisar la estrategia de expansión, implementando medidas para controlar el crecimiento de estudiantes virtuales, como optimizar la capacidad de los programas o diversificar la oferta educativa presencial.\n",
+    "linea": "Expansión",
+    "objetivo": "Crecer con compromiso social ",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:54:22"
+  },
+  "Estudiantes Pregrado": {
+    "analisis": "El indicador de estudiantes de pregrado muestra una tendencia mixta. Inicialmente, las ejecuciones superaban las metas (establecidas en 0) hasta 2021.  A partir de 2022, el cumplimiento de metas fue variable, pero generalmente positivo.  La brecha más significativa se observa en 2025, con un aumento considerable.  Recomendación: Revisar la estrategia de captación y retención de estudiantes, especialmente para el 2025. Analizar las causas del incremento y ajustar las metas futuras para un crecimiento sostenible.\n",
+    "linea": "Expansión",
+    "objetivo": "Crecer con compromiso social ",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:54:29"
+  },
+  "Estudiantes Posgrado": {
+    "analisis": "El indicador \"Estudiantes de Posgrado\" muestra una clara tendencia al alza, superando consistentemente las metas establecidas desde 2022.  La brecha más significativa se observa en 2025, con una ejecución muy superior a la meta.  Recomiendo revisar y ajustar las metas para 2025 y futuros periodos, considerando el crecimiento sostenido.  Además, se debe analizar la capacidad institucional para gestionar el aumento de la demanda y asegurar la calidad educativa.\n",
+    "linea": "Expansión",
+    "objetivo": "Crecer con compromiso social ",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:54:36"
+  },
+  "Disponibilidad de servicios tecnológicos": {
+    "analisis": "El indicador \"Disponibilidad de servicios tecnológicos\" muestra una tendencia general positiva, aunque con fluctuaciones. Si bien el cumplimiento supera la meta en la mayoría de los periodos, se observa una ligera disminución en el último año, especialmente en 2025. La brecha más significativa se presenta en 2025-1, con el cumplimiento más bajo. Recomiendo realizar una revisión exhaustiva de la infraestructura tecnológica y los procesos de gestión de incidentes para identificar y solucionar las posibles causas de esta caída, priorizando la optimización de la disponibilidad de los servicios críticos.\n",
+    "linea": "Transformación_Organizacional",
+    "objetivo": "Asegurar una arquitectura tecnológica institucional, centrada en la experiencia de la comunidad educativa",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:54:42"
+  },
+  "Productos de investigación, innovación y creación": {
+    "analisis": "El indicador muestra una tendencia irregular con picos y valles en la ejecución, a pesar de que el sentido es positivo. Se identifican brechas significativas en 2023-1 y 2024-1, y un incumplimiento total en 2025. La meta de 0 en 2025 es inconsistente. **Recomendación:** Revisar la definición de \"Productos\" y ajustar las metas anuales, estableciendo objetivos realistas y medibles, con una mayor atención al seguimiento trimestral para identificar y corregir desviaciones.\n",
+    "linea": "Calidad",
+    "objetivo": "Asegurar la alta calidad a nivel institucional",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:54:49"
+  },
+  "Lanzamiento de nuevos programas virtual": {
+    "analisis": "El indicador \"Lanzamiento de nuevos programas virtual\" muestra una tendencia ascendente consistente, cumpliendo las metas establecidas en cada periodo. La brecha significativa radica en la ejecución trimestral, donde se observa un cumplimiento del 0% en los periodos 1. Esto sugiere una planificación concentrada en los segundos semestres.\n\n**Recomendación:** Ajustar la planificación de lanzamientos para distribuir las metas trimestralmente, evitando la concentración en un solo periodo y permitiendo una expansión más constante y sostenible.\n",
+    "linea": "Expansión",
+    "objetivo": "Crecer con compromiso social ",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:54:56"
+  },
+  "Nivel de Satisfacción Servicios Prestados - Comunicaciones Internas": {
+    "analisis": "El indicador de satisfacción de comunicaciones internas muestra una **tendencia negativa**, con un aumento sostenido en la ejecución y cumplimiento, a pesar de que el sentido del indicador es positivo (debería disminuir).  Se observa una **brecha significativa** entre la meta (80.00) y la ejecución, especialmente en el último periodo (94.00).  \n\n**Recomendación:** Realizar una investigación cualitativa (encuestas, entrevistas) para identificar las causas del aumento en la insatisfacción y diseñar un plan de mejora específico para abordar las problemáticas detectadas.\n",
+    "linea": "Transformación_Organizacional",
+    "objetivo": "Contar con un equipo humano feliz y apasionado, que trabaja de forma colaborativa para alcanzar las metas institucionales",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:55:03"
+  },
+  "Estudiantes vinculados a investigación": {
+    "analisis": "El indicador de estudiantes vinculados a investigación muestra una tendencia inestable, con un desempeño fluctuante. Si bien se logró un buen cumplimiento en 2022 y 2025, se observan brechas significativas en 2023 y 2024, superando consistentemente las metas establecidas, especialmente en los semestres 2.  Se recomienda **revisar y ajustar las metas propuestas para este indicador, buscando una mayor precisión en la planificación y una gestión más efectiva de los recursos de investigación para lograr un desempeño más consistente y alineado con los objetivos de calidad institucional.**\n",
+    "linea": "Calidad",
+    "objetivo": "Asegurar la alta calidad a nivel institucional",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:55:10"
+  },
+  "Porcentaje de cumplimiento del Acuerdo de Nivel de Servicio (ANS)": {
+    "analisis": "El indicador de cumplimiento del ANS muestra una tendencia generalmente positiva, superando las metas establecidas en la mayoría de los periodos. Si bien el 2023 presentó un ligero retroceso, se recuperó en 2024 y 2025. La brecha más notable se observa en 2023, sugiriendo desafíos en la eficiencia de los servicios.\n\n**Recomendación:** Revisar y optimizar los procesos internos que afectan el cumplimiento del ANS, especialmente aquellos identificados como problemáticos en 2023, para asegurar la consistencia y mejora continua de la experiencia estudiantil.\n",
+    "linea": "Experiencia",
+    "objetivo": "Garantizar una experiencia significativa y de valor agregado a la comunidad POLI",
+    "sentido": "Creciente",
+    "fecha_generacion": "2026-01-18 21:55:17"
+  },
+  "Índice de satisfacción del estudiante (SSI)": {
+    "analisis": "El Índice de Satisfacción del Estudiante (SSI) muestra una tendencia desfavorable, consistentemente superior a la meta establecida (el indicador es positivo si disminuye), indicando una insatisfacción creciente. Las brechas más significativas se observan en 2024 y 2025.\n\n**Recomendación:** Implementar un programa de mejora continua focalizado en la experiencia estudiantil, priorizando la retroalimentación de los estudiantes y la optimización de los servicios académicos y administrativos para reducir el SSI y acercarlo a las metas establecidas.\n",
+    "linea": "Experiencia",
+    "objetivo": "Garantizar una experiencia significativa y de valor agregado a la comunidad POLI",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:55:24"
+  },
+  "Nivel de efectividad de las capacitaciones": {
+    "analisis": "El indicador de efectividad de las capacitaciones muestra una preocupante tendencia ascendente, contrario al objetivo de disminuirlo. Existe una brecha significativa entre la ejecución y la meta en 2023, con un cumplimiento del 0%. Si bien en 2024 y 2025 se supera la meta, esto no es positivo dado el sentido del indicador.\n\n**Recomendación:** Revisar la metodología de evaluación de la efectividad de las capacitaciones para asegurar que mida adecuadamente el impacto en el equipo humano. Implementar un plan de mejora basado en los resultados de esta revisión.\n",
+    "linea": "Transformación_Organizacional",
+    "objetivo": "Contar con un equipo humano feliz y apasionado, que trabaja de forma colaborativa para alcanzar las metas institucionales",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:55:30"
+  },
+  "Great Place to Work": {
+    "analisis": "El indicador \"Great Place to Work\" muestra una tendencia positiva, con un aumento en el desempeño a partir de 2023.  Las brechas más significativas se observan en el periodo previo a 2023, donde no se cumplía ninguna meta. El cumplimiento del 117.9% en 2025 es un logro destacado.\n\n**Recomendación:**  Continuar con las estrategias implementadas a partir de 2023, enfocándose en la consolidación de las buenas prácticas que mejoraron el clima laboral.  Evaluar la posibilidad de establecer metas más ambiciosas.\n",
+    "linea": "Transformación_Organizacional",
+    "objetivo": "Contar con un equipo humano feliz y apasionado, que trabaja de forma colaborativa para alcanzar las metas institucionales",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:55:37"
+  },
+  "Cumplimiento de Ingresos": {
+    "analisis": "El indicador de Cumplimiento de Ingresos muestra una tendencia constante de sobrepasar las metas establecidas, lo cual, dado su sentido (positivo si disminuye), indica una gestión deficiente en la optimización de recursos.  La brecha más significativa se observa en 2025-1, con un cumplimiento del 111.8%.  Recomiendo revisar y ajustar las metas financieras para 2026, basándose en un análisis detallado de los factores que impulsan el exceso de ejecución, y así lograr una gestión más precisa y eficiente de los ingresos.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Promover una cultura de optimización de recursos financieros como apalancador de la estrategia",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:55:44"
+  },
+  "Caja": {
+    "analisis": "El indicador \"Caja\" muestra una clara tendencia negativa, con un aumento constante en la ejecución superando las metas establecidas. Las brechas son significativas, especialmente en 2025, donde se esperaba una \"Caja\" en cero, pero se ejecutó un valor considerable. La causa raíz podría ser una gestión financiera ineficiente.\n\n**Recomendación:** Implementar un plan de optimización de gastos, priorizando inversiones estratégicas y revisando la política de caja para mejorar la planificación financiera, controlando y reduciendo el flujo de caja negativo.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Promover una cultura de optimización de recursos financieros como apalancador de la estrategia",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:55:51"
+  },
+  "Utilidad Neta": {
+    "analisis": "El indicador de Utilidad Neta muestra una tendencia negativa, con ejecuciones sistemáticamente superiores a las metas, indicando una falta de optimización financiera. Las brechas son significativas, especialmente en 2023 y 2024. Se recomienda implementar un análisis detallado de costos y gastos, identificando áreas de mejora. Además, establecer metas de utilidad neta realistas y medibles por departamento, monitoreando el desempeño trimestralmente.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Promover una cultura de optimización de recursos financieros como apalancador de la estrategia",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:55:58"
+  },
+  "Nivel de Cumplimiento Opex": {
+    "analisis": "El indicador \"Nivel de Cumplimiento Opex\" muestra una tendencia desfavorable, con un cumplimiento sistemáticamente superior al 100% en 2023 y 2024, y un aumento significativo en 2025-1. La brecha más preocupante se observa en 2025, donde la ejecución supera ampliamente la meta. Se recomienda implementar un análisis detallado de los gastos operativos, identificando áreas de ineficiencia y estableciendo medidas de control presupuestario más estrictas para el periodo restante de 2025 y los años siguientes, con el objetivo de optimizar el uso de recursos.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Promover una cultura de optimización de recursos financieros como apalancador de la estrategia",
+    "sentido": "Negativo",
+    "fecha_generacion": "2026-01-18 21:56:05"
+  },
+  "Compensación de Gases de Efecto Invernadero": {
+    "analisis": "El indicador de Compensación de Gases de Efecto Invernadero muestra una tendencia errática, con un cumplimiento variable y, en general, un desempeño que no refleja una disminución constante.  Se identifican brechas significativas en 2022 y 2024-2, indicando incumplimiento de metas.\n\n**Recomendación:** Revisar la metodología de cálculo y las estrategias de mitigación para asegurar una reducción consistente.  Establecer metas realistas y medibles, y monitorear trimestralmente el avance para corregir desviaciones.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Contribuir a la inclusión, la proyección social y el cuidado del medio ambiente",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:56:12"
+  },
+  "GreenMetric - Nacional": {
+    "analisis": "El indicador GreenMetric Nacional muestra una tendencia favorable, con una disminución gradual y sostenida en el puntaje, indicando progreso en sostenibilidad.  Aunque el cumplimiento de metas es alto, no se evidencian brechas significativas, sin embargo, el indicador permanece estancado en 25 desde 2024.  Para optimizar el desempeño, se recomienda revisar y actualizar las iniciativas de sostenibilidad, priorizando aquellas que impulsen mejoras medibles y significativas en el puntaje GreenMetric, así como buscar nuevas oportunidades de innovación en esta área.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Contribuir a la inclusión, la proyección social y el cuidado del medio ambiente",
+    "sentido": "Negativo",
+    "fecha_generacion": "2026-01-18 21:56:18"
+  },
+  "Permanencia Intersemestral": {
+    "analisis": "**Análisis del Indicador de Permanencia Intersemestral**\n\nLa tendencia del indicador es mixta. Aunque se observa una mejora general, el cumplimiento se ha mantenido en niveles superiores a la meta, pero con una ligera fluctuación y un aumento en 2025. La principal brecha reside en el aumento de la ejecución en el 2025. Se recomienda realizar un análisis de las causas de este incremento, especialmente en el último periodo, para identificar factores que impactan negativamente la permanencia. Ajustar las estrategias de retención, enfocándose en el acompañamiento estudiantil y la adaptación de los programas académicos.\n",
+    "linea": "Experiencia",
+    "objetivo": "Garantizar una experiencia significativa y de valor agregado a la comunidad POLI",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:56:25"
+  },
+  "Total Matriculados antiguos": {
+    "analisis": "**Análisis del Indicador \"Total Matriculados Antiguos\"**\n\nLa tendencia es mayormente positiva, con un crecimiento constante en el número de matriculados antiguos, superando las metas establecidas desde 2022. La brecha más significativa se observa en el cumplimiento del 2023, aunque por poco, debido a una ligera disminución en la ejecución en comparación con la meta.\n\n**Recomendación:** Mantener y fortalecer las estrategias de retención estudiantil, enfocándose en el seguimiento y apoyo a los estudiantes antiguos para asegurar la continuidad y sostenibilidad del crecimiento.\n",
+    "linea": "Expansión",
+    "objetivo": "Crecer con compromiso social ",
+    "sentido": "Creciente",
+    "fecha_generacion": "2026-01-18 21:56:32"
+  },
+  "Relación Estudiante-Docente Tiempo completo": {
+    "analisis": "El indicador de Relación Estudiante-Docente Tiempo Completo muestra una tendencia desfavorable, superando consistentemente las metas establecidas, especialmente en 2024. Se identifican brechas significativas entre la meta y la ejecución, sugiriendo una necesidad urgente de optimizar la asignación de recursos docentes. Para mejorar la calidad, se recomienda implementar un plan estratégico de contratación de docentes de tiempo completo, priorizando áreas con mayor demanda estudiantil, para acercarse a la meta de 75.00 a corto plazo.\n",
+    "linea": "Calidad",
+    "objetivo": "Asegurar la alta calidad a nivel institucional",
+    "sentido": "Negativo",
+    "fecha_generacion": "2026-01-18 21:56:39"
+  },
+  "Relación estudiante docente Tiempo Completo Equivalente": {
+    "analisis": "El indicador muestra una tendencia positiva constante, con una disminución sostenida en la relación estudiante-docente T.C.E., superando las metas propuestas. La brecha más significativa se observa entre la meta y la ejecución en 2023, aunque el cumplimiento fue alto. Se recomienda continuar con la estrategia actual de contratación de docentes de tiempo completo y optimización de la carga académica para mantener la tendencia descendente y asegurar la calidad educativa.\n",
+    "linea": "Calidad",
+    "objetivo": "Asegurar la alta calidad a nivel institucional",
+    "sentido": "Negativo",
+    "fecha_generacion": "2026-01-18 21:56:46"
+  },
+  "Número de renovaciones de registro calificado": {
+    "analisis": "El indicador muestra un desempeño consistente en la renovación de registros calificados, con cumplimiento del 100% hasta 2024-1. La brecha significativa se presenta en 2024-2 con un incumplimiento del 100%, posiblemente por factores externos. La tendencia general es positiva, aunque con variaciones.\n\n**Recomendación:** Investigar las causas del incumplimiento en 2024-2, priorizando el análisis de los registros en ese periodo, y ajustar las estrategias para asegurar el cumplimiento de las metas restantes, especialmente en 2025.\n",
+    "linea": "Calidad",
+    "objetivo": "Fortalecer la oferta educativa y la innovación curricular",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:56:53"
+  },
+  "Número de programas nuevos con registro calificado aprobado": {
+    "analisis": "El indicador muestra una tendencia irregular, con un cumplimiento variable a lo largo del periodo. Si bien se logró el 100% de cumplimiento en muchos periodos, el incumplimiento del 100% en el segundo semestre de 2023 es una brecha significativa. Recomiendo realizar un análisis de las causas de este incumplimiento, incluyendo demoras en los procesos de registro calificado y evaluar la capacidad de gestión de la oferta educativa, para implementar mejoras en la planificación y ejecución de la estrategia de calidad.\n",
+    "linea": "Calidad",
+    "objetivo": "Fortalecer la oferta educativa y la innovación curricular",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:56:59"
+  },
+  "Nivel de empleabilidad del graduado": {
+    "analisis": "El indicador de empleabilidad de graduados muestra una tendencia desfavorable constante, con un cumplimiento del 0.0% en todos los periodos. La ejecución se mantiene en un alto nivel (81-82), indicando una baja empleabilidad. La brecha es significativa y persistente, comprometiendo la sostenibilidad y el objetivo de proyección social.\n\n**Recomendación:** Realizar una investigación exhaustiva sobre las necesidades del mercado laboral y ajustar los planes de estudio y programas de apoyo a la empleabilidad para mejorar las habilidades de los graduados.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Contribuir a la inclusión, la proyección social y el cuidado del medio ambiente",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:57:06"
+  },
+  "Índice de rotación": {
+    "analisis": "El índice de rotación muestra una tendencia irregular.  En 2022 el cumplimiento fue desfavorable, superando la meta. En 2023 y 2024 se observan mejoras, con cumplimiento variables.  La mayor brecha se presenta en 2025, evidenciando desafíos. Para mejorar, recomiendo implementar encuestas de satisfacción laboral trimestrales y análisis de causas de salida, enfocando acciones en retención del talento y mejora del ambiente laboral.\n",
+    "linea": "Transformación_Organizacional",
+    "objetivo": "Contar con un equipo humano feliz y apasionado, que trabaja de forma colaborativa para alcanzar las metas institucionales",
+    "sentido": "Negativo",
+    "fecha_generacion": "2026-01-18 21:57:13"
+  },
+  "Resultado de la evaluación 360 (evaluación por competencias)": {
+    "analisis": "El indicador de evaluación 360 muestra una tendencia negativa, con un ligero incremento en el resultado a lo largo del tiempo.  Aunque se cumplen las metas, el aumento constante indica una posible disminución en la percepción de competencias o un crecimiento no deseado.  No se identifican brechas significativas, pero la tendencia requiere atención.\n\n**Recomendación:** Revisar la metodología de evaluación 360, incluyendo la definición de competencias y el proceso de feedback, para asegurar su efectividad y alineación con los objetivos de la transformación organizacional.  Monitorear trimestralmente la evolución del indicador.\n",
+    "linea": "Transformación_Organizacional",
+    "objetivo": "Contar con un equipo humano feliz y apasionado, que trabaja de forma colaborativa para alcanzar las metas institucionales",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:57:20"
+  },
+  "Cumplimiento de diagnóstico necesidades de capacitación por área": {
+    "analisis": "El indicador muestra una tendencia positiva general, aunque con fluctuaciones.  El cumplimiento fue excelente en 2023, pero se estabilizó en 98.7% en 2024 y 2025. La brecha más notable es la diferencia entre la ejecución y la meta en 2023, superando ampliamente la meta.  Recomiendo revisar la metodología de diagnóstico y priorización de necesidades de capacitación para asegurar que se ajusten a las necesidades reales y optimizar la asignación de recursos, buscando mantener o mejorar el nivel de cumplimiento.\n",
+    "linea": "Transformación_Organizacional",
+    "objetivo": "Contar con un equipo humano feliz y apasionado, que trabaja de forma colaborativa para alcanzar las metas institucionales",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:57:27"
+  },
+  "% Programas acreditables acreditados Sede Bogotá": {
+    "analisis": "El indicador \"% Programas acreditables acreditados Sede Bogotá\" muestra una tendencia positiva, superando la meta en 2024 y 2025. Aunque se observaron brechas en 2022 y 2023, la ejecución mejoró significativamente. La brecha más notable fue en 2023.\n\n**Recomendación:**  Implementar un análisis de las razones del desempeño inferior en 2022 y 2023 para replicar las estrategias exitosas de 2024 y 2025 y asegurar la sostenibilidad del crecimiento.\n",
+    "linea": "Calidad",
+    "objetivo": "Asegurar la alta calidad a nivel institucional",
+    "sentido": "Creciente",
+    "fecha_generacion": "2026-01-18 21:57:34"
+  },
+  "Índice de Inclusión": {
+    "analisis": "El Índice de Inclusión demuestra una tendencia positiva y consistente, superando las metas establecidas.  El cumplimiento en 2021 (0%) presenta una brecha inicial considerable, superada satisfactoriamente en los años posteriores.  La proyección social y el cumplimiento de la meta de 2025-2 (103.9%) son indicadores de éxito.  **Recomendación:**  Documentar y analizar las estrategias que impulsaron el crecimiento a partir de 2021 para replicarlas y fortalecer la inclusión en futuros periodos, con foco en la mejora continua.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Contribuir a la inclusión, la proyección social y el cuidado del medio ambiente",
+    "sentido": "Creciente",
+    "fecha_generacion": "2026-01-18 21:57:41"
+  },
+  "Impacto de actividades de Responsabilidad y proyección": {
+    "analisis": "El indicador de Impacto de Actividades de Responsabilidad y Proyección muestra una tendencia negativa, con un aumento significativo en la ejecución, especialmente en 2025. Se observa una brecha crítica entre la meta y la ejecución, sugiriendo un desvío considerable de los objetivos de sostenibilidad.\n\n**Recomendación:** Revisar y ajustar urgentemente las estrategias y actividades para 2025, enfocándose en la optimización de recursos y la focalización de proyectos para lograr un impacto real y medible, alineado con las metas establecidas.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Contribuir a la inclusión, la proyección social y el cuidado del medio ambiente",
+    "sentido": "Negativo",
+    "fecha_generacion": "2026-01-18 21:57:47"
+  },
+  "% Estudiantes con Becas": {
+    "analisis": "El indicador \"% Estudiantes con Becas\" muestra una tendencia positiva inicial, superando las metas en 2022 y 2023. Sin embargo, en 2024 se observa una ligera caída, aunque se recupera en 2025. La principal brecha se encuentra en el descenso de 2024, que podría indicar una menor captación de becas.\n\n**Recomendación:** Implementar una campaña de comunicación proactiva que promueva activamente las becas disponibles, enfocándose en los beneficios para los estudiantes y los plazos de solicitud, para asegurar el cumplimiento de las metas y fortalecer la sostenibilidad institucional.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Contribuir a la inclusión, la proyección social y el cuidado del medio ambiente",
+    "sentido": "Creciente",
+    "fecha_generacion": "2026-01-18 21:57:55"
+  },
+  "Participación de POLI- voluntariados (Estudiantes- Colaboradores)": {
+    "analisis": "El indicador muestra una mejora en la participación de voluntariados, con una tendencia general de reducción, aunque el sentido es positivo si disminuye. La brecha más significativa se observa en 2023, donde no se cumplió la meta. Para cerrar esta brecha y mantener la tendencia positiva, se recomienda **implementar un programa de incentivos para estudiantes y colaboradores, reconociendo y premiando su participación en voluntariados, especialmente en el primer semestre de cada año.** Esto impulsará la participación y acercará al objetivo.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Contribuir a la inclusión, la proyección social y el cuidado del medio ambiente",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:58:02"
+  },
+  "Cumplimiento EBITDA": {
+    "analisis": "El indicador de Cumplimiento EBITDA muestra una tendencia positiva, superando consistentemente las metas establecidas, especialmente en 2022. No se observan brechas significativas, ya que el cumplimiento siempre fue superior al 100%, incluso en el último periodo. Para mantener esta trayectoria, se recomienda **revisar y ajustar las metas financieras para 2026, considerando el desempeño histórico y las proyecciones de crecimiento, a fin de establecer objetivos más desafiantes y motivadores.**\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Promover una cultura de optimización de recursos financieros como apalancador de la estrategia",
+    "sentido": "Creciente",
+    "fecha_generacion": "2026-01-18 21:58:08"
+  },
+  "CAPEX": {
+    "analisis": "El indicador CAPEX muestra una tendencia errática e inestable en el periodo analizado. En 2023 se cumplió parcialmente la meta, pero en 2024 se superó, indicando una inversión mayor a la planeada. En 2025, la ejecución desbordó la meta establecida en cero.\n\n**Brecha:** La principal brecha radica en la falta de control y previsión presupuestaria, especialmente en 2025.\n\n**Recomendación:** Revisar y ajustar el presupuesto CAPEX, estableciendo metas realistas y monitoreando constantemente la ejecución, para asegurar la optimización de recursos y el cumplimiento de los objetivos de sostenibilidad.\n",
+    "linea": "Sostenibilidad",
+    "objetivo": "Promover una cultura de optimización de recursos financieros como apalancador de la estrategia",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:58:15"
+  },
+  "Total estudiantes nuevos": {
+    "analisis": "El indicador \"Total estudiantes nuevos\" muestra una tendencia mixta. Inicialmente, las ejecuciones superaban las metas (0.00), luego se fijaron metas y se superaron consistentemente, con excepción de 2024.  La brecha más significativa se observa en 2025, donde la meta es 0, y la ejecución es alta. Para 2026, se recomienda establecer metas realistas y ambiciosas, basadas en un análisis de mercado y capacidad institucional, para asegurar un crecimiento sostenido y compromiso social.\n",
+    "linea": "Expansión",
+    "objetivo": "Crecer con compromiso social ",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:58:22"
+  },
+  "Ingresos totales de educación para la vida": {
+    "analisis": "El indicador de ingresos totales de educación para la vida muestra una tendencia variable. Inicia con buen cumplimiento en 2022, supera las metas en 2023, y luego disminuye en 2024, con un cumplimiento variable. La brecha más significativa se presenta en 2025, donde la meta es cero y la ejecución es alta, lo cual es inaceptable. **Recomendación:** Revisar la definición de la meta para 2025 y ajustar la estrategia de captación de ingresos para educación continua, asegurando un objetivo realista y medible.\n",
+    "linea": "Educación_para_toda_la_vida",
+    "objetivo": "Impulsar y potenciar la educación continua",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:58:29"
+  },
+  "Total Ingresos B2B": {
+    "analisis": "El indicador de Ingresos B2B muestra una tendencia desfavorable, con un incremento constante en los ingresos, lejos de la meta establecida. La brecha es significativa, con un cumplimiento del 0.0% en todos los periodos.\n\n**Recomendación:** Se requiere una revisión urgente de la estrategia de Educación Continua B2B. Implementar una estrategia que se enfoque en la reducción de ingresos B2B, como la optimización de costos y la renegociación de contratos.\n",
+    "linea": "Educación_para_toda_la_vida",
+    "objetivo": "Impulsar y potenciar la educación continua",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:58:35"
+  },
+  "Total Ingresos B2G": {
+    "analisis": "El indicador \"Total Ingresos B2G\" muestra un desempeño consistentemente negativo. La ejecución siempre supera la meta de 0.00, con un cumplimiento del 0.0% en todos los periodos. La tendencia es variable sin una clara dirección, oscilando entre 4.000 y 10.000.  La brecha es significativa, indicando una falta de estrategia para generar ingresos B2G o una mala gestión de los mismos.\n\n**Recomendación:** Revisar y replantear la estrategia de captación de ingresos B2G, identificando las causas de la brecha y estableciendo metas realistas y medibles.\n",
+    "linea": "Educación_para_toda_la_vida",
+    "objetivo": "Impulsar y potenciar la educación continua",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:58:43"
+  },
+  "Otros ingresos (Cursos -Opciones de grado)": {
+    "analisis": "El indicador \"Otros ingresos (Cursos - Opciones de grado)\" muestra una tendencia negativa y preocupante. La ejecución ha aumentado consistentemente desde 2022, sin alcanzar la meta establecida de 0.00. La brecha es significativa, con un cumplimiento del 0.0% en todos los periodos. Se recomienda **revisar y optimizar la oferta de cursos y opciones de grado para aumentar la captación de estudiantes y, por ende, reducir este indicador.** Esto implica un análisis de mercado, ajuste de precios y estrategias de promoción efectivas.\n",
+    "linea": "Educación_para_toda_la_vida",
+    "objetivo": "Impulsar y potenciar la educación continua",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:58:50"
+  },
+  "Brand equity": {
+    "analisis": "El Brand Equity del Politécnico Grancolombiano muestra una tendencia variable. Inicialmente, el desempeño fue consistente en 2022 y 2023, superando las metas con mejoras en el indicador. Sin embargo, en 2024 y 2025 se observa un deterioro significativo, incumpliendo las metas y sugiriendo una disminución en el valor de la marca. La brecha más preocupante se encuentra en 2024 y 2025. Recomiendo realizar una auditoría de marca para identificar las causas de este retroceso y ajustar la estrategia de expansión.\n",
+    "linea": "Expansión",
+    "objetivo": "Crecer con compromiso social ",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:58:57"
+  },
+  "Conocimiento espontaneo": {
+    "analisis": "**Análisis Indicador Conocimiento Espontáneo**\n\nEl indicador muestra una tendencia *negativa* en el periodo analizado, evidenciando un deterioro en el conocimiento espontáneo.  Se identifican brechas significativas a partir de 2024, con ejecuciones superiores a la meta, indicando un desempeño inferior al deseado.  Es crucial **revisar y fortalecer las estrategias de comunicación y posicionamiento de la institución**.  Se recomienda implementar una encuesta de percepción para identificar las causas de la disminución, y así ajustar las acciones de expansión para mejorar el conocimiento espontáneo.\n",
+    "linea": "Expansión",
+    "objetivo": "Crecer con compromiso social ",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:59:04"
+  },
+  "% de profesores (Contrato Indefinido- Fijo) impactados plan de desarrollo docente": {
+    "analisis": "El indicador muestra un desempeño errático y preocupante. La ejecución sistemáticamente supera las metas, lo cual, dado su sentido (negativo), indica una baja efectividad en el impacto del plan de desarrollo docente sobre profesores con contrato indefinido. Las brechas son significativas, evidenciando una falta de alineación entre la planificación y la realidad. **Recomendación:** Revisar y ajustar el plan de desarrollo docente, priorizando la focalización y el seguimiento de la capacitación en los profesores con contrato indefinido para lograr un impacto real y medible.\n",
+    "linea": "Calidad",
+    "objetivo": "Fortalecer la oferta educativa y la innovación curricular",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:59:11"
+  },
+  "NPS Estudiantes": {
+    "analisis": "El NPS Estudiantes muestra una tendencia creciente, contraria al sentido positivo del indicador.  Si bien el cumplimiento de las metas ha sido constante, la ejecución siempre supera la meta, indicando una insatisfacción estudiantil persistente.  La brecha más significativa se observa en la ejecución, que consistentemente supera la meta establecida.  Recomendación: realizar encuestas de seguimiento cualitativas para identificar las causas raíz de la insatisfacción y diseñar un plan de acción específico para abordar las áreas problemáticas.\n",
+    "linea": "Experiencia",
+    "objetivo": "Garantizar una experiencia significativa y de valor agregado a la comunidad POLI",
+    "sentido": "Positivo",
+    "fecha_generacion": "2026-01-18 21:59:18"
+  }
+}

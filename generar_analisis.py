@@ -15,8 +15,8 @@ from dotenv import load_dotenv
 # Cargar variables de entorno
 load_dotenv()
 
-# Configurar API de Gemini
-import google.generativeai as genai
+# Configurar API de Gemini (nuevo paquete google.genai)
+from google import genai
 
 api_key = os.environ.get("GOOGLE_API_KEY")
 if not api_key:
@@ -24,22 +24,39 @@ if not api_key:
     print("Crea un archivo .env con: GOOGLE_API_KEY=tu_api_key")
     exit(1)
 
-genai.configure(api_key=api_key)
+# Crear cliente de Gemini
+client = genai.Client(api_key=api_key)
 
-# Intentar obtener modelo
-modelos = ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash']
-model = None
-for m in modelos:
-    try:
-        model = genai.GenerativeModel(m)
-        print(f"Usando modelo: {m}")
-        break
-    except Exception:
-        continue
+# Listar modelos disponibles y elegir uno
+print("Buscando modelos disponibles...")
+modelos_preferidos = ['gemini-2.0-flash-lite', 'gemini-1.5-flash-8b', 'gemini-1.5-flash', 'gemini-2.0-flash']
+modelo_nombre = None
 
-if model is None:
-    print("ERROR: No se pudo conectar a ningun modelo de Gemini")
+try:
+    modelos_disponibles = [m.name for m in client.models.list()]
+    print(f"Modelos disponibles: {len(modelos_disponibles)}")
+
+    for m in modelos_preferidos:
+        nombre_completo = f"models/{m}"
+        if nombre_completo in modelos_disponibles:
+            modelo_nombre = nombre_completo
+            break
+
+    if not modelo_nombre and modelos_disponibles:
+        # Usar el primer modelo flash disponible
+        for m in modelos_disponibles:
+            if 'flash' in m.lower():
+                modelo_nombre = m
+                break
+except Exception as e:
+    print(f"Error listando modelos: {e}")
+    modelo_nombre = 'models/gemini-2.0-flash-lite'
+
+if not modelo_nombre:
+    print("ERROR: No se encontro ningun modelo disponible")
     exit(1)
+
+print(f"Usando modelo: {modelo_nombre}")
 
 # Cargar datos
 import pandas as pd
@@ -126,9 +143,10 @@ def obtener_historico(df, indicador):
 def generar_analisis(prompt):
     """Genera analisis usando Gemini."""
     try:
-        response = model.generate_content(
-            prompt,
-            generation_config={
+        response = client.models.generate_content(
+            model=modelo_nombre,
+            contents=prompt,
+            config={
                 'max_output_tokens': 500,
                 'temperature': 0.7
             }
@@ -200,8 +218,8 @@ def main():
             with open(cache_path, 'w', encoding='utf-8') as f:
                 json.dump(cache, f, ensure_ascii=False, indent=2)
 
-        # Esperar entre llamadas para evitar limite de cuota
-        time.sleep(2)
+        # Esperar entre llamadas para evitar limite de cuota (5 seg para tier gratuito)
+        time.sleep(5)
 
     print("="*50)
     print(f"Completado: {generados} generados, {errores} errores")

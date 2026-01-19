@@ -53,13 +53,13 @@ def obtener_analisis_cache(indicador_nombre):
     return None
 
 
-def get_gemini_model():
+def get_gemini_client():
     """
-    Obtiene el modelo de Google Gemini si está disponible.
+    Obtiene el cliente de Google Gemini si está disponible.
     Gemini tiene un tier GRATUITO generoso (60 consultas/minuto).
     """
     try:
-        import google.generativeai as genai
+        from google import genai
         api_key = os.environ.get("GOOGLE_API_KEY")
         if not api_key:
             try:
@@ -67,15 +67,7 @@ def get_gemini_model():
             except Exception:
                 pass
         if api_key:
-            genai.configure(api_key=api_key)
-            # Intentar con diferentes versiones del modelo
-            modelos = ['gemini-2.0-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-flash']
-            for modelo in modelos:
-                try:
-                    return genai.GenerativeModel(modelo)
-                except Exception:
-                    continue
-            return None
+            return genai.Client(api_key=api_key)
         return None
     except ImportError:
         return None
@@ -94,15 +86,16 @@ def generar_analisis_con_ia(prompt, max_tokens=1000):
     Returns:
         str: Texto del análisis o mensaje de error
     """
-    model = get_gemini_model()
+    client = get_gemini_client()
 
-    if model is None:
+    if client is None:
         return generar_analisis_fallback(prompt)
 
     try:
-        response = model.generate_content(
-            prompt,
-            generation_config={
+        response = client.models.generate_content(
+            model='models/gemini-2.0-flash',
+            contents=prompt,
+            config={
                 'max_output_tokens': max_tokens,
                 'temperature': 0.7
             }
