@@ -39,6 +39,7 @@ def mostrar_pagina():
 
     # Obtener datos del estado de sesión
     df_unificado = st.session_state.get('df_unificado')
+    df_base = st.session_state.get('df_base')
 
     if df_unificado is None or df_unificado.empty:
         st.error("⚠️ No se pudieron cargar los datos. Verifique que el archivo Excel existe y no está abierto en otro programa.")
@@ -191,6 +192,25 @@ def mostrar_pagina():
             use_container_width=True,
             hide_index=True
         )
+
+        # Mostrar información de Meta PDI
+        if df_base is not None and 'Meta_PDI' in df_base.columns:
+            st.markdown("")
+            with st.expander("🎯 Ver Metas PDI por Línea Estratégica"):
+                # Agrupar por línea para mostrar metas PDI
+                metas_por_linea = []
+                for linea in df_lineas['Linea'].unique():
+                    # Obtener indicadores de esta línea
+                    indicadores_linea = df_unificado[df_unificado['Linea'] == linea]['Indicador'].unique()
+                    # Obtener metas PDI de estos indicadores
+                    metas_linea = df_base[df_base['Indicador'].isin(indicadores_linea)][['Indicador', 'Meta_PDI']]
+                    metas_linea = metas_linea.dropna(subset=['Meta_PDI'])
+
+                    if not metas_linea.empty:
+                        st.markdown(f"**{linea}**")
+                        for _, row in metas_linea.iterrows():
+                            st.markdown(f"- {row['Indicador']}: `{row['Meta_PDI']}`")
+                        st.markdown("")
 
     st.markdown("---")
 

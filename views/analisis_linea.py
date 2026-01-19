@@ -34,6 +34,7 @@ def mostrar_pagina():
 
     # Obtener datos
     df_unificado = st.session_state.get('df_unificado')
+    df_base = st.session_state.get('df_base')
 
     if df_unificado is None or df_unificado.empty:
         st.error("⚠️ No se pudieron cargar los datos.")
@@ -170,8 +171,11 @@ def mostrar_pagina():
             df_objetivos['Cumplimiento'] = df_objetivos['Cumplimiento'].round(1)
             df_objetivos = df_objetivos.sort_values('Cumplimiento', ascending=True)
 
-            # Colores según semáforo
-            colores = [obtener_color_semaforo(c) for c in df_objetivos['Cumplimiento']]
+            # Usar el color de la línea estratégica para todas las barras
+            color_linea = COLORES_LINEAS.get(linea_seleccionada, COLORS['primary'])
+
+            # Color distintivo para los labels de cumplimiento
+            color_label_cumplimiento = '#E91E63'
 
             fig = go.Figure()
 
@@ -179,9 +183,10 @@ def mostrar_pagina():
                 y=df_objetivos['Objetivo'],
                 x=df_objetivos['Cumplimiento'],
                 orientation='h',
-                marker_color=colores,
+                marker_color=color_linea,
                 text=[f"{c:.1f}%" for c in df_objetivos['Cumplimiento']],
                 textposition='outside',
+                textfont=dict(size=11, color=color_label_cumplimiento, weight='bold'),
                 hovertemplate='<b>%{y}</b><br>Cumplimiento: %{x:.1f}%<extra></extra>'
             ))
 
@@ -198,8 +203,8 @@ def mostrar_pagina():
             )
 
             # Líneas de referencia
-            fig.add_vline(x=90, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
-            fig.add_vline(x=70, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
+            fig.add_vline(x=100, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
+            fig.add_vline(x=80, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
 
             config = {'displayModeBar': True, 'responsive': True}
             st.plotly_chart(fig, use_container_width=True, config=config)
@@ -252,9 +257,9 @@ def mostrar_pagina():
         fig_hist = go.Figure()
 
         # Área de fondo para semáforo
-        fig_hist.add_hrect(y0=90, y1=120, fillcolor=COLORS['success'], opacity=0.1, line_width=0)
-        fig_hist.add_hrect(y0=70, y1=90, fillcolor=COLORS['warning'], opacity=0.1, line_width=0)
-        fig_hist.add_hrect(y0=0, y1=70, fillcolor=COLORS['danger'], opacity=0.1, line_width=0)
+        fig_hist.add_hrect(y0=100, y1=120, fillcolor=COLORS['success'], opacity=0.1, line_width=0)
+        fig_hist.add_hrect(y0=80, y1=100, fillcolor=COLORS['warning'], opacity=0.1, line_width=0)
+        fig_hist.add_hrect(y0=0, y1=80, fillcolor=COLORS['danger'], opacity=0.1, line_width=0)
 
         # Obtener color de la línea seleccionada
         color_linea = COLORES_LINEAS.get(linea_seleccionada, COLORS['primary'])
@@ -322,6 +327,11 @@ def mostrar_pagina():
 
     if columnas_disponibles:
         df_tabla = df_mostrar[columnas_disponibles].drop_duplicates()
+
+        # Agregar Meta_PDI desde df_base
+        if df_base is not None and 'Indicador' in df_base.columns and 'Meta_PDI' in df_base.columns:
+            meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
+            df_tabla['Meta PDI'] = df_tabla['Indicador'].map(meta_pdi_dict)
 
         if 'Cumplimiento' in df_tabla.columns:
             df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
