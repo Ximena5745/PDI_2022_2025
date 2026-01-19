@@ -446,6 +446,124 @@ def obtener_lista_objetivos(df_unificado, linea=None):
     return []
 
 
+def obtener_cumplimiento_cascada(df_unificado, df_base, año=None):
+    """
+    Obtiene el cumplimiento en cascada de 4 niveles:
+    1. Por Línea Estratégica
+    2. Por Objetivo
+    3. Por Meta PDI
+    4. Por Indicador
+
+    Args:
+        df_unificado: DataFrame con datos de cumplimiento
+        df_base: DataFrame con metadatos (Meta_PDI)
+        año: Año a filtrar (opcional)
+
+    Returns:
+        DataFrame con estructura jerárquica de cumplimiento
+    """
+    if df_unificado is None or df_unificado.empty:
+        return pd.DataFrame()
+
+    # Filtrar por año
+    if año is None:
+        año = df_unificado['Año'].max() if 'Año' in df_unificado.columns else 2025
+
+    df_año = df_unificado[df_unificado['Año'] == año] if 'Año' in df_unificado.columns else df_unificado
+
+    # Agregar Meta_PDI al DataFrame
+    if df_base is not None and 'Meta_PDI' in df_base.columns:
+        meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
+        df_año = df_año.copy()
+        df_año['Meta_PDI'] = df_año['Indicador'].map(meta_pdi_dict)
+
+    # Crear estructura jerárquica
+    cascada = []
+
+    if 'Linea' in df_año.columns:
+        for linea in sorted(df_año['Linea'].dropna().unique()):
+            df_linea = df_año[df_año['Linea'] == linea]
+            cumpl_linea = df_linea['Cumplimiento'].mean() if 'Cumplimiento' in df_linea.columns else 0
+
+            # Nivel 1: Línea
+            cascada.append({
+                'Nivel': 1,
+                'Linea': linea,
+                'Objetivo': '',
+                'Meta_PDI': '',
+                'Indicador': '',
+                'Cumplimiento': cumpl_linea,
+                'Total_Indicadores': df_linea['Indicador'].nunique() if 'Indicador' in df_linea.columns else len(df_linea)
+            })
+
+            # Nivel 2: Objetivos
+            if 'Objetivo' in df_linea.columns:
+                for objetivo in sorted(df_linea['Objetivo'].dropna().unique()):
+                    df_obj = df_linea[df_linea['Objetivo'] == objetivo]
+                    cumpl_obj = df_obj['Cumplimiento'].mean() if 'Cumplimiento' in df_obj.columns else 0
+
+                    cascada.append({
+                        'Nivel': 2,
+                        'Linea': linea,
+                        'Objetivo': objetivo,
+                        'Meta_PDI': '',
+                        'Indicador': '',
+                        'Cumplimiento': cumpl_obj,
+                        'Total_Indicadores': df_obj['Indicador'].nunique() if 'Indicador' in df_obj.columns else len(df_obj)
+                    })
+
+                    # Nivel 3: Meta PDI
+                    if 'Meta_PDI' in df_obj.columns:
+                        for meta_pdi in df_obj['Meta_PDI'].dropna().unique():
+                            df_meta = df_obj[df_obj['Meta_PDI'] == meta_pdi]
+                            cumpl_meta = df_meta['Cumplimiento'].mean() if 'Cumplimiento' in df_meta.columns else 0
+
+                            cascada.append({
+                                'Nivel': 3,
+                                'Linea': linea,
+                                'Objetivo': objetivo,
+                                'Meta_PDI': str(meta_pdi),
+                                'Indicador': '',
+                                'Cumplimiento': cumpl_meta,
+                                'Total_Indicadores': df_meta['Indicador'].nunique() if 'Indicador' in df_meta.columns else len(df_meta)
+                            })
+
+                            # Nivel 4: Indicadores
+                            if 'Indicador' in df_meta.columns:
+                                for indicador in df_meta['Indicador'].unique():
+                                    df_ind = df_meta[df_meta['Indicador'] == indicador]
+                                    cumpl_ind = df_ind['Cumplimiento'].iloc[0] if 'Cumplimiento' in df_ind.columns and not df_ind.empty else 0
+
+                                    cascada.append({
+                                        'Nivel': 4,
+                                        'Linea': linea,
+                                        'Objetivo': objetivo,
+                                        'Meta_PDI': str(meta_pdi),
+                                        'Indicador': indicador,
+                                        'Cumplimiento': cumpl_ind,
+                                        'Total_Indicadores': 1
+                                    })
+
+                    # Indicadores sin Meta PDI
+                    df_sin_meta = df_obj[df_obj['Meta_PDI'].isna()] if 'Meta_PDI' in df_obj.columns else df_obj
+                    if not df_sin_meta.empty and 'Indicador' in df_sin_meta.columns:
+                        for indicador in df_sin_meta['Indicador'].unique():
+                            df_ind = df_sin_meta[df_sin_meta['Indicador'] == indicador]
+                            cumpl_ind = df_ind['Cumplimiento'].iloc[0] if 'Cumplimiento' in df_ind.columns and not df_ind.empty else 0
+
+                            cascada.append({
+                                'Nivel': 4,
+                                'Linea': linea,
+                                'Objetivo': objetivo,
+                                'Meta_PDI': 'N/D',
+                                'Indicador': indicador,
+                                'Cumplimiento': cumpl_ind,
+                                'Total_Indicadores': 1
+                            })
+
+    return pd.DataFrame(cascada)
+
+
 def exportar_a_excel(df, nombre_archivo="informe_poli.xlsx"):
     """
     Exporta un DataFrame a Excel.

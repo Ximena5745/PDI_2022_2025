@@ -15,10 +15,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import (
     COLORS, calcular_metricas_generales, obtener_cumplimiento_por_linea,
-    obtener_color_semaforo, exportar_a_excel
+    obtener_color_semaforo, exportar_a_excel, obtener_cumplimiento_cascada
 )
 from utils.visualizations import (
-    crear_grafico_lineas, crear_grafico_semaforo, crear_tarjeta_kpi
+    crear_grafico_lineas, crear_grafico_semaforo, crear_tarjeta_kpi,
+    crear_grafico_cascada, crear_tabla_cascada_html
 )
 from utils.ai_analysis import (
     generar_analisis_general, preparar_lineas_para_analisis
@@ -117,6 +118,73 @@ def mostrar_pagina():
             label="Año de Reporte",
             value=año_actual
         )
+
+    st.markdown("---")
+
+    # Sección de Cumplimiento en Cascada
+    st.markdown("### 🌊 Cumplimiento en Cascada Jerárquica")
+
+    # Obtener datos de cascada
+    df_cascada = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual)
+
+    if not df_cascada.empty:
+        # Tabs para diferentes vistas
+        tab1, tab2 = st.tabs(["📊 Vista Gráfica", "📋 Vista Tabla Detallada"])
+
+        with tab1:
+            col_graf, col_info = st.columns([2, 1])
+
+            with col_graf:
+                # Gráfico sunburst
+                fig_cascada = crear_grafico_cascada(df_cascada)
+                config = {'displayModeBar': True, 'responsive': True}
+                st.plotly_chart(fig_cascada, use_container_width=True, config=config)
+
+            with col_info:
+                st.markdown("""
+                **📌 Interpretación:**
+
+                Este gráfico muestra la estructura jerárquica del cumplimiento:
+
+                - **Centro**: Líneas estratégicas con su color distintivo
+                - **Anillos externos**: Objetivos dentro de cada línea
+                - **Tamaño**: Proporcional al cumplimiento
+                - **Color**: Semáforo (Verde ≥100%, Amarillo 80-99%, Rojo <80%)
+
+                Haz clic en un segmento para explorar en detalle.
+                """)
+
+                # Resumen de niveles
+                st.markdown("**Niveles de la cascada:**")
+                st.markdown("""
+                1. 📊 **Línea Estratégica**
+                2. 🎯 **Objetivo**
+                3. 🎖️ **Meta PDI**
+                4. 📌 **Indicador**
+                """)
+
+        with tab2:
+            st.markdown("**Vista completa de la jerarquía de cumplimiento**")
+
+            # Tabla HTML con jerarquía
+            tabla_html = crear_tabla_cascada_html(df_cascada)
+            st.markdown(tabla_html, unsafe_allow_html=True)
+
+            # Botón de exportación de la cascada
+            st.markdown("")
+            if st.button("📥 Exportar Cascada a Excel"):
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                    df_cascada.to_excel(writer, sheet_name='Cascada_Cumplimiento', index=False)
+
+                st.download_button(
+                    label="⬇️ Descargar Excel de Cascada",
+                    data=buffer.getvalue(),
+                    file_name=f"cascada_cumplimiento_{año_actual}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+    else:
+        st.info("No hay datos suficientes para generar la vista de cascada.")
 
     st.markdown("---")
 

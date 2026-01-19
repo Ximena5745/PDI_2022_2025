@@ -15,10 +15,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import (
     COLORS, COLORES_LINEAS, calcular_metricas_generales, obtener_color_semaforo,
-    filtrar_por_linea, obtener_lista_objetivos, LINEAS_ESTRATEGICAS
+    filtrar_por_linea, obtener_lista_objetivos, LINEAS_ESTRATEGICAS,
+    obtener_cumplimiento_cascada
 )
 from utils.visualizations import (
-    crear_objetivo_card_html, crear_tarjeta_kpi
+    crear_objetivo_card_html, crear_tarjeta_kpi, crear_tabla_cascada_html
 )
 from utils.ai_analysis import (
     generar_analisis_linea, preparar_objetivos_para_analisis
@@ -286,6 +287,44 @@ def mostrar_pagina():
 
         config = {'displayModeBar': True, 'responsive': True}
         st.plotly_chart(fig_hist, use_container_width=True, config=config)
+
+    st.markdown("---")
+
+    # Vista de Cascada para la línea seleccionada
+    st.markdown(f"### 🌊 Cumplimiento en Cascada: {linea_seleccionada}")
+
+    # Obtener datos de cascada solo para esta línea
+    df_cascada_completa = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual)
+    df_cascada_linea = df_cascada_completa[df_cascada_completa['Linea'] == linea_seleccionada] if not df_cascada_completa.empty else pd.DataFrame()
+
+    if not df_cascada_linea.empty:
+        with st.expander("📊 Ver Desglose Jerárquico Completo", expanded=False):
+            st.markdown(f"""
+            **Estructura de cumplimiento para {linea_seleccionada}:**
+
+            Esta vista muestra la cascada completa desde objetivos hasta indicadores individuales,
+            pasando por las metas PDI definidas.
+            """)
+
+            # Tabla HTML con jerarquía
+            tabla_cascada = crear_tabla_cascada_html(df_cascada_linea)
+            st.markdown(tabla_cascada, unsafe_allow_html=True)
+
+            # Resumen estadístico
+            st.markdown("---")
+            col_stat1, col_stat2, col_stat3 = st.columns(3)
+
+            with col_stat1:
+                total_objetivos = len(df_cascada_linea[df_cascada_linea['Nivel'] == 2])
+                st.metric("Objetivos", total_objetivos)
+
+            with col_stat2:
+                total_metas_pdi = len(df_cascada_linea[(df_cascada_linea['Nivel'] == 3) & (df_cascada_linea['Meta_PDI'] != 'N/D')])
+                st.metric("Metas PDI Definidas", total_metas_pdi)
+
+            with col_stat3:
+                total_indicadores = len(df_cascada_linea[df_cascada_linea['Nivel'] == 4])
+                st.metric("Indicadores Totales", total_indicadores)
 
     st.markdown("---")
 

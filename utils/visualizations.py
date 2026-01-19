@@ -555,3 +555,166 @@ def crear_objetivo_card_html(objetivo, indicadores, cumplimiento):
         </div>
     </div>
     """
+
+
+def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
+    """
+    Crea un gráfico de cascada (waterfall) mostrando el cumplimiento jerárquico.
+
+    Args:
+        df_cascada: DataFrame con estructura jerárquica (resultado de obtener_cumplimiento_cascada)
+        titulo: Título del gráfico
+
+    Returns:
+        Figura de Plotly
+    """
+    if df_cascada is None or df_cascada.empty:
+        return go.Figure()
+
+    try:
+        # Filtrar solo niveles 1 y 2 para una vista más clara
+        df_viz = df_cascada[df_cascada['Nivel'].isin([1, 2])].copy()
+
+        # Crear etiquetas según el nivel
+        labels = []
+        cumplimientos = []
+        colores = []
+        parents = []
+
+        for _, row in df_viz.iterrows():
+            if row['Nivel'] == 1:
+                labels.append(row['Linea'])
+                parents.append("")
+                colores.append(COLORES_LINEAS.get(row['Linea'], COLORS['primary']))
+            elif row['Nivel'] == 2:
+                # Truncar objetivo si es muy largo
+                obj_label = row['Objetivo'][:40] + "..." if len(row['Objetivo']) > 40 else row['Objetivo']
+                labels.append(obj_label)
+                parents.append(row['Linea'])
+                colores.append(obtener_color_semaforo(row['Cumplimiento']))
+
+            cumplimientos.append(row['Cumplimiento'])
+
+        # Crear gráfico sunburst
+        fig = go.Figure(go.Sunburst(
+            labels=labels,
+            parents=parents,
+            values=cumplimientos,
+            marker=dict(
+                colors=colores,
+                line=dict(color='white', width=2)
+            ),
+            textinfo='label+percent parent',
+            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{value:.1f}%<extra></extra>'
+        ))
+
+        fig.update_layout(
+            title=dict(
+                text=f"<b>{titulo}</b>",
+                font=dict(size=16, color=COLORS['primary']),
+                x=0.5,
+                xanchor='center'
+            ),
+            height=600,
+            margin=dict(t=60, b=20, l=20, r=20)
+        )
+
+        return fig
+    except Exception as e:
+        st.error(f"Error al crear gráfico de cascada: {str(e)}")
+        return go.Figure()
+
+
+def crear_tabla_cascada_html(df_cascada):
+    """
+    Crea una tabla HTML expandible con la estructura de cascada.
+
+    Args:
+        df_cascada: DataFrame con estructura jerárquica
+
+    Returns:
+        str: HTML de la tabla
+    """
+    if df_cascada is None or df_cascada.empty:
+        return "<p>No hay datos disponibles</p>"
+
+    html = """
+    <style>
+        .cascada-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: Arial, sans-serif;
+        }
+        .cascada-nivel-1 {
+            background: #f8f9fa;
+            font-weight: bold;
+            font-size: 16px;
+            padding: 12px;
+            border-bottom: 2px solid #dee2e6;
+        }
+        .cascada-nivel-2 {
+            background: white;
+            padding: 10px 10px 10px 30px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 14px;
+        }
+        .cascada-nivel-3 {
+            background: #fafafa;
+            padding: 8px 8px 8px 50px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 13px;
+            font-style: italic;
+        }
+        .cascada-nivel-4 {
+            background: white;
+            padding: 6px 6px 6px 70px;
+            border-bottom: 1px dotted #e9ecef;
+            font-size: 12px;
+            color: #666;
+        }
+        .cumpl-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 12px;
+            min-width: 60px;
+            text-align: center;
+        }
+    </style>
+    <table class="cascada-table">
+    """
+
+    for _, row in df_cascada.iterrows():
+        nivel = int(row['Nivel'])
+        cumplimiento = row['Cumplimiento']
+        color = obtener_color_semaforo(cumplimiento)
+
+        # Badge de cumplimiento
+        badge_color = 'white' if color != COLORS['warning'] else '#333'
+        badge_html = f'<span class="cumpl-badge" style="background: {color}; color: {badge_color};">{cumplimiento:.1f}%</span>'
+
+        # Contenido según nivel
+        if nivel == 1:
+            contenido = f"📊 {row['Linea']}"
+            clase = "cascada-nivel-1"
+        elif nivel == 2:
+            contenido = f"🎯 {row['Objetivo']}"
+            clase = "cascada-nivel-2"
+        elif nivel == 3:
+            contenido = f"🎖️ Meta PDI: {row['Meta_PDI']}"
+            clase = "cascada-nivel-3"
+        else:  # nivel 4
+            contenido = f"📌 {row['Indicador']}"
+            clase = "cascada-nivel-4"
+
+        html += f"""
+        <tr>
+            <td class="{clase}">{contenido}</td>
+            <td class="{clase}" style="text-align: right; width: 100px;">{badge_html}</td>
+            <td class="{clase}" style="text-align: center; width: 80px;"><small>{row['Total_Indicadores']} ind.</small></td>
+        </tr>
+        """
+
+    html += "</table>"
+    return html
