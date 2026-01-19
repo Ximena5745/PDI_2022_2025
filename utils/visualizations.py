@@ -148,20 +148,26 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
                 xanchor='center'
             ),
             xaxis=dict(
-                title="Periodo" if periodicidad == 'Semestral' else "Ano",
-                titlefont=dict(size=12, color=COLORS['gray']),
+                title=dict(
+                    text="Periodo" if periodicidad == 'Semestral' else "Ano",
+                    font=dict(size=12, color=COLORS['gray'])
+                ),
                 tickfont=dict(size=10),
                 tickangle=-45 if len(etiquetas) > 5 else 0
             ),
             yaxis=dict(
-                title=f"Valor ({unidad})" if unidad else "Valor",
-                titlefont=dict(size=12, color=COLORS['gray']),
+                title=dict(
+                    text=f"Valor ({unidad})" if unidad else "Valor",
+                    font=dict(size=12, color=COLORS['gray'])
+                ),
                 tickfont=dict(size=11),
                 range=[0, max_valor * 1.4]
             ),
             yaxis2=dict(
-                title="% Cumplimiento",
-                titlefont=dict(size=12, color=COLORS['secondary']),
+                title=dict(
+                    text="% Cumplimiento",
+                    font=dict(size=12, color=COLORS['secondary'])
+                ),
                 tickfont=dict(size=11, color=COLORS['secondary']),
                 overlaying='y',
                 side='right',
@@ -262,8 +268,10 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
                 xanchor='center'
             ),
             xaxis=dict(
-                title="% Cumplimiento",
-                titlefont=dict(size=12, color=COLORS['gray']),
+                title=dict(
+                    text="% Cumplimiento",
+                    font=dict(size=12, color=COLORS['gray'])
+                ),
                 range=[0, 120],
                 ticksuffix='%'
             ),
