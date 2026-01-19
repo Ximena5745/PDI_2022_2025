@@ -691,17 +691,24 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
             cumplimientos.append(row['Cumplimiento'])
 
         # Crear gráfico sunburst
+        # IMPORTANTE: Para sunburst con branchvalues="total", NO usar los valores directamente
+        # porque pueden ser promedios. En su lugar, usar valores constantes (1) para que
+        # el tamaño se base en la cantidad de elementos, no en el cumplimiento.
+        # El cumplimiento se muestra en el hover y color.
         fig = go.Figure(go.Sunburst(
             ids=ids,
             labels=labels,
             parents=parents,
-            values=cumplimientos,
+            values=[1] * len(ids),  # Usar valor constante para evitar problemas de suma
             marker=dict(
                 colors=colores,
                 line=dict(color='white', width=2)
             ),
-            textinfo='label+percent parent',
-            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{value:.1f}%<extra></extra>',
+            textinfo='label',
+            hovertemplate='<b>%{label}</b><br>Cumplimiento: ' +
+                          '<extra></extra>',
+            customdata=[[f"{c:.1f}%"] for c in cumplimientos],
+            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{customdata[0]}<extra></extra>',
             branchvalues="total"
         ))
 
