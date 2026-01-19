@@ -72,7 +72,7 @@ def mostrar_pagina():
         porcentaje_cumplidas = (metricas['metas_cumplidas'] / metricas['total_indicadores'] * 100) if metricas['total_indicadores'] > 0 else 0
         st.markdown(crear_tarjeta_kpi(
             valor=f"{metricas['metas_cumplidas']}",
-            etiqueta=f"Metas Alcanzadas (≥90%)",
+            etiqueta=f"Metas Alcanzadas (≥100%)",
             icono="✅",
             color_fondo=f"linear-gradient(135deg, {COLORS['success']} 0%, #1e7e34 100%)"
         ), unsafe_allow_html=True)
@@ -178,7 +178,7 @@ def mostrar_pagina():
         # Formatear tabla
         df_tabla = df_lineas.copy()
         df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
-            lambda x: '✅ Meta cumplida' if x >= 90 else '⚠️ En progreso' if x >= 70 else '❌ Requiere atención'
+            lambda x: '✅ Meta cumplida' if x >= 100 else '⚠️ Alerta' if x >= 80 else '❌ Peligro'
         )
         df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(lambda x: f"{x:.1f}%")
 
@@ -242,7 +242,7 @@ def mostrar_pagina():
         <strong>📌 Notas:</strong>
         <ul>
             <li><strong>Línea Base:</strong> Los datos de 2021 sirven como punto de referencia inicial del PDI.</li>
-            <li><strong>Semáforo:</strong> Verde (≥90%), Amarillo (70-89%), Rojo (&lt;70%)</li>
+            <li><strong>Semáforo:</strong> Verde (≥100%), Amarillo (80-99%), Rojo (&lt;80%)</li>
             <li><strong>Análisis IA:</strong> Generado automáticamente usando inteligencia artificial.</li>
         </ul>
     </div>

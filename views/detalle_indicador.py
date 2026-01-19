@@ -206,7 +206,7 @@ def mostrar_pagina():
                 {cumplimiento_actual:.1f}%
             </div>
             <div style="font-size: 14px;">
-                {'✅ Meta cumplida' if cumplimiento_actual >= 90 else '⚠️ En progreso' if cumplimiento_actual >= 70 else '❌ Requiere atención'}
+                {'✅ Meta cumplida' if cumplimiento_actual >= 100 else '⚠️ Alerta' if cumplimiento_actual >= 80 else '❌ Peligro'}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -295,7 +295,7 @@ def mostrar_pagina():
 
         # Agregar estado
         df_tabla['Estado'] = df_tabla['Cumplimiento_calc'].apply(
-            lambda x: '✅ Meta cumplida' if pd.notna(x) and x >= 90 else '⚠️ En progreso' if pd.notna(x) and x >= 70 else '❌ Requiere atencion' if pd.notna(x) else 'N/D'
+            lambda x: '✅ Meta cumplida' if pd.notna(x) and x >= 100 else '⚠️ Alerta' if pd.notna(x) and x >= 80 else '❌ Peligro' if pd.notna(x) else 'N/D'
         )
 
         # Agregar nota para línea base

@@ -210,11 +210,11 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
         )
 
         # Agregar líneas de referencia para semáforo
-        fig.add_hline(y=90, line_dash="dash", line_color=COLORS['success'],
-                      annotation_text="Meta (90%)", annotation_position="right",
+        fig.add_hline(y=100, line_dash="dash", line_color=COLORS['success'],
+                      annotation_text="Meta (100%)", annotation_position="right",
                       yref='y2', opacity=0.5)
-        fig.add_hline(y=70, line_dash="dash", line_color=COLORS['warning'],
-                      annotation_text="Progreso (70%)", annotation_position="right",
+        fig.add_hline(y=80, line_dash="dash", line_color=COLORS['warning'],
+                      annotation_text="Alerta (80%)", annotation_position="right",
                       yref='y2', opacity=0.5)
 
         return fig
@@ -306,8 +306,8 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
         )
 
         # Líneas de referencia
-        fig.add_vline(x=90, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
-        fig.add_vline(x=70, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
+        fig.add_vline(x=100, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
+        fig.add_vline(x=80, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
 
         return fig
     except Exception as e:
@@ -320,14 +320,14 @@ def crear_grafico_semaforo(metas_cumplidas, en_progreso, requieren_atencion):
     Crea un gráfico de dona mostrando la distribución por semáforo.
 
     Args:
-        metas_cumplidas: Cantidad de indicadores con cumplimiento >= 90%
-        en_progreso: Cantidad de indicadores con cumplimiento 70-89%
-        requieren_atencion: Cantidad de indicadores con cumplimiento < 70%
+        metas_cumplidas: Cantidad de indicadores con cumplimiento >= 100%
+        en_progreso: Cantidad de indicadores con cumplimiento 80-99%
+        requieren_atencion: Cantidad de indicadores con cumplimiento < 80%
 
     Returns:
         Figura de Plotly
     """
-    labels = ['Meta Cumplida (≥90%)', 'En Progreso (70-89%)', 'Requiere Atención (<70%)']
+    labels = ['Meta Cumplida (≥100%)', 'Alerta (80-99%)', 'Peligro (<80%)']
     values = [metas_cumplidas, en_progreso, requieren_atencion]
     colors = [COLORS['success'], COLORS['warning'], COLORS['danger']]
 
@@ -397,14 +397,14 @@ def crear_grafico_tendencia(df_indicador, nombre_indicador):
     fig = go.Figure()
 
     # Áreas de colores de fondo para semáforo
-    fig.add_hrect(y0=90, y1=130, fillcolor=COLORS['success'], opacity=0.1,
+    fig.add_hrect(y0=100, y1=150, fillcolor=COLORS['success'], opacity=0.1,
                   line_width=0, annotation_text="Meta cumplida",
                   annotation_position="right")
-    fig.add_hrect(y0=70, y1=90, fillcolor=COLORS['warning'], opacity=0.1,
-                  line_width=0, annotation_text="En progreso",
+    fig.add_hrect(y0=80, y1=100, fillcolor=COLORS['warning'], opacity=0.1,
+                  line_width=0, annotation_text="Alerta",
                   annotation_position="right")
-    fig.add_hrect(y0=0, y1=70, fillcolor=COLORS['danger'], opacity=0.1,
-                  line_width=0, annotation_text="Requiere atención",
+    fig.add_hrect(y0=0, y1=80, fillcolor=COLORS['danger'], opacity=0.1,
+                  line_width=0, annotation_text="Peligro",
                   annotation_position="right")
 
     # Línea de tendencia
@@ -503,12 +503,12 @@ def crear_indicador_semaforo_html(cumplimiento, texto=None):
     color = obtener_color_semaforo(cumplimiento)
 
     if texto is None:
-        if cumplimiento >= 90:
+        if cumplimiento >= 100:
             texto = "✅ Meta cumplida"
-        elif cumplimiento >= 70:
-            texto = "⚠️ En progreso"
+        elif cumplimiento >= 80:
+            texto = "⚠️ Alerta"
         else:
-            texto = "❌ Requiere atención"
+            texto = "❌ Peligro"
 
     return f"""
     <div style="

@@ -185,15 +185,15 @@ def obtener_color_semaforo(cumplimiento):
     """
     Retorna el color del semáforo según el nivel de cumplimiento.
 
-    - Verde: >= 90%
-    - Amarillo: 70-89%
-    - Rojo: < 70%
+    - Verde: >= 100%
+    - Amarillo: 80-99.9%
+    - Rojo: 0-79.9%
     """
     if cumplimiento is None or pd.isna(cumplimiento):
         return COLORS['gray']
-    elif cumplimiento >= 90:
+    elif cumplimiento >= 100:
         return COLORS['success']
-    elif cumplimiento >= 70:
+    elif cumplimiento >= 80:
         return COLORS['warning']
     else:
         return COLORS['danger']
@@ -205,12 +205,12 @@ def obtener_estado_semaforo(cumplimiento):
     """
     if cumplimiento is None or pd.isna(cumplimiento):
         return 'Sin datos', 'gray'
-    elif cumplimiento >= 90:
+    elif cumplimiento >= 100:
         return 'Meta cumplida', 'success'
-    elif cumplimiento >= 70:
-        return 'En progreso', 'warning'
+    elif cumplimiento >= 80:
+        return 'Alerta', 'warning'
     else:
-        return 'Requiere atención', 'danger'
+        return 'Peligro', 'danger'
 
 
 def calcular_metricas_generales(df_unificado, año=None):
@@ -244,9 +244,9 @@ def calcular_metricas_generales(df_unificado, año=None):
     # Calcular métricas
     if 'Cumplimiento' in df_año.columns:
         cumplimiento_promedio = df_año['Cumplimiento'].mean()
-        metas_cumplidas = len(df_año[df_año['Cumplimiento'] >= 90])
-        en_progreso = len(df_año[(df_año['Cumplimiento'] >= 70) & (df_año['Cumplimiento'] < 90)])
-        requieren_atencion = len(df_año[df_año['Cumplimiento'] < 70])
+        metas_cumplidas = len(df_año[df_año['Cumplimiento'] >= 100])
+        en_progreso = len(df_año[(df_año['Cumplimiento'] >= 80) & (df_año['Cumplimiento'] < 100)])
+        requieren_atencion = len(df_año[df_año['Cumplimiento'] < 80])
     else:
         cumplimiento_promedio = 0
         metas_cumplidas = 0

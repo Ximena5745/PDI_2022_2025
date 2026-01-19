@@ -81,9 +81,9 @@ def mostrar_pagina():
     if 'Cumplimiento' in df_linea_año.columns:
         cumplimiento_linea = df_linea_año['Cumplimiento'].mean()
         cumplimiento_linea = cumplimiento_linea if pd.notna(cumplimiento_linea) else 0
-        metas_cumplidas = len(df_linea_año[df_linea_año['Cumplimiento'] >= 90])
-        en_progreso = len(df_linea_año[(df_linea_año['Cumplimiento'] >= 70) & (df_linea_año['Cumplimiento'] < 90)])
-        requieren_atencion = len(df_linea_año[df_linea_año['Cumplimiento'] < 70])
+        metas_cumplidas = len(df_linea_año[df_linea_año['Cumplimiento'] >= 100])
+        en_progreso = len(df_linea_año[(df_linea_año['Cumplimiento'] >= 80) & (df_linea_año['Cumplimiento'] < 100)])
+        requieren_atencion = len(df_linea_año[df_linea_año['Cumplimiento'] < 80])
 
     # KPIs de la línea
     st.markdown(f"### 📊 Métricas de: {linea_seleccionada}")
@@ -299,7 +299,7 @@ def mostrar_pagina():
         # Filtro por estado
         estado_filtro = st.selectbox(
             "Filtrar por Estado:",
-            ['Todos', '✅ Meta cumplida', '⚠️ En progreso', '❌ Requiere atención']
+            ['Todos', '✅ Meta cumplida', '⚠️ Alerta', '❌ Peligro']
         )
 
     # Aplicar filtros
@@ -310,11 +310,11 @@ def mostrar_pagina():
 
     if estado_filtro != 'Todos' and 'Cumplimiento' in df_mostrar.columns:
         if estado_filtro == '✅ Meta cumplida':
-            df_mostrar = df_mostrar[df_mostrar['Cumplimiento'] >= 90]
-        elif estado_filtro == '⚠️ En progreso':
-            df_mostrar = df_mostrar[(df_mostrar['Cumplimiento'] >= 70) & (df_mostrar['Cumplimiento'] < 90)]
+            df_mostrar = df_mostrar[df_mostrar['Cumplimiento'] >= 100]
+        elif estado_filtro == '⚠️ Alerta':
+            df_mostrar = df_mostrar[(df_mostrar['Cumplimiento'] >= 80) & (df_mostrar['Cumplimiento'] < 100)]
         else:
-            df_mostrar = df_mostrar[df_mostrar['Cumplimiento'] < 70]
+            df_mostrar = df_mostrar[df_mostrar['Cumplimiento'] < 80]
 
     # Preparar tabla
     columnas_mostrar = ['Indicador', 'Objetivo', 'Meta', 'Ejecución', 'Cumplimiento']
@@ -325,7 +325,7 @@ def mostrar_pagina():
 
         if 'Cumplimiento' in df_tabla.columns:
             df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
-                lambda x: '✅' if x >= 90 else '⚠️' if x >= 70 else '❌' if pd.notna(x) else '❓'
+                lambda x: '✅' if x >= 100 else '⚠️' if x >= 80 else '❌' if pd.notna(x) else '❓'
             )
             df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(
                 lambda x: f"{x:.1f}%" if pd.notna(x) else "N/D"

@@ -283,15 +283,15 @@ with st.sidebar:
     <div style="padding: 10px; background: white; border-radius: 5px;">
         <div style="margin: 5px 0;">
             <span style="display: inline-block; width: 12px; height: 12px; background: {COLORS['success']}; border-radius: 50%;"></span>
-            <small> ≥90% Meta cumplida</small>
+            <small> ≥100% Meta cumplida</small>
         </div>
         <div style="margin: 5px 0;">
             <span style="display: inline-block; width: 12px; height: 12px; background: {COLORS['warning']}; border-radius: 50%;"></span>
-            <small> 70-89% En progreso</small>
+            <small> 80-99% Alerta</small>
         </div>
         <div style="margin: 5px 0;">
             <span style="display: inline-block; width: 12px; height: 12px; background: {COLORS['danger']}; border-radius: 50%;"></span>
-            <small> &lt;70% Requiere atención</small>
+            <small> &lt;80% Peligro</small>
         </div>
     </div>
     """, unsafe_allow_html=True)
