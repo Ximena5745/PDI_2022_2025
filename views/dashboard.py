@@ -144,12 +144,14 @@ def mostrar_pagina():
                 st.markdown("""
                 **📌 Interpretación:**
 
-                Este gráfico muestra la estructura jerárquica del cumplimiento:
+                Este gráfico muestra la estructura jerárquica completa del cumplimiento en 4 niveles:
 
                 - **Centro**: Líneas estratégicas con su color distintivo
-                - **Anillos externos**: Objetivos dentro de cada línea
+                - **Anillo 2**: Objetivos dentro de cada línea
+                - **Anillo 3**: Metas PDI definidas
+                - **Anillo 4**: Indicadores individuales
                 - **Tamaño**: Proporcional al cumplimiento
-                - **Color**: Semáforo (Verde ≥100%, Amarillo 80-99%, Rojo <80%)
+                - **Color**: Tonos graduales del color de la línea (más claro hacia el exterior)
 
                 Haz clic en un segmento para explorar en detalle.
                 """)
@@ -168,7 +170,9 @@ def mostrar_pagina():
 
             # Tabla HTML con jerarquía
             tabla_html = crear_tabla_cascada_html(df_cascada)
-            st.markdown(tabla_html, unsafe_allow_html=True)
+            # Usar components.html para renderizar HTML complejo
+            import streamlit.components.v1 as components
+            components.html(tabla_html, height=min(len(df_cascada) * 35 + 100, 800), scrolling=True)
 
             # Botón de exportación de la cascada
             st.markdown("")

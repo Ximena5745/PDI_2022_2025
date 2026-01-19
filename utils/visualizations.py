@@ -557,6 +557,34 @@ def crear_objetivo_card_html(objetivo, indicadores, cumplimiento):
     """
 
 
+def aclarar_color(color_hex, factor=0.5):
+    """
+    Genera un tono más claro del color base.
+
+    Args:
+        color_hex: Color en formato hexadecimal (#RRGGBB)
+        factor: Factor de aclarado (0.0 = original, 1.0 = blanco)
+
+    Returns:
+        Color aclarado en formato hexadecimal
+    """
+    # Eliminar el # si existe
+    color_hex = color_hex.lstrip('#')
+
+    # Convertir hex a RGB
+    r = int(color_hex[0:2], 16)
+    g = int(color_hex[2:4], 16)
+    b = int(color_hex[4:6], 16)
+
+    # Aclarar hacia blanco (255, 255, 255)
+    r = int(r + (255 - r) * factor)
+    g = int(g + (255 - g) * factor)
+    b = int(b + (255 - b) * factor)
+
+    # Convertir de vuelta a hex
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
 def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
     """
     Crea un gráfico de cascada (waterfall) mostrando el cumplimiento jerárquico.
@@ -572,31 +600,68 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
         return go.Figure()
 
     try:
-        # Filtrar solo niveles 1 y 2 para una vista más clara
-        df_viz = df_cascada[df_cascada['Nivel'].isin([1, 2])].copy()
+        # Mostrar todos los niveles (1, 2, 3 y 4)
+        df_viz = df_cascada.copy()
 
         # Crear etiquetas según el nivel
         labels = []
         cumplimientos = []
         colores = []
         parents = []
+        ids = []
 
-        for _, row in df_viz.iterrows():
-            if row['Nivel'] == 1:
+        # Mapeo de líneas a colores para acceso rápido
+        linea_color_map = {}
+
+        for idx, row in df_viz.iterrows():
+            nivel = int(row['Nivel'])
+
+            if nivel == 1:
+                # Nivel 1: Línea Estratégica
                 labels.append(row['Linea'])
                 parents.append("")
-                colores.append(COLORES_LINEAS.get(row['Linea'], COLORS['primary']))
-            elif row['Nivel'] == 2:
-                # Truncar objetivo si es muy largo
+                color_linea = COLORES_LINEAS.get(row['Linea'], COLORS['primary'])
+                colores.append(color_linea)
+                linea_color_map[row['Linea']] = color_linea
+                ids.append(f"L1-{row['Linea']}")
+
+            elif nivel == 2:
+                # Nivel 2: Objetivo
                 obj_label = row['Objetivo'][:40] + "..." if len(row['Objetivo']) > 40 else row['Objetivo']
                 labels.append(obj_label)
                 parents.append(row['Linea'])
-                colores.append(obtener_color_semaforo(row['Cumplimiento']))
+                # Usar tono más claro del color de la línea padre
+                color_base = linea_color_map.get(row['Linea'], COLORS['primary'])
+                colores.append(aclarar_color(color_base, factor=0.4))
+                ids.append(f"L2-{row['Linea']}-{row['Objetivo']}")
+
+            elif nivel == 3:
+                # Nivel 3: Meta PDI
+                meta_label = str(row['Meta_PDI'])[:30] + "..." if len(str(row['Meta_PDI'])) > 30 else str(row['Meta_PDI'])
+                labels.append(f"Meta: {meta_label}")
+                # Parent es el objetivo
+                parents.append(f"L2-{row['Linea']}-{row['Objetivo']}")
+                # Usar tono aún más claro
+                color_base = linea_color_map.get(row['Linea'], COLORS['primary'])
+                colores.append(aclarar_color(color_base, factor=0.6))
+                ids.append(f"L3-{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}")
+
+            elif nivel == 4:
+                # Nivel 4: Indicador
+                ind_label = row['Indicador'][:35] + "..." if len(row['Indicador']) > 35 else row['Indicador']
+                labels.append(ind_label)
+                # Parent es la meta PDI
+                parents.append(f"L3-{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}")
+                # Usar el tono más claro
+                color_base = linea_color_map.get(row['Linea'], COLORS['primary'])
+                colores.append(aclarar_color(color_base, factor=0.75))
+                ids.append(f"L4-{idx}")
 
             cumplimientos.append(row['Cumplimiento'])
 
         # Crear gráfico sunburst
         fig = go.Figure(go.Sunburst(
+            ids=ids,
             labels=labels,
             parents=parents,
             values=cumplimientos,
@@ -605,7 +670,8 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 line=dict(color='white', width=2)
             ),
             textinfo='label+percent parent',
-            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{value:.1f}%<extra></extra>'
+            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{value:.1f}%<extra></extra>',
+            branchvalues="total"
         ))
 
         fig.update_layout(

@@ -308,7 +308,9 @@ def mostrar_pagina():
 
             # Tabla HTML con jerarquía
             tabla_cascada = crear_tabla_cascada_html(df_cascada_linea)
-            st.markdown(tabla_cascada, unsafe_allow_html=True)
+            # Usar components.html para renderizar HTML complejo
+            import streamlit.components.v1 as components
+            components.html(tabla_cascada, height=min(len(df_cascada_linea) * 35 + 100, 800), scrolling=True)
 
             # Resumen estadístico
             st.markdown("---")
