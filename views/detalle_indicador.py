@@ -235,7 +235,8 @@ def mostrar_pagina():
             unidad=unidad_meta,
             periodicidad=periodicidad
         )
-        st.plotly_chart(fig, use_container_width=True)
+        config = {'displayModeBar': True, 'responsive': True}
+        st.plotly_chart(fig, use_container_width=True, config=config)
 
         # Info del indicador
         st.info(f"**Sentido:** {sentido} {'(Mayor es mejor)' if sentido == 'Creciente' else '(Menor es mejor)'} | **Periodicidad:** {periodicidad} | **Unidad:** {unidad_meta if unidad_meta else 'N/D'}")
@@ -243,7 +244,8 @@ def mostrar_pagina():
         # Gráfico de tendencia adicional
         with st.expander("📈 Ver gráfico de tendencia de cumplimiento"):
             fig_tendencia = crear_grafico_tendencia(df_historico, indicador_seleccionado)
-            st.plotly_chart(fig_tendencia, use_container_width=True)
+            config = {'displayModeBar': True, 'responsive': True}
+            st.plotly_chart(fig_tendencia, use_container_width=True, config=config)
     else:
         st.warning("No hay datos históricos disponibles para este indicador.")
 
@@ -394,7 +396,8 @@ def mostrar_pagina():
                         )
                     )
 
-                    st.plotly_chart(fig_comp, use_container_width=True)
+                    config = {'displayModeBar': True, 'responsive': True}
+                    st.plotly_chart(fig_comp, use_container_width=True, config=config)
         else:
             st.info("No hay otros indicadores disponibles para comparar.")
 

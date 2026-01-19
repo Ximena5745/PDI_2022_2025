@@ -5,6 +5,7 @@ Módulo de visualizaciones para el Dashboard Estratégico POLI.
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
+import streamlit as st
 from .data_loader import COLORS, calcular_cumplimiento, obtener_color_semaforo
 
 
@@ -195,7 +196,8 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
                       yref='y2', opacity=0.5)
 
         return fig
-    except Exception:
+    except Exception as e:
+        st.error(f"Error al crear grafico historico: {str(e)}")
         return go.Figure()
 
 
@@ -281,7 +283,8 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
         fig.add_vline(x=70, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
 
         return fig
-    except Exception:
+    except Exception as e:
+        st.error(f"Error al crear grafico de lineas: {str(e)}")
         return go.Figure()
 
 

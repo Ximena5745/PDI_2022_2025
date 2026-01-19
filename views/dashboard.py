@@ -152,7 +152,9 @@ def mostrar_pagina():
 
         if not df_lineas.empty:
             fig_lineas = crear_grafico_lineas(df_lineas)
-            st.plotly_chart(fig_lineas, use_container_width=True)
+            # Configuración explícita para renderizado web
+            config = {'displayModeBar': True, 'responsive': True}
+            st.plotly_chart(fig_lineas, use_container_width=True, config=config)
         else:
             st.info("No hay datos de cumplimiento por línea disponibles.")
 
@@ -164,7 +166,8 @@ def mostrar_pagina():
             metricas['en_progreso'],
             metricas['requieren_atencion']
         )
-        st.plotly_chart(fig_semaforo, use_container_width=True)
+        config = {'displayModeBar': True, 'responsive': True}
+        st.plotly_chart(fig_semaforo, use_container_width=True, config=config)
 
     st.markdown("---")
 

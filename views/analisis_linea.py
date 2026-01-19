@@ -201,7 +201,8 @@ def mostrar_pagina():
             fig.add_vline(x=90, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
             fig.add_vline(x=70, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
 
-            st.plotly_chart(fig, use_container_width=True)
+            config = {'displayModeBar': True, 'responsive': True}
+            st.plotly_chart(fig, use_container_width=True, config=config)
         else:
             st.info("No hay datos de cumplimiento por objetivo disponibles.")
 
@@ -275,7 +276,8 @@ def mostrar_pagina():
             paper_bgcolor='white'
         )
 
-        st.plotly_chart(fig_hist, use_container_width=True)
+        config = {'displayModeBar': True, 'responsive': True}
+        st.plotly_chart(fig_hist, use_container_width=True, config=config)
 
     st.markdown("---")
 
