@@ -601,7 +601,6 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
         return go.Figure()
 
     try:
-        st.info(f"Procesando {len(df_cascada)} filas para el gráfico sunburst...")
         # Mostrar todos los niveles (1, 2, 3 y 4)
         df_viz = df_cascada.copy()
 
@@ -682,21 +681,6 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 ids.append(id_ind)
 
             cumplimientos.append(row['Cumplimiento'])
-
-        # Validar datos antes de crear el gráfico
-        st.success(f"Datos preparados: {len(ids)} nodos, {len(set([p for p in parents if p]))} padres únicos")
-
-        # Verificar que no haya IDs duplicados
-        if len(ids) != len(set(ids)):
-            st.error("Se encontraron IDs duplicados en el gráfico")
-            return go.Figure()
-
-        # Verificar que todos los padres existan (excepto los vacíos)
-        parent_ids = set([p for p in parents if p])
-        missing_parents = parent_ids - set(ids)
-        if missing_parents:
-            st.error(f"Padres faltantes: {list(missing_parents)[:5]}")
-            return go.Figure()
 
         # Crear gráfico sunburst
         fig = go.Figure(go.Sunburst(
