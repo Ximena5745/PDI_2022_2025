@@ -618,44 +618,49 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
 
             if nivel == 1:
                 # Nivel 1: Línea Estratégica
+                id_linea = f"L1-{row['Linea']}"
                 labels.append(row['Linea'])
                 parents.append("")
                 color_linea = COLORES_LINEAS.get(row['Linea'], COLORS['primary'])
                 colores.append(color_linea)
                 linea_color_map[row['Linea']] = color_linea
-                ids.append(f"L1-{row['Linea']}")
+                ids.append(id_linea)
 
             elif nivel == 2:
                 # Nivel 2: Objetivo
+                id_linea = f"L1-{row['Linea']}"
+                id_obj = f"L2-{row['Linea']}-{row['Objetivo']}"
                 obj_label = row['Objetivo'][:40] + "..." if len(row['Objetivo']) > 40 else row['Objetivo']
                 labels.append(obj_label)
-                parents.append(row['Linea'])
+                parents.append(id_linea)
                 # Usar tono más claro del color de la línea padre
                 color_base = linea_color_map.get(row['Linea'], COLORS['primary'])
                 colores.append(aclarar_color(color_base, factor=0.4))
-                ids.append(f"L2-{row['Linea']}-{row['Objetivo']}")
+                ids.append(id_obj)
 
             elif nivel == 3:
                 # Nivel 3: Meta PDI
+                id_obj = f"L2-{row['Linea']}-{row['Objetivo']}"
+                id_meta = f"L3-{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}"
                 meta_label = str(row['Meta_PDI'])[:30] + "..." if len(str(row['Meta_PDI'])) > 30 else str(row['Meta_PDI'])
                 labels.append(f"Meta: {meta_label}")
-                # Parent es el objetivo
-                parents.append(f"L2-{row['Linea']}-{row['Objetivo']}")
+                parents.append(id_obj)
                 # Usar tono aún más claro
                 color_base = linea_color_map.get(row['Linea'], COLORS['primary'])
                 colores.append(aclarar_color(color_base, factor=0.6))
-                ids.append(f"L3-{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}")
+                ids.append(id_meta)
 
             elif nivel == 4:
                 # Nivel 4: Indicador
+                id_meta = f"L3-{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}"
+                id_ind = f"L4-{idx}"
                 ind_label = row['Indicador'][:35] + "..." if len(row['Indicador']) > 35 else row['Indicador']
                 labels.append(ind_label)
-                # Parent es la meta PDI
-                parents.append(f"L3-{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}")
+                parents.append(id_meta)
                 # Usar el tono más claro
                 color_base = linea_color_map.get(row['Linea'], COLORS['primary'])
                 colores.append(aclarar_color(color_base, factor=0.75))
-                ids.append(f"L4-{idx}")
+                ids.append(id_ind)
 
             cumplimientos.append(row['Cumplimiento'])
 
