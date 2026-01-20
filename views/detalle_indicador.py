@@ -113,11 +113,15 @@ def mostrar_pagina():
 
     st.markdown("---")
 
-    # Obtener datos del indicador
+    # Obtener datos del indicador - filtrar solo registros con Fuente='Cierre'
     df_indicador = df_unificado[df_unificado['Indicador'] == indicador_seleccionado].copy()
 
+    # Filtrar solo registros con Fuente = 'Cierre' para las gráficas
+    if 'Fuente' in df_indicador.columns:
+        df_indicador = df_indicador[df_indicador['Fuente'] == 'Cierre']
+
     if df_indicador.empty:
-        st.warning("No se encontraron datos para este indicador.")
+        st.warning("No se encontraron datos de cierre para este indicador.")
         return
 
     # Información del indicador

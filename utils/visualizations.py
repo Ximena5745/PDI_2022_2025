@@ -315,34 +315,44 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
         return go.Figure()
 
 
-def crear_grafico_semaforo(metas_cumplidas, en_progreso, requieren_atencion):
+def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos):
     """
     Crea un gráfico de dona mostrando la distribución por semáforo.
 
     Args:
-        metas_cumplidas: Cantidad de indicadores con cumplimiento >= 100%
-        en_progreso: Cantidad de indicadores con cumplimiento 80-99%
-        requieren_atencion: Cantidad de indicadores con cumplimiento < 80%
+        indicadores_cumplidos: Cantidad de indicadores con cumplimiento >= 100%
+        en_progreso: Cantidad de indicadores con cumplimiento 80-99.9%
+        no_cumplidos: Cantidad de indicadores con cumplimiento < 80%
 
     Returns:
         Figura de Plotly
     """
-    labels = ['Meta Cumplida (≥100%)', 'Alerta (80-99%)', 'Peligro (<80%)']
-    values = [metas_cumplidas, en_progreso, requieren_atencion]
+    labels = ['Cumplido (≥100%)', 'En Progreso (80-99%)', 'No Cumplido (<80%)']
+    values = [indicadores_cumplidos, en_progreso, no_cumplidos]
     colors = [COLORS['success'], COLORS['warning'], COLORS['danger']]
+
+    total = sum(values)
+
+    # Crear texto personalizado para mostrar dentro y fuera
+    custom_text = []
+    for label, value in zip(labels, values):
+        pct = (value / total * 100) if total > 0 else 0
+        custom_text.append(f"{value}<br>{pct:.1f}%")
 
     fig = go.Figure(data=[go.Pie(
         labels=labels,
         values=values,
         hole=0.5,
         marker_colors=colors,
-        textinfo='label+percent+value',
+        textinfo='text',
+        text=custom_text,
         textposition='outside',
-        textfont=dict(size=11),
+        textfont=dict(size=10),
+        insidetextorientation='horizontal',
+        pull=[0.02, 0.02, 0.02],  # Separar ligeramente los segmentos
         hovertemplate='<b>%{label}</b><br>Indicadores: %{value}<br>Porcentaje: %{percent}<extra></extra>'
     )])
 
-    total = sum(values)
     fig.update_layout(
         title=dict(
             text="<b>Distribución de Indicadores por Estado</b>",
@@ -360,13 +370,16 @@ def crear_grafico_semaforo(metas_cumplidas, en_progreso, requieren_atencion):
         showlegend=True,
         legend=dict(
             orientation="h",
-            yanchor="bottom",
-            y=-0.2,
+            yanchor="top",
+            y=-0.05,
             xanchor="center",
-            x=0.5
+            x=0.5,
+            font=dict(size=10)
         ),
-        height=400,
-        margin=dict(t=60, b=80, l=20, r=20)
+        height=450,
+        margin=dict(t=60, b=100, l=60, r=60),
+        uniformtext_minsize=9,
+        uniformtext_mode='hide'
     )
 
     return fig

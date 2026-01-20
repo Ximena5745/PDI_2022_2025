@@ -60,7 +60,7 @@ def mostrar_pagina():
     # KPIs principales en tarjetas
     st.markdown("### 🎯 Indicadores Clave de Desempeño")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         st.markdown(crear_tarjeta_kpi(
@@ -71,10 +71,9 @@ def mostrar_pagina():
         ), unsafe_allow_html=True)
 
     with col2:
-        porcentaje_cumplidas = (metricas['metas_cumplidas'] / metricas['total_indicadores'] * 100) if metricas['total_indicadores'] > 0 else 0
         st.markdown(crear_tarjeta_kpi(
-            valor=f"{metricas['metas_cumplidas']}",
-            etiqueta=f"Metas Alcanzadas (≥100%)",
+            valor=f"{metricas['indicadores_cumplidos']}",
+            etiqueta=f"Indicadores Cumplidos (≥100%)",
             icono="✅",
             color_fondo=f"linear-gradient(135deg, {COLORS['success']} 0%, #1e7e34 100%)"
         ), unsafe_allow_html=True)
@@ -82,15 +81,23 @@ def mostrar_pagina():
     with col3:
         st.markdown(crear_tarjeta_kpi(
             valor=f"{metricas['en_progreso']}",
-            etiqueta="Indicadores en Progreso",
+            etiqueta="En Progreso (80-99%)",
             icono="⚡",
             color_fondo=f"linear-gradient(135deg, {COLORS['warning']} 0%, #d39e00 100%)"
+        ), unsafe_allow_html=True)
+
+    with col4:
+        st.markdown(crear_tarjeta_kpi(
+            valor=f"{metricas['no_cumplidos']}",
+            etiqueta="No Cumplidos (<80%)",
+            icono="⚠️",
+            color_fondo=f"linear-gradient(135deg, {COLORS['danger']} 0%, #a71d2a 100%)"
         ), unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Fila adicional con más KPIs
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         st.metric(
@@ -101,19 +108,11 @@ def mostrar_pagina():
 
     with col2:
         st.metric(
-            label="Requieren Atención",
-            value=metricas['requieren_atencion'],
-            delta=None,
-            delta_color="inverse"
-        )
-
-    with col3:
-        st.metric(
             label="Líneas Estratégicas",
             value=metricas['total_lineas']
         )
 
-    with col4:
+    with col3:
         st.metric(
             label="Año de Reporte",
             value=año_actual
@@ -235,9 +234,9 @@ def mostrar_pagina():
         st.markdown("### 🚦 Distribución por Estado")
 
         fig_semaforo = crear_grafico_semaforo(
-            metricas['metas_cumplidas'],
+            metricas['indicadores_cumplidos'],
             metricas['en_progreso'],
-            metricas['requieren_atencion']
+            metricas['no_cumplidos']
         )
         config = {'displayModeBar': True, 'responsive': True}
         st.plotly_chart(fig_semaforo, use_container_width=True, config=config)
@@ -265,24 +264,36 @@ def mostrar_pagina():
             hide_index=True
         )
 
-        # Mostrar información de Meta PDI
+        # Mostrar información de Meta PDI con jerarquía Línea → Objetivo → Meta
         if df_base is not None and 'Meta_PDI' in df_base.columns:
             st.markdown("")
             with st.expander("🎯 Ver Metas PDI por Línea Estratégica"):
-                # Agrupar por línea para mostrar metas PDI
-                metas_por_linea = []
-                for linea in df_lineas['Linea'].unique():
-                    # Obtener indicadores de esta línea
-                    indicadores_linea = df_unificado[df_unificado['Linea'] == linea]['Indicador'].unique()
-                    # Obtener metas PDI de estos indicadores
-                    metas_linea = df_base[df_base['Indicador'].isin(indicadores_linea)][['Indicador', 'Meta_PDI']]
-                    metas_linea = metas_linea.dropna(subset=['Meta_PDI'])
+                # Filtrar datos del año actual con Fuente='Avance'
+                df_año_metas = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
+                if 'Fuente' in df_año_metas.columns:
+                    df_año_metas = df_año_metas[df_año_metas['Fuente'] == 'Avance']
 
-                    if not metas_linea.empty:
-                        st.markdown(f"**{linea}**")
-                        for _, row in metas_linea.iterrows():
-                            st.markdown(f"- {row['Indicador']}: `{row['Meta_PDI']}`")
-                        st.markdown("")
+                # Agregar Meta_PDI a los datos
+                meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
+                df_año_metas = df_año_metas.copy()
+                df_año_metas['Meta_PDI'] = df_año_metas['Indicador'].map(meta_pdi_dict)
+
+                # Agrupar por Línea → Objetivo → Meta PDI
+                for linea in sorted(df_año_metas['Linea'].dropna().unique()):
+                    df_linea_data = df_año_metas[df_año_metas['Linea'] == linea]
+                    st.markdown(f"**{linea}**")
+
+                    for objetivo in sorted(df_linea_data['Objetivo'].dropna().unique()):
+                        df_obj_data = df_linea_data[df_linea_data['Objetivo'] == objetivo]
+                        # Obtener metas PDI únicas para este objetivo
+                        metas_obj = df_obj_data[['Meta_PDI']].dropna().drop_duplicates()
+
+                        if not metas_obj.empty:
+                            st.markdown(f"- **{objetivo}**:")
+                            for _, row in metas_obj.iterrows():
+                                st.markdown(f"  - `{row['Meta_PDI']}`")
+
+                    st.markdown("")
 
     st.markdown("---")
 

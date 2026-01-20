@@ -71,21 +71,33 @@ def mostrar_pagina():
     else:
         df_linea_año = df_linea
 
+    # Solo considerar años 2022-2025 (omitir 2021 línea base)
+    if 'Año' in df_linea_año.columns:
+        df_linea_año = df_linea_año[df_linea_año['Año'].isin([2022, 2023, 2024, 2025])]
+
+    # Filtrar solo registros con Fuente = 'Avance' para los cálculos
+    if 'Fuente' in df_linea_año.columns:
+        df_linea_año = df_linea_año[df_linea_año['Fuente'] == 'Avance']
+
+    # Omitir registros con cumplimiento vacío
+    if 'Cumplimiento' in df_linea_año.columns:
+        df_linea_año = df_linea_año[df_linea_año['Cumplimiento'].notna()]
+
     # Calcular métricas de la línea
     total_indicadores = df_linea_año['Indicador'].nunique() if 'Indicador' in df_linea_año.columns else len(df_linea_año)
     total_objetivos = df_linea_año['Objetivo'].nunique() if 'Objetivo' in df_linea_año.columns else 0
 
     cumplimiento_linea = 0
-    metas_cumplidas = 0
+    indicadores_cumplidos = 0
     en_progreso = 0
-    requieren_atencion = 0
+    no_cumplidos = 0
 
-    if 'Cumplimiento' in df_linea_año.columns:
+    if 'Cumplimiento' in df_linea_año.columns and not df_linea_año.empty:
         cumplimiento_linea = df_linea_año['Cumplimiento'].mean()
         cumplimiento_linea = cumplimiento_linea if pd.notna(cumplimiento_linea) else 0
-        metas_cumplidas = len(df_linea_año[df_linea_año['Cumplimiento'] >= 100])
+        indicadores_cumplidos = len(df_linea_año[df_linea_año['Cumplimiento'] >= 100])
         en_progreso = len(df_linea_año[(df_linea_año['Cumplimiento'] >= 80) & (df_linea_año['Cumplimiento'] < 100)])
-        requieren_atencion = len(df_linea_año[df_linea_año['Cumplimiento'] < 80])
+        no_cumplidos = len(df_linea_año[df_linea_año['Cumplimiento'] < 80])
 
     # KPIs de la línea
     st.markdown(f"### 📊 Métricas de: {linea_seleccionada}")
@@ -122,9 +134,9 @@ def mostrar_pagina():
 
     with col4:
         st.metric(
-            label="Metas Cumplidas",
-            value=metas_cumplidas,
-            delta=f"{(metas_cumplidas/total_indicadores*100):.0f}%" if total_indicadores > 0 else "0%"
+            label="Indicadores Cumplidos",
+            value=indicadores_cumplidos,
+            delta=f"{(indicadores_cumplidos/total_indicadores*100):.0f}%" if total_indicadores > 0 else "0%"
         )
 
     st.markdown("---")
@@ -298,7 +310,7 @@ def mostrar_pagina():
     df_cascada_linea = df_cascada_completa[df_cascada_completa['Linea'] == linea_seleccionada] if not df_cascada_completa.empty else pd.DataFrame()
 
     if not df_cascada_linea.empty:
-        with st.expander("📊 Ver Desglose Jerárquico Completo", expanded=False):
+        with st.expander("📊 Ver Desglose Jerárquico Completo", expanded=True):
             st.markdown(f"""
             **Estructura de cumplimiento para {linea_seleccionada}:**
 
@@ -330,65 +342,66 @@ def mostrar_pagina():
 
     st.markdown("---")
 
-    # Tabla de indicadores de la línea
+    # Tabla de indicadores de la línea (oculta por defecto)
     st.markdown("### 📋 Indicadores de la Línea")
 
-    # Filtros adicionales
-    col_filtro1, col_filtro2 = st.columns(2)
+    with st.expander("Ver tabla de indicadores", expanded=False):
+        # Filtros adicionales
+        col_filtro1, col_filtro2 = st.columns(2)
 
-    with col_filtro1:
-        # Filtro por objetivo
-        objetivos_lista = ['Todos'] + obtener_lista_objetivos(df_unificado, linea_seleccionada)
-        objetivo_filtro = st.selectbox("Filtrar por Objetivo:", objetivos_lista)
+        with col_filtro1:
+            # Filtro por objetivo
+            objetivos_lista = ['Todos'] + obtener_lista_objetivos(df_unificado, linea_seleccionada)
+            objetivo_filtro = st.selectbox("Filtrar por Objetivo:", objetivos_lista)
 
-    with col_filtro2:
-        # Filtro por estado
-        estado_filtro = st.selectbox(
-            "Filtrar por Estado:",
-            ['Todos', '✅ Meta cumplida', '⚠️ Alerta', '❌ Peligro']
-        )
+        with col_filtro2:
+            # Filtro por estado
+            estado_filtro = st.selectbox(
+                "Filtrar por Estado:",
+                ['Todos', '✅ Meta cumplida', '⚠️ Alerta', '❌ Peligro']
+            )
 
-    # Aplicar filtros
-    df_mostrar = df_linea_año.copy()
+        # Aplicar filtros
+        df_mostrar = df_linea_año.copy()
 
-    if objetivo_filtro != 'Todos' and 'Objetivo' in df_mostrar.columns:
-        df_mostrar = df_mostrar[df_mostrar['Objetivo'] == objetivo_filtro]
+        if objetivo_filtro != 'Todos' and 'Objetivo' in df_mostrar.columns:
+            df_mostrar = df_mostrar[df_mostrar['Objetivo'] == objetivo_filtro]
 
-    if estado_filtro != 'Todos' and 'Cumplimiento' in df_mostrar.columns:
-        if estado_filtro == '✅ Meta cumplida':
-            df_mostrar = df_mostrar[df_mostrar['Cumplimiento'] >= 100]
-        elif estado_filtro == '⚠️ Alerta':
-            df_mostrar = df_mostrar[(df_mostrar['Cumplimiento'] >= 80) & (df_mostrar['Cumplimiento'] < 100)]
+        if estado_filtro != 'Todos' and 'Cumplimiento' in df_mostrar.columns:
+            if estado_filtro == '✅ Meta cumplida':
+                df_mostrar = df_mostrar[df_mostrar['Cumplimiento'] >= 100]
+            elif estado_filtro == '⚠️ Alerta':
+                df_mostrar = df_mostrar[(df_mostrar['Cumplimiento'] >= 80) & (df_mostrar['Cumplimiento'] < 100)]
+            else:
+                df_mostrar = df_mostrar[df_mostrar['Cumplimiento'] < 80]
+
+        # Preparar tabla
+        columnas_mostrar = ['Indicador', 'Objetivo', 'Meta', 'Ejecución', 'Cumplimiento']
+        columnas_disponibles = [c for c in columnas_mostrar if c in df_mostrar.columns]
+
+        if columnas_disponibles:
+            df_tabla = df_mostrar[columnas_disponibles].drop_duplicates()
+
+            # Agregar Meta_PDI desde df_base
+            if df_base is not None and 'Indicador' in df_base.columns and 'Meta_PDI' in df_base.columns:
+                meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
+                df_tabla['Meta PDI'] = df_tabla['Indicador'].map(meta_pdi_dict)
+
+            if 'Cumplimiento' in df_tabla.columns:
+                df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
+                    lambda x: '✅' if x >= 100 else '⚠️' if x >= 80 else '❌' if pd.notna(x) else '❓'
+                )
+                df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(
+                    lambda x: f"{x:.1f}%" if pd.notna(x) else "N/D"
+                )
+
+            st.dataframe(
+                df_tabla,
+                use_container_width=True,
+                hide_index=True,
+                height=400
+            )
+
+            st.caption(f"Mostrando {len(df_tabla)} indicadores")
         else:
-            df_mostrar = df_mostrar[df_mostrar['Cumplimiento'] < 80]
-
-    # Preparar tabla
-    columnas_mostrar = ['Indicador', 'Objetivo', 'Meta', 'Ejecución', 'Cumplimiento']
-    columnas_disponibles = [c for c in columnas_mostrar if c in df_mostrar.columns]
-
-    if columnas_disponibles:
-        df_tabla = df_mostrar[columnas_disponibles].drop_duplicates()
-
-        # Agregar Meta_PDI desde df_base
-        if df_base is not None and 'Indicador' in df_base.columns and 'Meta_PDI' in df_base.columns:
-            meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
-            df_tabla['Meta PDI'] = df_tabla['Indicador'].map(meta_pdi_dict)
-
-        if 'Cumplimiento' in df_tabla.columns:
-            df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
-                lambda x: '✅' if x >= 100 else '⚠️' if x >= 80 else '❌' if pd.notna(x) else '❓'
-            )
-            df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(
-                lambda x: f"{x:.1f}%" if pd.notna(x) else "N/D"
-            )
-
-        st.dataframe(
-            df_tabla,
-            use_container_width=True,
-            hide_index=True,
-            height=400
-        )
-
-        st.caption(f"Mostrando {len(df_tabla)} indicadores")
-    else:
-        st.info("No hay datos disponibles para mostrar.")
+            st.info("No hay datos disponibles para mostrar.")

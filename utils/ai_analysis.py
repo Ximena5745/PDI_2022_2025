@@ -142,9 +142,9 @@ def generar_analisis_general(metricas_dict, cumplimiento_por_linea):
 **Métricas Generales (Año {metricas_dict.get('año_actual', 2025)}):**
 - Cumplimiento promedio general: {metricas_dict.get('cumplimiento_promedio', 0):.1f}%
 - Total de indicadores activos: {metricas_dict.get('total_indicadores', 0)}
-- Indicadores con meta cumplida (≥100%): {metricas_dict.get('metas_cumplidas', 0)}
-- Indicadores en alerta (80-99%): {metricas_dict.get('en_progreso', 0)}
-- Indicadores en peligro (<80%): {metricas_dict.get('requieren_atencion', 0)}
+- Indicadores cumplidos (≥100%): {metricas_dict.get('indicadores_cumplidos', 0)}
+- Indicadores en progreso (80-99%): {metricas_dict.get('en_progreso', 0)}
+- Indicadores no cumplidos (<80%): {metricas_dict.get('no_cumplidos', 0)}
 
 **Cumplimiento por Línea Estratégica:**
 {lineas_texto}

@@ -216,6 +216,7 @@ def obtener_estado_semaforo(cumplimiento):
 def calcular_metricas_generales(df_unificado, año=None):
     """
     Calcula las métricas generales del dashboard.
+    Solo considera registros donde Fuente = 'Avance'.
 
     Args:
         df_unificado: DataFrame con datos unificados
@@ -228,9 +229,9 @@ def calcular_metricas_generales(df_unificado, año=None):
         return {
             'cumplimiento_promedio': 0,
             'total_indicadores': 0,
-            'metas_cumplidas': 0,
+            'indicadores_cumplidos': 0,
             'en_progreso': 0,
-            'requieren_atencion': 0,
+            'no_cumplidos': 0,
             'total_lineas': 0,
             'año_actual': 2025
         }
@@ -241,17 +242,29 @@ def calcular_metricas_generales(df_unificado, año=None):
 
     df_año = df_unificado[df_unificado['Año'] == año] if 'Año' in df_unificado.columns else df_unificado
 
-    # Calcular métricas
+    # Solo considerar años 2022-2025 (omitir 2021 línea base)
+    if 'Año' in df_año.columns:
+        df_año = df_año[df_año['Año'].isin([2022, 2023, 2024, 2025])]
+
+    # Filtrar solo registros con Fuente = 'Avance'
+    if 'Fuente' in df_año.columns:
+        df_año = df_año[df_año['Fuente'] == 'Avance']
+
+    # Omitir registros con cumplimiento vacío
     if 'Cumplimiento' in df_año.columns:
+        df_año = df_año[df_año['Cumplimiento'].notna()]
+
+    # Calcular métricas
+    if 'Cumplimiento' in df_año.columns and not df_año.empty:
         cumplimiento_promedio = df_año['Cumplimiento'].mean()
-        metas_cumplidas = len(df_año[df_año['Cumplimiento'] >= 100])
+        indicadores_cumplidos = len(df_año[df_año['Cumplimiento'] >= 100])
         en_progreso = len(df_año[(df_año['Cumplimiento'] >= 80) & (df_año['Cumplimiento'] < 100)])
-        requieren_atencion = len(df_año[df_año['Cumplimiento'] < 80])
+        no_cumplidos = len(df_año[df_año['Cumplimiento'] < 80])
     else:
         cumplimiento_promedio = 0
-        metas_cumplidas = 0
+        indicadores_cumplidos = 0
         en_progreso = 0
-        requieren_atencion = 0
+        no_cumplidos = 0
 
     # Contar indicadores únicos
     total_indicadores = df_año['Indicador'].nunique() if 'Indicador' in df_año.columns else len(df_año)
@@ -262,9 +275,9 @@ def calcular_metricas_generales(df_unificado, año=None):
     return {
         'cumplimiento_promedio': round(cumplimiento_promedio, 1) if pd.notna(cumplimiento_promedio) else 0,
         'total_indicadores': total_indicadores,
-        'metas_cumplidas': metas_cumplidas,
+        'indicadores_cumplidos': indicadores_cumplidos,
         'en_progreso': en_progreso,
-        'requieren_atencion': requieren_atencion,
+        'no_cumplidos': no_cumplidos,
         'total_lineas': total_lineas,
         'año_actual': año
     }
@@ -318,6 +331,7 @@ def obtener_historico_indicador(df_unificado, indicador_id):
 def obtener_historico_indicador_completo(df_unificado, df_base, indicador_nombre):
     """
     Obtiene el histórico completo de un indicador considerando periodicidad.
+    Solo considera registros donde Fuente = 'Cierre'.
 
     Args:
         df_unificado: DataFrame con datos históricos
@@ -332,6 +346,10 @@ def obtener_historico_indicador_completo(df_unificado, df_base, indicador_nombre
 
     # Filtrar por indicador
     df_ind = df_unificado[df_unificado['Indicador'] == indicador_nombre].copy()
+
+    # Filtrar solo registros con Fuente = 'Cierre' para las gráficas de indicadores
+    if 'Fuente' in df_ind.columns:
+        df_ind = df_ind[df_ind['Fuente'] == 'Cierre']
 
     if df_ind.empty:
         return pd.DataFrame(), 'Anual', 'Creciente', '', ''
@@ -454,6 +472,9 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None):
     3. Por Meta PDI
     4. Por Indicador
 
+    Solo considera registros donde Fuente = 'Avance'.
+    Si no hay información, muestra 0%.
+
     Args:
         df_unificado: DataFrame con datos de cumplimiento
         df_base: DataFrame con metadatos (Meta_PDI)
@@ -470,6 +491,21 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None):
         año = df_unificado['Año'].max() if 'Año' in df_unificado.columns else 2025
 
     df_año = df_unificado[df_unificado['Año'] == año] if 'Año' in df_unificado.columns else df_unificado
+
+    # Solo considerar años 2022-2025 (omitir 2021 línea base)
+    if 'Año' in df_año.columns:
+        df_año = df_año[df_año['Año'].isin([2022, 2023, 2024, 2025])]
+
+    # Filtrar solo registros con Fuente = 'Avance'
+    if 'Fuente' in df_año.columns:
+        df_año = df_año[df_año['Fuente'] == 'Avance']
+
+    # Omitir registros con cumplimiento vacío
+    if 'Cumplimiento' in df_año.columns:
+        df_año = df_año[df_año['Cumplimiento'].notna()]
+
+    if df_año.empty:
+        return pd.DataFrame()
 
     # Agregar Meta_PDI al DataFrame
     if df_base is not None and 'Meta_PDI' in df_base.columns:
