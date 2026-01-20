@@ -253,20 +253,18 @@ def mostrar_pagina():
     st.markdown("### 📈 Evolución Histórica de la Línea")
 
     if 'Año' in df_linea.columns and 'Cumplimiento' in df_linea.columns:
+        # Filtrar solo años 2022-2025 (periodo PDI)
+        df_linea_hist = df_linea[df_linea['Año'].isin([2022, 2023, 2024, 2025])]
+
         # Agrupar por año
-        df_historico = df_linea.groupby('Año').agg({
+        df_historico = df_linea_hist.groupby('Año').agg({
             'Cumplimiento': 'mean',
             'Indicador': 'nunique'
         }).reset_index()
         df_historico = df_historico.sort_values('Año')
 
         # Crear etiquetas
-        etiquetas = []
-        for año in df_historico['Año']:
-            if año == 2021:
-                etiquetas.append(f"{int(año)}\n(Línea Base)")
-            else:
-                etiquetas.append(str(int(año)))
+        etiquetas = [str(int(año)) for año in df_historico['Año']]
 
         fig_hist = go.Figure()
 
@@ -278,13 +276,16 @@ def mostrar_pagina():
         # Obtener color de la línea seleccionada
         color_linea = COLORES_LINEAS.get(linea_seleccionada, COLORS['primary'])
 
+        # Convertir cumplimiento de decimal a porcentaje
+        cumpl_pct = df_historico['Cumplimiento'] * 100
+
         fig_hist.add_trace(go.Scatter(
             x=etiquetas,
-            y=df_historico['Cumplimiento'],
+            y=cumpl_pct,
             mode='lines+markers+text',
             line=dict(color=color_linea, width=3),
             marker=dict(size=12, color=color_linea),
-            text=[f"{c:.1f}%" for c in df_historico['Cumplimiento']],
+            text=[f"{c:.1f}%" for c in cumpl_pct],
             textposition='top center',
             hovertemplate='<b>Año %{x}</b><br>Cumplimiento: %{y:.1f}%<extra></extra>'
         ))
@@ -292,7 +293,7 @@ def mostrar_pagina():
         fig_hist.update_layout(
             title=f"Tendencia de Cumplimiento: {linea_seleccionada}",
             xaxis=dict(title="Año"),
-            yaxis=dict(title="% Cumplimiento", range=[0, 120]),
+            yaxis=dict(title="% Cumplimiento", range=[0, 130]),
             height=400,
             plot_bgcolor='white',
             paper_bgcolor='white'

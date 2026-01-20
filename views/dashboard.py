@@ -114,8 +114,8 @@ def mostrar_pagina():
 
     with col3:
         st.metric(
-            label="Año de Reporte",
-            value=año_actual
+            label="Fecha de Corte",
+            value="Diciembre 2025"
         )
 
     st.markdown("---")

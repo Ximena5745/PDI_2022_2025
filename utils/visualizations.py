@@ -716,7 +716,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 line=dict(color='white', width=2)
             ),
             textinfo='label',
-            customdata=[[f"{c:.1f}%"] for c in cumplimientos],
+            customdata=[[f"{c*100:.1f}%"] for c in cumplimientos],
             hovertemplate='<b>%{label}</b><br>Cumplimiento: %{customdata[0]}<extra></extra>',
             branchvalues="remainder"
         ))
