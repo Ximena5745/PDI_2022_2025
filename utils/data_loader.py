@@ -242,9 +242,9 @@ def calcular_metricas_generales(df_unificado, año=None):
 
     df_año = df_unificado[df_unificado['Año'] == año] if 'Año' in df_unificado.columns else df_unificado
 
-    # Solo considerar años 2022-2025 (omitir 2021 línea base)
+    # Solo considerar años 2022-2026 (omitir 2021 línea base)
     if 'Año' in df_año.columns:
-        df_año = df_año[df_año['Año'].isin([2022, 2023, 2024, 2025])]
+        df_año = df_año[df_año['Año'].isin([2022, 2023, 2024, 2025, 2026])]
 
     # Filtrar solo registros con Fuente = 'Avance'
     if 'Fuente' in df_año.columns:
@@ -464,9 +464,9 @@ def obtener_lista_objetivos(df_unificado, linea=None):
     return []
 
 
-def obtener_cumplimiento_cascada(df_unificado, df_base, año=None):
+def obtener_cumplimiento_cascada(df_unificado, df_base, año=None, max_niveles=4):
     """
-    Obtiene el cumplimiento en cascada de 4 niveles:
+    Obtiene el cumplimiento en cascada de hasta 4 niveles:
     1. Por Línea Estratégica
     2. Por Objetivo
     3. Por Meta PDI
@@ -479,6 +479,7 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None):
         df_unificado: DataFrame con datos de cumplimiento
         df_base: DataFrame con metadatos (Meta_PDI)
         año: Año a filtrar (opcional)
+        max_niveles: Número máximo de niveles a incluir (1-4, default 4)
 
     Returns:
         DataFrame con estructura jerárquica de cumplimiento
@@ -492,9 +493,9 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None):
 
     df_año = df_unificado[df_unificado['Año'] == año] if 'Año' in df_unificado.columns else df_unificado
 
-    # Solo considerar años 2022-2025 (omitir 2021 línea base)
+    # Solo considerar años 2022-2026 (omitir 2021 línea base)
     if 'Año' in df_año.columns:
-        df_año = df_año[df_año['Año'].isin([2022, 2023, 2024, 2025])]
+        df_año = df_año[df_año['Año'].isin([2022, 2023, 2024, 2025, 2026])]
 
     # Filtrar solo registros con Fuente = 'Avance'
     if 'Fuente' in df_año.columns:
@@ -533,7 +534,7 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None):
             })
 
             # Nivel 2: Objetivos
-            if 'Objetivo' in df_linea.columns:
+            if max_niveles >= 2 and 'Objetivo' in df_linea.columns:
                 for objetivo in sorted(df_linea['Objetivo'].dropna().unique()):
                     df_obj = df_linea[df_linea['Objetivo'] == objetivo]
                     cumpl_obj = df_obj['Cumplimiento'].mean() if 'Cumplimiento' in df_obj.columns else 0
@@ -549,7 +550,7 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None):
                     })
 
                     # Nivel 3: Meta PDI
-                    if 'Meta_PDI' in df_obj.columns:
+                    if max_niveles >= 3 and 'Meta_PDI' in df_obj.columns:
                         for meta_pdi in df_obj['Meta_PDI'].dropna().unique():
                             df_meta = df_obj[df_obj['Meta_PDI'] == meta_pdi]
                             cumpl_meta = df_meta['Cumplimiento'].mean() if 'Cumplimiento' in df_meta.columns else 0
@@ -565,7 +566,7 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None):
                             })
 
                             # Nivel 4: Indicadores
-                            if 'Indicador' in df_meta.columns:
+                            if max_niveles >= 4 and 'Indicador' in df_meta.columns:
                                 for indicador in df_meta['Indicador'].unique():
                                     df_ind = df_meta[df_meta['Indicador'] == indicador]
                                     cumpl_ind = df_ind['Cumplimiento'].iloc[0] if 'Cumplimiento' in df_ind.columns and not df_ind.empty else 0
@@ -580,22 +581,23 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None):
                                         'Total_Indicadores': 1
                                     })
 
-                    # Indicadores sin Meta PDI
-                    df_sin_meta = df_obj[df_obj['Meta_PDI'].isna()] if 'Meta_PDI' in df_obj.columns else df_obj
-                    if not df_sin_meta.empty and 'Indicador' in df_sin_meta.columns:
-                        for indicador in df_sin_meta['Indicador'].unique():
-                            df_ind = df_sin_meta[df_sin_meta['Indicador'] == indicador]
-                            cumpl_ind = df_ind['Cumplimiento'].iloc[0] if 'Cumplimiento' in df_ind.columns and not df_ind.empty else 0
+                    # Indicadores sin Meta PDI (solo si max_niveles >= 4)
+                    if max_niveles >= 4:
+                        df_sin_meta = df_obj[df_obj['Meta_PDI'].isna()] if 'Meta_PDI' in df_obj.columns else df_obj
+                        if not df_sin_meta.empty and 'Indicador' in df_sin_meta.columns:
+                            for indicador in df_sin_meta['Indicador'].unique():
+                                df_ind = df_sin_meta[df_sin_meta['Indicador'] == indicador]
+                                cumpl_ind = df_ind['Cumplimiento'].iloc[0] if 'Cumplimiento' in df_ind.columns and not df_ind.empty else 0
 
-                            cascada.append({
-                                'Nivel': 4,
-                                'Linea': linea,
-                                'Objetivo': objetivo,
-                                'Meta_PDI': 'N/D',
-                                'Indicador': indicador,
-                                'Cumplimiento': cumpl_ind,
-                                'Total_Indicadores': 1
-                            })
+                                cascada.append({
+                                    'Nivel': 4,
+                                    'Linea': linea,
+                                    'Objetivo': objetivo,
+                                    'Meta_PDI': 'N/D',
+                                    'Indicador': indicador,
+                                    'Cumplimiento': cumpl_ind,
+                                    'Total_Indicadores': 1
+                                })
 
     return pd.DataFrame(cascada)
 

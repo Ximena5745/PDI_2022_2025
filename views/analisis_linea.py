@@ -19,7 +19,8 @@ from utils.data_loader import (
     obtener_cumplimiento_cascada
 )
 from utils.visualizations import (
-    crear_objetivo_card_html, crear_tarjeta_kpi, crear_tabla_cascada_html
+    crear_objetivo_card_html, crear_tarjeta_kpi, crear_tabla_cascada_html,
+    crear_grafico_cascada
 )
 from utils.ai_analysis import (
     generar_analisis_linea, preparar_objetivos_para_analisis
@@ -71,9 +72,9 @@ def mostrar_pagina():
     else:
         df_linea_año = df_linea
 
-    # Solo considerar años 2022-2025 (omitir 2021 línea base)
+    # Solo considerar años 2022-2026 (omitir 2021 línea base)
     if 'Año' in df_linea_año.columns:
-        df_linea_año = df_linea_año[df_linea_año['Año'].isin([2022, 2023, 2024, 2025])]
+        df_linea_año = df_linea_año[df_linea_año['Año'].isin([2022, 2023, 2024, 2025, 2026])]
 
     # Filtrar solo registros con Fuente = 'Avance' para los cálculos
     if 'Fuente' in df_linea_año.columns:
@@ -305,8 +306,8 @@ def mostrar_pagina():
     # Vista de Cascada para la línea seleccionada
     st.markdown(f"### 🌊 Cumplimiento en Cascada: {linea_seleccionada}")
 
-    # Obtener datos de cascada solo para esta línea
-    df_cascada_completa = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual)
+    # Obtener datos de cascada con 3 niveles (Línea → Objetivo → Meta PDI)
+    df_cascada_completa = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=3)
     df_cascada_linea = df_cascada_completa[df_cascada_completa['Linea'] == linea_seleccionada] if not df_cascada_completa.empty else pd.DataFrame()
 
     if not df_cascada_linea.empty:
@@ -314,15 +315,23 @@ def mostrar_pagina():
             st.markdown(f"""
             **Estructura de cumplimiento para {linea_seleccionada}:**
 
-            Esta vista muestra la cascada completa desde objetivos hasta indicadores individuales,
-            pasando por las metas PDI definidas.
+            Esta vista muestra la cascada desde objetivos hasta metas PDI.
             """)
 
-            # Tabla HTML con jerarquía
-            tabla_cascada = crear_tabla_cascada_html(df_cascada_linea)
-            # Usar components.html para renderizar HTML complejo
-            import streamlit.components.v1 as components
-            components.html(tabla_cascada, height=min(len(df_cascada_linea) * 35 + 100, 800), scrolling=True)
+            # Dos columnas: gráfico sunburst y tabla
+            col_graf, col_tabla = st.columns([1, 1])
+
+            with col_graf:
+                # Gráfico sunburst para esta línea
+                fig_cascada = crear_grafico_cascada(df_cascada_linea, titulo=f"Cascada: {linea_seleccionada[:30]}...")
+                config = {'displayModeBar': True, 'responsive': True}
+                st.plotly_chart(fig_cascada, use_container_width=True, config=config)
+
+            with col_tabla:
+                # Tabla HTML con jerarquía
+                tabla_cascada = crear_tabla_cascada_html(df_cascada_linea)
+                import streamlit.components.v1 as components
+                components.html(tabla_cascada, height=400, scrolling=True)
 
             # Resumen estadístico
             st.markdown("---")
@@ -337,8 +346,19 @@ def mostrar_pagina():
                 st.metric("Metas PDI Definidas", total_metas_pdi)
 
             with col_stat3:
-                total_indicadores = len(df_cascada_linea[df_cascada_linea['Nivel'] == 4])
-                st.metric("Indicadores Totales", total_indicadores)
+                # Contar indicadores únicos de los datos filtrados
+                total_indicadores_linea = df_linea_año['Indicador'].nunique() if 'Indicador' in df_linea_año.columns else 0
+                st.metric("Indicadores Totales", total_indicadores_linea)
+    else:
+        # Mostrar valores en 0 cuando no hay datos
+        st.info("No hay datos de cascada disponibles para esta línea.")
+        col_stat1, col_stat2, col_stat3 = st.columns(3)
+        with col_stat1:
+            st.metric("Objetivos", 0)
+        with col_stat2:
+            st.metric("Metas PDI Definidas", 0)
+        with col_stat3:
+            st.metric("Indicadores Totales", 0)
 
     st.markdown("---")
 

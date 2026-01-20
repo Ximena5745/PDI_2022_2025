@@ -123,8 +123,8 @@ def mostrar_pagina():
     # Sección de Cumplimiento en Cascada
     st.markdown("### 🌊 Cumplimiento en Cascada Jerárquica")
 
-    # Obtener datos de cascada
-    df_cascada = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual)
+    # Obtener datos de cascada (2 niveles: Línea y Objetivo)
+    df_cascada = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=2)
 
     if not df_cascada.empty:
         # Tabs para diferentes vistas
@@ -143,16 +143,16 @@ def mostrar_pagina():
                 st.markdown("""
                 **📌 Interpretación:**
 
-                Este gráfico muestra la estructura jerárquica completa del cumplimiento en 4 niveles:
+                Este gráfico muestra la estructura jerárquica del cumplimiento en 2 niveles:
 
                 - **Centro**: Líneas estratégicas con su color distintivo
-                - **Anillo 2**: Objetivos dentro de cada línea
-                - **Anillo 3**: Metas PDI definidas
-                - **Anillo 4**: Indicadores individuales
-                - **Tamaño**: Proporcional al cumplimiento
-                - **Color**: Tonos graduales del color de la línea (más claro hacia el exterior)
+                - **Anillo exterior**: Objetivos dentro de cada línea
+                - **Color**: Tonos graduales del color de la línea
 
                 Haz clic en un segmento para explorar en detalle.
+
+                Para ver el desglose completo por Meta PDI e Indicador,
+                visite la página **Análisis por Línea**.
                 """)
 
                 # Resumen de niveles
@@ -160,8 +160,6 @@ def mostrar_pagina():
                 st.markdown("""
                 1. 📊 **Línea Estratégica**
                 2. 🎯 **Objetivo**
-                3. 🎖️ **Meta PDI**
-                4. 📌 **Indicador**
                 """)
 
         with tab2:
@@ -187,7 +185,13 @@ def mostrar_pagina():
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
     else:
-        st.info("No hay datos suficientes para generar la vista de cascada.")
+        st.info("No hay datos de Avance disponibles para generar la vista de cascada.")
+        # Mostrar métricas en 0
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Líneas Estratégicas", 0)
+        with col2:
+            st.metric("Objetivos", 0)
 
     st.markdown("---")
 
