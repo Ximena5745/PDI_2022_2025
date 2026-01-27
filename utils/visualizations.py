@@ -748,10 +748,10 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
                 line=dict(color='white', width=2)
             ),
             text=textos_porcentaje,
-            textinfo='label+text',
-            textfont=dict(size=10),
-            insidetextfont=dict(color=colores_texto),
-            insidetextorientation='horizontal',
+            textinfo='text+label',  # Mostrar porcentaje primero, luego label
+            textfont=dict(size=11, color='black'),  # Aumentar tamaño de fuente
+            insidetextfont=dict(color=colores_texto, size=9),
+            insidetextorientation='radial',  # Permitir orientación radial para más espacio
             customdata=customdata,
             hovertemplate='<b>%{customdata[0]}</b><br><br>Cumplimiento: %{customdata[1]}<extra></extra>',
             hoverlabel=dict(
@@ -770,9 +770,9 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
                 x=0.5,
                 xanchor='center'
             ),
-            height=700,
+            height=800,  # Aumentar altura para más espacio
             margin=dict(t=60, b=20, l=20, r=20),
-            uniformtext=dict(minsize=8, mode='hide')
+            uniformtext=dict(minsize=7, mode='clip')  # Cambiar 'hide' a 'clip' para mostrar etiquetas cortadas
         )
 
         return fig
@@ -903,9 +903,9 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
                 line=dict(color='white', width=2)
             ),
             text=textos_porcentaje,
-            textinfo='label+text',
-            textfont=dict(size=11),
-            insidetextfont=dict(color=colores_texto),
+            textinfo='text+label',  # Mostrar porcentaje primero, luego label
+            textfont=dict(size=10, color='black'),  # Especificar color del texto
+            insidetextfont=dict(color=colores_texto, size=9),
             textposition="middle center",
             customdata=list(zip(labels_hover, textos_porcentaje)),
             hovertemplate='<b>%{customdata[0]}</b><br><br>Cumplimiento: %{customdata[1]}<extra></extra>',
@@ -930,9 +930,9 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
                 x=0.5,
                 xanchor='center'
             ),
-            height=550,
+            height=600,  # Aumentar altura
             margin=dict(t=80, b=20, l=20, r=20),
-            uniformtext=dict(minsize=9, mode='hide')
+            uniformtext=dict(minsize=8, mode='clip')  # Cambiar a 'clip' para mostrar etiquetas parciales
         )
 
         return fig
