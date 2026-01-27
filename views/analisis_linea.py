@@ -20,7 +20,7 @@ from utils.data_loader import (
 )
 from utils.visualizations import (
     crear_objetivo_card_html, crear_tarjeta_kpi, crear_tabla_cascada_html,
-    crear_grafico_cascada
+    crear_grafico_cascada_icicle
 )
 from utils.ai_analysis import (
     generar_analisis_linea, preparar_objetivos_para_analisis
@@ -329,7 +329,7 @@ def mostrar_pagina():
 
             with col_graf:
                 # Gráfico sunburst para esta línea
-                fig_cascada = crear_grafico_cascada(df_cascada_linea, titulo=f"Cascada: {linea_seleccionada[:30]}...")
+                fig_cascada = crear_grafico_cascada_icicle(df_cascada_linea, titulo=f"Cascada: {linea_seleccionada}")
                 config = {'displayModeBar': True, 'responsive': True}
                 st.plotly_chart(fig_cascada, use_container_width=True, config=config)
 
