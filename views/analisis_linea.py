@@ -292,7 +292,12 @@ def mostrar_pagina():
 
         fig_hist.update_layout(
             title=f"Tendencia de Cumplimiento: {linea_seleccionada}",
-            xaxis=dict(title="Año"),
+            xaxis=dict(
+                title="Año",
+                type='category',  # Forzar eje categórico
+                categoryorder='array',
+                categoryarray=['2022', '2023', '2024', '2025']
+            ),
             yaxis=dict(title="% Cumplimiento", range=[0, 130]),
             height=400,
             plot_bgcolor='white',

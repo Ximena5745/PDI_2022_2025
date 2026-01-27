@@ -600,7 +600,7 @@ def aclarar_color(color_hex, factor=0.5):
 
 def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
     """
-    Crea un gráfico de cascada (waterfall) mostrando el cumplimiento jerárquico.
+    Crea un gráfico de cascada (sunburst) mostrando el cumplimiento jerárquico.
 
     Args:
         df_cascada: DataFrame con estructura jerárquica (resultado de obtener_cumplimiento_cascada)
@@ -614,7 +614,6 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
         return go.Figure()
 
     try:
-        # Mostrar todos los niveles (1, 2, 3 y 4)
         df_viz = df_cascada.copy()
 
         # Crear etiquetas según el nivel
@@ -623,6 +622,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
         colores = []
         parents = []
         ids = []
+        textos_mostrar = []  # Texto a mostrar siempre en el segmento
 
         # Mapeo de líneas a colores y contadores para IDs únicos
         linea_color_map = {}
@@ -631,6 +631,9 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
 
         for idx, row in df_viz.iterrows():
             nivel = int(row['Nivel'])
+            cumpl = row['Cumplimiento']
+            # Asegurar que el cumplimiento esté en rango válido (no mayor a 200% para visualización)
+            cumpl_display = min(cumpl, 200) if pd.notna(cumpl) else 0
 
             if nivel == 1:
                 # Nivel 1: Línea Estratégica
@@ -641,6 +644,8 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 colores.append(color_linea)
                 linea_color_map[row['Linea']] = (color_linea, id_linea)
                 ids.append(id_linea)
+                # Mostrar nombre y cumplimiento
+                textos_mostrar.append(f"{row['Linea']}<br><b>{cumpl_display:.1f}%</b>")
 
             elif nivel == 2:
                 # Nivel 2: Objetivo
@@ -651,15 +656,16 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                     id_linea = ""
 
                 id_obj = f"L2-{idx}"
-                obj_label = row['Objetivo'][:40] + "..." if len(row['Objetivo']) > 40 else row['Objetivo']
-                labels.append(obj_label)
+                # Truncar objetivo para visualización pero mostrar cumplimiento
+                obj_texto = row['Objetivo'][:35] + "..." if len(row['Objetivo']) > 35 else row['Objetivo']
+                labels.append(obj_texto)
                 parents.append(id_linea)
-                # Usar tono más claro del color de la línea padre
                 color_base = linea_info[0] if linea_info else COLORS['primary']
                 colores.append(aclarar_color(color_base, factor=0.4))
                 ids.append(id_obj)
-                # Guardar mapeo para nivel 3
                 contador_obj[f"{row['Linea']}-{row['Objetivo']}"] = id_obj
+                # Texto con cumplimiento siempre visible
+                textos_mostrar.append(f"{obj_texto}<br><b>{cumpl_display:.1f}%</b>")
 
             elif nivel == 3:
                 # Nivel 3: Meta PDI
@@ -667,56 +673,51 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 id_obj = contador_obj.get(key_obj, "")
 
                 id_meta = f"L3-{idx}"
-                meta_label = str(row['Meta_PDI'])[:30] + "..." if len(str(row['Meta_PDI'])) > 30 else str(row['Meta_PDI'])
-                labels.append(f"Meta: {meta_label}")
+                meta_texto = str(row['Meta_PDI'])[:30] + "..." if len(str(row['Meta_PDI'])) > 30 else str(row['Meta_PDI'])
+                labels.append(f"Meta: {meta_texto}")
                 parents.append(id_obj)
-                # Usar tono aún más claro
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
                 colores.append(aclarar_color(color_base, factor=0.6))
                 ids.append(id_meta)
-                # Guardar mapeo para nivel 4
                 contador_meta[f"{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}"] = id_meta
+                textos_mostrar.append(f"Meta: {meta_texto}<br><b>{cumpl_display:.1f}%</b>")
 
             elif nivel == 4:
                 # Nivel 4: Indicador
-                # Si el indicador no tiene Meta_PDI (N/D), su parent es el Objetivo (nivel 2)
-                # Si tiene Meta_PDI, su parent es el nivel 3
                 if row['Meta_PDI'] == 'N/D' or pd.isna(row['Meta_PDI']):
-                    # Parent es el objetivo
                     key_obj = f"{row['Linea']}-{row['Objetivo']}"
                     id_parent = contador_obj.get(key_obj, "")
                 else:
-                    # Parent es la meta PDI
                     key_meta = f"{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}"
                     id_parent = contador_meta.get(key_meta, "")
 
                 id_ind = f"L4-{idx}"
-                ind_label = row['Indicador'][:35] + "..." if len(row['Indicador']) > 35 else row['Indicador']
-                labels.append(ind_label)
+                ind_texto = row['Indicador'][:30] + "..." if len(row['Indicador']) > 30 else row['Indicador']
+                labels.append(ind_texto)
                 parents.append(id_parent)
-                # Usar el tono más claro
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
                 colores.append(aclarar_color(color_base, factor=0.75))
                 ids.append(id_ind)
+                textos_mostrar.append(f"{ind_texto}<br><b>{cumpl_display:.1f}%</b>")
 
-            cumplimientos.append(row['Cumplimiento'])
+            cumplimientos.append(cumpl_display)
 
-        # Crear gráfico sunburst
-        # Usar branchvalues="remainder" para que cada segmento tenga el mismo tamaño
-        # independientemente de la jerarquía. El cumplimiento se muestra en hover.
+        # Crear gráfico sunburst con branchvalues="remainder" para distribución uniforme
         fig = go.Figure(go.Sunburst(
             ids=ids,
             labels=labels,
             parents=parents,
-            values=[1] * len(ids),
             marker=dict(
                 colors=colores,
                 line=dict(color='white', width=2)
             ),
-            textinfo='label',
-            customdata=[[f"{c*100:.1f}%"] for c in cumplimientos],
+            textinfo='text',
+            text=textos_mostrar,
+            textfont=dict(size=10),
+            insidetextorientation='horizontal',
+            customdata=[[f"{c:.1f}%"] for c in cumplimientos],
             hovertemplate='<b>%{label}</b><br>Cumplimiento: %{customdata[0]}<extra></extra>',
             branchvalues="remainder"
         ))
