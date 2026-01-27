@@ -20,8 +20,5 @@ google-genai>=1.0.0
 # Variables de entorno
 python-dotenv>=1.0.0
 
-
-weasyprint
-
-
-xhtml2pdf
+# Generación de PDF (ligero y compatible con Streamlit Cloud)
+fpdf2>=2.7.0

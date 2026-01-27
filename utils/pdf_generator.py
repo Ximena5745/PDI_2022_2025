@@ -704,9 +704,274 @@ def generar_informe_html(
     return html
 
 
+def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
+                     df_indicadores: pd.DataFrame, analisis_texto: str = "", año: int = 2025) -> bytes:
+    """
+    Genera PDF usando fpdf2 (ligero y compatible con Streamlit Cloud).
+    """
+    from fpdf import FPDF
+
+    class PDFInforme(FPDF):
+        def __init__(self):
+            super().__init__()
+            self.set_auto_page_break(auto=True, margin=20)
+
+        def header(self):
+            if self.page_no() > 1:
+                self.set_font('Helvetica', 'I', 8)
+                self.set_text_color(100, 100, 100)
+                self.cell(0, 10, 'Informe Estrategico POLI - Plan de Desarrollo Institucional', 0, 0, 'C')
+                self.ln(5)
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Helvetica', 'I', 8)
+            self.set_text_color(100, 100, 100)
+            self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
+
+    pdf = PDFInforme()
+
+    # ===== PORTADA =====
+    pdf.add_page()
+    pdf.set_fill_color(0, 61, 130)  # Azul institucional
+    pdf.rect(0, 0, 210, 297, 'F')
+
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Helvetica', 'B', 48)
+    pdf.set_y(80)
+    pdf.cell(0, 20, 'POLI', 0, 1, 'C')
+
+    pdf.set_font('Helvetica', 'B', 24)
+    pdf.cell(0, 15, 'INFORME ESTRATEGICO', 0, 1, 'C')
+
+    pdf.set_font('Helvetica', '', 16)
+    pdf.cell(0, 10, 'Plan de Desarrollo Institucional', 0, 1, 'C')
+
+    pdf.set_y(160)
+    pdf.set_fill_color(0, 86, 179)
+    pdf.rect(60, 155, 90, 15, 'F')
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.cell(0, 10, f'Periodo 2021-{año}', 0, 1, 'C')
+
+    pdf.set_y(200)
+    pdf.set_font('Helvetica', '', 11)
+    fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
+    pdf.cell(0, 10, f'Generado el {fecha}', 0, 1, 'C')
+
+    # ===== RESUMEN EJECUTIVO =====
+    pdf.add_page()
+    pdf.set_text_color(0, 61, 130)
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.cell(0, 10, 'Resumen Ejecutivo', 0, 1, 'L')
+    pdf.set_draw_color(0, 61, 130)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(10)
+
+    # KPIs
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_text_color(0, 61, 130)
+    pdf.cell(0, 8, 'Indicadores Clave de Desempeno', 0, 1, 'L')
+    pdf.ln(5)
+
+    cumplimiento = metricas.get('cumplimiento_promedio', 0)
+    kpis = [
+        ('Cumplimiento', f"{cumplimiento:.1f}%", (0, 61, 130)),
+        ('Cumplidos', str(metricas.get('indicadores_cumplidos', 0)), (40, 167, 69)),
+        ('En Progreso', str(metricas.get('en_progreso', 0)), (255, 193, 7)),
+        ('No Cumplidos', str(metricas.get('no_cumplidos', 0)), (220, 53, 69)),
+        ('Total', str(metricas.get('total_indicadores', 0)), (108, 117, 125)),
+    ]
+
+    x_start = 15
+    box_width = 35
+    for i, (label, valor, color) in enumerate(kpis):
+        x = x_start + i * (box_width + 3)
+        pdf.set_fill_color(*color)
+        pdf.rect(x, pdf.get_y(), box_width, 4, 'F')
+        pdf.rect(x, pdf.get_y(), box_width, 25, 'D')
+
+        pdf.set_xy(x, pdf.get_y() + 6)
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.set_text_color(*color)
+        pdf.cell(box_width, 8, valor, 0, 0, 'C')
+
+        pdf.set_xy(x, pdf.get_y() + 10)
+        pdf.set_font('Helvetica', '', 7)
+        pdf.set_text_color(100, 100, 100)
+        pdf.cell(box_width, 5, label, 0, 0, 'C')
+
+    pdf.ln(35)
+
+    # Semaforo
+    pdf.set_fill_color(248, 249, 250)
+    pdf.rect(10, pdf.get_y(), 190, 12, 'F')
+    pdf.set_font('Helvetica', '', 8)
+    pdf.set_text_color(40, 167, 69)
+    pdf.cell(60, 12, '  >= 100% Meta Cumplida', 0, 0, 'C')
+    pdf.set_text_color(255, 193, 7)
+    pdf.cell(60, 12, '  80-99% En Progreso', 0, 0, 'C')
+    pdf.set_text_color(220, 53, 69)
+    pdf.cell(60, 12, '  < 80% Requiere Atencion', 0, 1, 'C')
+    pdf.ln(10)
+
+    # Analisis
+    if analisis_texto:
+        pdf.set_fill_color(227, 242, 253)
+        pdf.set_draw_color(0, 61, 130)
+        y_start = pdf.get_y()
+        pdf.rect(10, y_start, 190, 40, 'F')
+        pdf.line(10, y_start, 10, y_start + 40)
+        pdf.set_line_width(1)
+        pdf.line(10, y_start, 10, y_start + 40)
+        pdf.set_line_width(0.2)
+
+        pdf.set_xy(15, y_start + 5)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_text_color(0, 61, 130)
+        pdf.cell(0, 5, 'Analisis Ejecutivo', 0, 1)
+        pdf.set_x(15)
+        pdf.set_font('Helvetica', '', 9)
+        pdf.set_text_color(33, 37, 41)
+        # Limpiar texto
+        texto_limpio = analisis_texto.replace('**', '').replace('*', '')[:400]
+        pdf.multi_cell(180, 5, texto_limpio)
+        pdf.ln(10)
+
+    # ===== LINEAS ESTRATEGICAS =====
+    pdf.add_page()
+    pdf.set_text_color(0, 61, 130)
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.cell(0, 10, 'Cumplimiento por Linea Estrategica', 0, 1, 'L')
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(10)
+
+    if df_lineas is not None and not df_lineas.empty:
+        # Header tabla
+        pdf.set_fill_color(0, 61, 130)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 9)
+        pdf.cell(100, 8, 'Linea Estrategica', 1, 0, 'L', True)
+        pdf.cell(30, 8, 'Indicadores', 1, 0, 'C', True)
+        pdf.cell(30, 8, 'Cumplimiento', 1, 0, 'C', True)
+        pdf.cell(30, 8, 'Estado', 1, 1, 'C', True)
+
+        pdf.set_font('Helvetica', '', 8)
+        for idx, (_, row) in enumerate(df_lineas.iterrows()):
+            if idx % 2 == 0:
+                pdf.set_fill_color(255, 255, 255)
+            else:
+                pdf.set_fill_color(248, 249, 250)
+
+            linea = str(row.get('Linea', 'N/D'))[:50]
+            cumpl = row.get('Cumplimiento', 0)
+            total_ind = row.get('Total_Indicadores', 0)
+
+            if cumpl >= 100:
+                estado = 'Cumplido'
+                pdf.set_text_color(40, 167, 69)
+            elif cumpl >= 80:
+                estado = 'En Progreso'
+                pdf.set_text_color(255, 193, 7)
+            else:
+                estado = 'Atencion'
+                pdf.set_text_color(220, 53, 69)
+
+            pdf.set_text_color(33, 37, 41)
+            pdf.cell(100, 7, linea, 1, 0, 'L', True)
+            pdf.cell(30, 7, str(total_ind), 1, 0, 'C', True)
+            pdf.cell(30, 7, f"{cumpl:.1f}%", 1, 0, 'C', True)
+
+            if cumpl >= 100:
+                pdf.set_text_color(40, 167, 69)
+            elif cumpl >= 80:
+                pdf.set_text_color(255, 193, 7)
+            else:
+                pdf.set_text_color(220, 53, 69)
+            pdf.cell(30, 7, estado, 1, 1, 'C', True)
+
+    # ===== INDICADORES =====
+    pdf.add_page()
+    pdf.set_text_color(0, 61, 130)
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.cell(0, 10, 'Detalle de Indicadores', 0, 1, 'L')
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(10)
+
+    if df_indicadores is not None and not df_indicadores.empty:
+        # Header
+        pdf.set_fill_color(0, 61, 130)
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 7)
+        pdf.cell(80, 7, 'Indicador', 1, 0, 'L', True)
+        pdf.cell(25, 7, 'Meta', 1, 0, 'C', True)
+        pdf.cell(25, 7, 'Ejecucion', 1, 0, 'C', True)
+        pdf.cell(25, 7, 'Cumplimiento', 1, 0, 'C', True)
+        pdf.cell(25, 7, 'Estado', 1, 1, 'C', True)
+
+        pdf.set_font('Helvetica', '', 7)
+        for idx, (_, row) in enumerate(df_indicadores.head(50).iterrows()):
+            if idx % 2 == 0:
+                pdf.set_fill_color(255, 255, 255)
+            else:
+                pdf.set_fill_color(248, 249, 250)
+
+            indicador = str(row.get('Indicador', 'N/D'))[:45]
+            meta = row.get('Meta', 'N/D')
+            ejec = row.get('Ejecución', row.get('Ejecucion', 'N/D'))
+            cumpl = row.get('Cumplimiento', 0)
+
+            meta_str = f"{meta:.2f}" if isinstance(meta, (int, float)) and pd.notna(meta) else str(meta)
+            ejec_str = f"{ejec:.2f}" if isinstance(ejec, (int, float)) and pd.notna(ejec) else str(ejec)
+
+            if pd.isna(cumpl):
+                cumpl_str = "N/D"
+                estado = "N/D"
+            else:
+                cumpl_str = f"{cumpl:.1f}%"
+                estado = "OK" if cumpl >= 100 else "!" if cumpl >= 80 else "X"
+
+            pdf.set_text_color(33, 37, 41)
+            pdf.cell(80, 6, indicador, 1, 0, 'L', True)
+            pdf.cell(25, 6, meta_str[:10], 1, 0, 'C', True)
+            pdf.cell(25, 6, ejec_str[:10], 1, 0, 'C', True)
+            pdf.cell(25, 6, cumpl_str, 1, 0, 'C', True)
+
+            if not pd.isna(cumpl):
+                if cumpl >= 100:
+                    pdf.set_text_color(40, 167, 69)
+                elif cumpl >= 80:
+                    pdf.set_text_color(255, 193, 7)
+                else:
+                    pdf.set_text_color(220, 53, 69)
+            pdf.cell(25, 6, estado, 1, 1, 'C', True)
+
+            if pdf.get_y() > 270:
+                pdf.add_page()
+                pdf.set_fill_color(0, 61, 130)
+                pdf.set_text_color(255, 255, 255)
+                pdf.set_font('Helvetica', 'B', 7)
+                pdf.cell(80, 7, 'Indicador', 1, 0, 'L', True)
+                pdf.cell(25, 7, 'Meta', 1, 0, 'C', True)
+                pdf.cell(25, 7, 'Ejecucion', 1, 0, 'C', True)
+                pdf.cell(25, 7, 'Cumplimiento', 1, 0, 'C', True)
+                pdf.cell(25, 7, 'Estado', 1, 1, 'C', True)
+                pdf.set_font('Helvetica', '', 7)
+
+    # Footer final
+    pdf.ln(15)
+    pdf.set_text_color(0, 61, 130)
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.cell(0, 5, 'POLITECNICO GRANCOLOMBIANO', 0, 1, 'C')
+    pdf.set_font('Helvetica', '', 8)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 5, f'Dashboard Estrategico POLI - PDI 2021-{año}', 0, 1, 'C')
+
+    return pdf.output()
+
+
 def generar_pdf(html_content: str) -> bytes:
     """
-    Convierte HTML a PDF usando xhtml2pdf (compatible con Windows).
+    Convierte HTML a PDF. Intenta usar xhtml2pdf primero.
 
     Args:
         html_content: Contenido HTML del informe
@@ -714,12 +979,10 @@ def generar_pdf(html_content: str) -> bytes:
     Returns:
         Bytes del archivo PDF
     """
-    # Usar xhtml2pdf como opción principal (puro Python, sin dependencias del sistema)
     try:
         from xhtml2pdf import pisa
 
         pdf_buffer = io.BytesIO()
-        # Convertir HTML a PDF
         pisa_status = pisa.CreatePDF(
             src=html_content,
             dest=pdf_buffer,
@@ -733,25 +996,12 @@ def generar_pdf(html_content: str) -> bytes:
         return pdf_buffer.getvalue()
 
     except ImportError:
-        # Fallback: intentar con weasyprint (requiere librerías del sistema)
-        try:
-            from weasyprint import HTML
-
-            pdf_buffer = io.BytesIO()
-            HTML(string=html_content).write_pdf(pdf_buffer)
-            return pdf_buffer.getvalue()
-
-        except ImportError:
-            raise ImportError(
-                "Se requiere instalar xhtml2pdf para generar PDFs.\n"
-                "Ejecute: pip install xhtml2pdf"
-            )
-        except Exception as e:
-            raise ImportError(
-                f"weasyprint requiere librerías del sistema no disponibles.\n"
-                f"Instale xhtml2pdf en su lugar: pip install xhtml2pdf\n"
-                f"Error: {str(e)}"
-            )
+        raise ImportError(
+            "Se requiere instalar xhtml2pdf o fpdf2 para generar PDFs.\n"
+            "Ejecute: pip install fpdf2"
+        )
+    except Exception as e:
+        raise Exception(f"Error generando PDF: {str(e)}")
 
 
 def exportar_informe_pdf(
@@ -764,6 +1014,7 @@ def exportar_informe_pdf(
 ) -> bytes:
     """
     Función principal para exportar el informe completo a PDF.
+    Usa fpdf2 como opción principal (más compatible con Streamlit Cloud).
 
     Args:
         metricas: Diccionario con métricas generales
@@ -776,16 +1027,26 @@ def exportar_informe_pdf(
     Returns:
         Bytes del archivo PDF
     """
-    html = generar_informe_html(
-        metricas=metricas,
-        df_lineas=df_lineas,
-        df_indicadores=df_indicadores,
-        analisis_texto=analisis_texto,
-        figuras=figuras,
-        año=año
-    )
-
-    return generar_pdf(html)
+    # Intentar con fpdf2 primero (más ligero y compatible)
+    try:
+        return generar_pdf_fpdf(
+            metricas=metricas,
+            df_lineas=df_lineas,
+            df_indicadores=df_indicadores,
+            analisis_texto=analisis_texto,
+            año=año
+        )
+    except ImportError:
+        # Fallback a xhtml2pdf
+        html = generar_informe_html(
+            metricas=metricas,
+            df_lineas=df_lineas,
+            df_indicadores=df_indicadores,
+            analisis_texto=analisis_texto,
+            figuras=figuras,
+            año=año
+        )
+        return generar_pdf(html)
 
 
 # Función auxiliar para previsualizar HTML (útil para debugging)

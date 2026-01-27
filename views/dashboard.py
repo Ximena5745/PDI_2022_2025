@@ -282,8 +282,7 @@ def mostrar_pagina():
                     type="primary"
                 )
             except ImportError as e:
-                st.warning(f"⚠️ Para generar PDFs, instale: `pip install xhtml2pdf`")
-                st.code("pip install xhtml2pdf", language="bash")
+                st.warning(f"⚠️ Para generar PDFs, instale: `pip install fpdf2`")
             except Exception as e:
                 st.error(f"Error al generar PDF: {str(e)}")
 
