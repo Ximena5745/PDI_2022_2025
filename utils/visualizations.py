@@ -600,7 +600,8 @@ def aclarar_color(color_hex, factor=0.5):
 
 def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
     """
-    Crea un gráfico de cascada (sunburst) mostrando el cumplimiento jerárquico.
+    Crea un gráfico de cascada (Icicle) mostrando el cumplimiento jerárquico.
+    El gráfico Icicle permite mejor visualización de textos largos que el Sunburst.
 
     Args:
         df_cascada: DataFrame con estructura jerárquica (resultado de obtener_cumplimiento_cascada)
@@ -618,11 +619,11 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
 
         # Crear etiquetas según el nivel
         labels = []
+        labels_completos = []  # Para hover
         cumplimientos = []
         colores = []
         parents = []
         ids = []
-        textos_mostrar = []  # Texto a mostrar siempre en el segmento
 
         # Mapeo de líneas a colores y contadores para IDs únicos
         linea_color_map = {}
@@ -632,40 +633,36 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
         for idx, row in df_viz.iterrows():
             nivel = int(row['Nivel'])
             cumpl = row['Cumplimiento']
-            # Asegurar que el cumplimiento esté en rango válido (no mayor a 200% para visualización)
+            # Asegurar que el cumplimiento esté en rango válido
             cumpl_display = min(cumpl, 200) if pd.notna(cumpl) else 0
 
             if nivel == 1:
                 # Nivel 1: Línea Estratégica
                 id_linea = f"L1-{idx}"
-                labels.append(row['Linea'])
+                nombre = row['Linea']
+                labels.append(f"<b>{nombre}</b><br>{cumpl_display:.1f}%")
+                labels_completos.append(nombre)
                 parents.append("")
                 color_linea = COLORES_LINEAS.get(row['Linea'], COLORS['primary'])
                 colores.append(color_linea)
                 linea_color_map[row['Linea']] = (color_linea, id_linea)
                 ids.append(id_linea)
-                # Mostrar nombre y cumplimiento
-                textos_mostrar.append(f"{row['Linea']}<br><b>{cumpl_display:.1f}%</b>")
 
             elif nivel == 2:
                 # Nivel 2: Objetivo
                 linea_info = linea_color_map.get(row['Linea'])
-                if linea_info:
-                    id_linea = linea_info[1]
-                else:
-                    id_linea = ""
+                id_linea = linea_info[1] if linea_info else ""
 
                 id_obj = f"L2-{idx}"
-                # Truncar objetivo para visualización pero mostrar cumplimiento
-                obj_texto = row['Objetivo'][:35] + "..." if len(row['Objetivo']) > 35 else row['Objetivo']
-                labels.append(obj_texto)
+                nombre = row['Objetivo']
+                # Mostrar nombre completo en el label del Icicle
+                labels.append(f"{nombre}<br><b>{cumpl_display:.1f}%</b>")
+                labels_completos.append(nombre)
                 parents.append(id_linea)
                 color_base = linea_info[0] if linea_info else COLORS['primary']
                 colores.append(aclarar_color(color_base, factor=0.4))
                 ids.append(id_obj)
                 contador_obj[f"{row['Linea']}-{row['Objetivo']}"] = id_obj
-                # Texto con cumplimiento siempre visible
-                textos_mostrar.append(f"{obj_texto}<br><b>{cumpl_display:.1f}%</b>")
 
             elif nivel == 3:
                 # Nivel 3: Meta PDI
@@ -673,15 +670,15 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 id_obj = contador_obj.get(key_obj, "")
 
                 id_meta = f"L3-{idx}"
-                meta_texto = str(row['Meta_PDI'])[:30] + "..." if len(str(row['Meta_PDI'])) > 30 else str(row['Meta_PDI'])
-                labels.append(f"Meta: {meta_texto}")
+                nombre = f"Meta: {row['Meta_PDI']}"
+                labels.append(f"{nombre}<br><b>{cumpl_display:.1f}%</b>")
+                labels_completos.append(nombre)
                 parents.append(id_obj)
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
                 colores.append(aclarar_color(color_base, factor=0.6))
                 ids.append(id_meta)
                 contador_meta[f"{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}"] = id_meta
-                textos_mostrar.append(f"Meta: {meta_texto}<br><b>{cumpl_display:.1f}%</b>")
 
             elif nivel == 4:
                 # Nivel 4: Indicador
@@ -693,33 +690,35 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                     id_parent = contador_meta.get(key_meta, "")
 
                 id_ind = f"L4-{idx}"
-                ind_texto = row['Indicador'][:30] + "..." if len(row['Indicador']) > 30 else row['Indicador']
-                labels.append(ind_texto)
+                nombre = row['Indicador']
+                labels.append(f"{nombre}<br><b>{cumpl_display:.1f}%</b>")
+                labels_completos.append(nombre)
                 parents.append(id_parent)
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
                 colores.append(aclarar_color(color_base, factor=0.75))
                 ids.append(id_ind)
-                textos_mostrar.append(f"{ind_texto}<br><b>{cumpl_display:.1f}%</b>")
 
             cumplimientos.append(cumpl_display)
 
-        # Crear gráfico sunburst con branchvalues="remainder" para distribución uniforme
-        fig = go.Figure(go.Sunburst(
+        # Crear gráfico Icicle (mejor para texto largo que Sunburst)
+        fig = go.Figure(go.Icicle(
             ids=ids,
             labels=labels,
             parents=parents,
             marker=dict(
                 colors=colores,
-                line=dict(color='white', width=2)
+                line=dict(color='white', width=1)
             ),
-            textinfo='text',
-            text=textos_mostrar,
-            textfont=dict(size=10),
-            insidetextorientation='horizontal',
-            customdata=[[f"{c:.1f}%"] for c in cumplimientos],
-            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{customdata[0]}<extra></extra>',
-            branchvalues="remainder"
+            textfont=dict(size=11),
+            customdata=list(zip(labels_completos, [f"{c:.1f}%" for c in cumplimientos])),
+            hovertemplate='<b>%{customdata[0]}</b><br>Cumplimiento: %{customdata[1]}<extra></extra>',
+            branchvalues="remainder",
+            tiling=dict(
+                orientation='v',  # Vertical: niveles de arriba hacia abajo
+                flip='x'
+            ),
+            root=dict(color='white')
         ))
 
         fig.update_layout(
@@ -729,7 +728,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 x=0.5,
                 xanchor='center'
             ),
-            height=600,
+            height=500,
             margin=dict(t=60, b=20, l=20, r=20)
         )
 
