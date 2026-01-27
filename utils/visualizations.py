@@ -763,8 +763,8 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
             cumplimientos.append(cumpl_display)
 
-        # Crear textos de porcentaje para mostrar en el gráfico
-        textos_porcentaje = [f"{c:.1f}%" for c in cumplimientos]
+        # Crear textos de porcentaje para mostrar en el gráfico (con negrita)
+        textos_porcentaje = [f"<b>{c:.1f}%</b>" for c in cumplimientos]
 
         # Determinar colores de texto según luminosidad del fondo
         colores_texto = [obtener_color_texto(c) for c in colores]
@@ -782,8 +782,8 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
             ),
             text=textos_porcentaje,
             textinfo='text+label',  # Mostrar porcentaje primero, luego label
-            textfont=dict(size=11, color='black'),  # Aumentar tamaño de fuente
-            insidetextfont=dict(color=colores_texto, size=9),
+            textfont=dict(size=13, color='black'),  # Aumentar tamaño de fuente a 13
+            insidetextfont=dict(color=colores_texto, size=11),  # Aumentar tamaño interno a 11
             insidetextorientation='radial',  # Permitir orientación radial para más espacio
             customdata=customdata,
             hovertemplate='<b>%{customdata[0]}</b><br><br>Cumplimiento: %{customdata[1]}<extra></extra>',
@@ -921,7 +921,7 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
         # Crear gráfico Treemap con texto simplificado
         # Usar text para mostrar porcentaje y textinfo para controlar visibilidad
-        textos_porcentaje = [f"{c:.1f}%" for c in cumplimientos]
+        textos_porcentaje = [f"<b>{c:.1f}%</b>" for c in cumplimientos]  # Agregar negrita
 
         # Determinar colores de texto según luminosidad del fondo
         colores_texto = [obtener_color_texto(c) for c in colores]
@@ -937,8 +937,8 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
             ),
             text=textos_porcentaje,
             textinfo='text+label',  # Mostrar porcentaje primero, luego label
-            textfont=dict(size=10, color='black'),  # Especificar color del texto
-            insidetextfont=dict(color=colores_texto, size=9),
+            textfont=dict(size=12, color='black'),  # Aumentar tamaño a 12
+            insidetextfont=dict(color=colores_texto, size=10),  # Aumentar tamaño interno a 10
             textposition="middle center",
             customdata=list(zip(labels_hover, textos_porcentaje)),
             hovertemplate='<b>%{customdata[0]}</b><br><br>Cumplimiento: %{customdata[1]}<extra></extra>',
