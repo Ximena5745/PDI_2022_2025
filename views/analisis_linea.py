@@ -124,49 +124,44 @@ def mostrar_pagina():
     # TAB 1: RESUMEN
     # ============================================================
     with tab_resumen:
-        # KPIs en fila
+        # KPIs usando st.metric nativo (mejor compatibilidad con columnas)
         st.markdown(f"#### 🎯 Métricas: {linea_seleccionada}")
         col1, col2, col3, col4, col5 = st.columns(5)
 
         with col1:
-            st.markdown(f"""
-            <div style="background: {color_cumpl}; padding: 12px; border-radius: 10px; text-align: center; color: white;">
-                <div style="font-size: 24px; font-weight: bold;">{cumplimiento_linea:.1f}%</div>
-                <div style="font-size: 11px;">Cumplimiento</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="📊 Cumplimiento",
+                value=f"{cumplimiento_linea:.1f}%",
+                help="Promedio de cumplimiento de la línea"
+            )
 
         with col2:
-            st.markdown(f"""
-            <div style="background: #28a745; padding: 12px; border-radius: 10px; text-align: center; color: white;">
-                <div style="font-size: 24px; font-weight: bold;">{indicadores_cumplidos}</div>
-                <div style="font-size: 11px;">Cumplidos</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="✅ Cumplidos",
+                value=indicadores_cumplidos,
+                help="Indicadores con ≥100%"
+            )
 
         with col3:
-            st.markdown(f"""
-            <div style="background: #ffc107; padding: 12px; border-radius: 10px; text-align: center; color: #333;">
-                <div style="font-size: 24px; font-weight: bold;">{en_progreso}</div>
-                <div style="font-size: 11px;">En Progreso</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="⚠️ En Progreso",
+                value=en_progreso,
+                help="Indicadores entre 80-99%"
+            )
 
         with col4:
-            st.markdown(f"""
-            <div style="background: #dc3545; padding: 12px; border-radius: 10px; text-align: center; color: white;">
-                <div style="font-size: 24px; font-weight: bold;">{no_cumplidos}</div>
-                <div style="font-size: 11px;">No Cumplidos</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="❌ No Cumplidos",
+                value=no_cumplidos,
+                help="Indicadores <80%"
+            )
 
         with col5:
-            st.markdown(f"""
-            <div style="background: #6c757d; padding: 12px; border-radius: 10px; text-align: center; color: white;">
-                <div style="font-size: 24px; font-weight: bold;">{total_objetivos}</div>
-                <div style="font-size: 11px;">Objetivos</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="🎯 Objetivos",
+                value=total_objetivos,
+                help="Total de objetivos en la línea"
+            )
 
         st.markdown("---")
 
@@ -369,31 +364,57 @@ def mostrar_pagina():
             else:
                 df_mostrar = df_mostrar[df_mostrar['Cumplimiento'] < 80]
 
-        # Preparar tabla
-        columnas_mostrar = ['Indicador', 'Objetivo', 'Meta', 'Ejecución', 'Cumplimiento']
-        columnas_disponibles = [c for c in columnas_mostrar if c in df_mostrar.columns]
+        # Preparar tabla con Meta y Alerta visibles
+        columnas_base = ['Indicador', 'Objetivo', 'Meta', 'Ejecución', 'Cumplimiento']
+        columnas_disponibles = [c for c in columnas_base if c in df_mostrar.columns]
 
         if columnas_disponibles:
-            df_tabla = df_mostrar[columnas_disponibles].drop_duplicates()
+            df_tabla = df_mostrar[columnas_disponibles].drop_duplicates().copy()
 
             # Agregar Meta_PDI desde df_base
             if df_base is not None and 'Indicador' in df_base.columns and 'Meta_PDI' in df_base.columns:
                 meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
                 df_tabla['Meta PDI'] = df_tabla['Indicador'].map(meta_pdi_dict)
 
+            # Agregar columna de Alerta con más detalle
             if 'Cumplimiento' in df_tabla.columns:
-                df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
-                    lambda x: '✅' if x >= 100 else '⚠️' if x >= 80 else '❌' if pd.notna(x) else '❓'
-                )
-                df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(
+                def calcular_alerta(cumpl):
+                    if pd.isna(cumpl):
+                        return '❓ Sin datos'
+                    elif cumpl >= 100:
+                        return '✅ Cumplido'
+                    elif cumpl >= 80:
+                        return '⚠️ Alerta'
+                    else:
+                        return '❌ Crítico'
+
+                # Guardar cumplimiento numérico para ordenar
+                cumpl_numerico = df_tabla['Cumplimiento'].copy()
+                df_tabla['Alerta'] = cumpl_numerico.apply(calcular_alerta)
+                df_tabla['Cumplimiento'] = cumpl_numerico.apply(
                     lambda x: f"{x:.1f}%" if pd.notna(x) else "N/D"
                 )
 
+            # Reordenar columnas para mejor visualización
+            columnas_orden = ['Indicador', 'Objetivo', 'Meta', 'Meta PDI', 'Ejecución', 'Cumplimiento', 'Alerta']
+            columnas_finales = [c for c in columnas_orden if c in df_tabla.columns]
+            df_tabla = df_tabla[columnas_finales]
+
+            # Mostrar tabla con configuración de columnas
             st.dataframe(
                 df_tabla,
                 use_container_width=True,
                 hide_index=True,
-                height=450
+                height=450,
+                column_config={
+                    "Indicador": st.column_config.TextColumn("Indicador", width="large"),
+                    "Objetivo": st.column_config.TextColumn("Objetivo", width="medium"),
+                    "Meta": st.column_config.NumberColumn("Meta Anual", format="%.2f"),
+                    "Meta PDI": st.column_config.TextColumn("Meta PDI", width="small"),
+                    "Ejecución": st.column_config.NumberColumn("Ejecución", format="%.2f"),
+                    "Cumplimiento": st.column_config.TextColumn("Cumplimiento", width="small"),
+                    "Alerta": st.column_config.TextColumn("Estado/Alerta", width="small")
+                }
             )
 
             st.caption(f"Mostrando {len(df_tabla)} indicadores")

@@ -73,50 +73,45 @@ def mostrar_pagina():
     # TAB 1: RESUMEN EJECUTIVO
     # ============================================================
     with tab_resumen:
-        # KPIs en fila horizontal con tarjetas compactas
+        # KPIs usando st.metric nativo (mejor compatibilidad con columnas)
         st.markdown("#### 🎯 Indicadores Clave")
         col1, col2, col3, col4, col5 = st.columns(5)
 
         with col1:
-            color_cumpl = obtener_color_semaforo(metricas['cumplimiento_promedio'])
-            st.markdown(f"""
-            <div style="background: {color_cumpl}; padding: 15px; border-radius: 10px; text-align: center; color: white;">
-                <div style="font-size: 28px; font-weight: bold;">{metricas['cumplimiento_promedio']:.1f}%</div>
-                <div style="font-size: 12px; opacity: 0.9;">Cumplimiento</div>
-            </div>
-            """, unsafe_allow_html=True)
+            delta_str = f"{delta_cumplimiento:+.1f}%" if delta_cumplimiento != 0 else None
+            st.metric(
+                label="📊 Cumplimiento",
+                value=f"{metricas['cumplimiento_promedio']:.1f}%",
+                delta=delta_str
+            )
 
         with col2:
-            st.markdown(f"""
-            <div style="background: #28a745; padding: 15px; border-radius: 10px; text-align: center; color: white;">
-                <div style="font-size: 28px; font-weight: bold;">{metricas['indicadores_cumplidos']}</div>
-                <div style="font-size: 12px; opacity: 0.9;">Cumplidos (≥100%)</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="✅ Cumplidos",
+                value=metricas['indicadores_cumplidos'],
+                help="Indicadores con ≥100% de cumplimiento"
+            )
 
         with col3:
-            st.markdown(f"""
-            <div style="background: #ffc107; padding: 15px; border-radius: 10px; text-align: center; color: #333;">
-                <div style="font-size: 28px; font-weight: bold;">{metricas['en_progreso']}</div>
-                <div style="font-size: 12px; opacity: 0.9;">En Progreso (80-99%)</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="⚠️ En Progreso",
+                value=metricas['en_progreso'],
+                help="Indicadores entre 80-99%"
+            )
 
         with col4:
-            st.markdown(f"""
-            <div style="background: #dc3545; padding: 15px; border-radius: 10px; text-align: center; color: white;">
-                <div style="font-size: 28px; font-weight: bold;">{metricas['no_cumplidos']}</div>
-                <div style="font-size: 12px; opacity: 0.9;">No Cumplidos (<80%)</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="❌ No Cumplidos",
+                value=metricas['no_cumplidos'],
+                help="Indicadores <80%"
+            )
 
         with col5:
-            st.markdown(f"""
-            <div style="background: #6c757d; padding: 15px; border-radius: 10px; text-align: center; color: white;">
-                <div style="font-size: 28px; font-weight: bold;">{metricas['total_indicadores']}</div>
-                <div style="font-size: 12px; opacity: 0.9;">Total Indicadores</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric(
+                label="📋 Total",
+                value=metricas['total_indicadores'],
+                help="Total de indicadores evaluados"
+            )
 
         st.markdown("---")
 
@@ -310,17 +305,49 @@ def mostrar_pagina():
             else:
                 df_filtrado = df_filtrado[df_filtrado['Cumplimiento'] < 80]
 
-        columnas_mostrar = ['Indicador', 'Linea', 'Objetivo', 'Meta', 'Ejecución', 'Cumplimiento']
-        columnas_disponibles = [c for c in columnas_mostrar if c in df_filtrado.columns]
+        columnas_base = ['Indicador', 'Linea', 'Objetivo', 'Meta', 'Ejecución', 'Cumplimiento']
+        columnas_disponibles = [c for c in columnas_base if c in df_filtrado.columns]
 
         if columnas_disponibles:
+            df_tabla = df_filtrado[columnas_disponibles].drop_duplicates().copy()
+
+            # Agregar Meta_PDI desde df_base
+            if df_base is not None and 'Indicador' in df_base.columns and 'Meta_PDI' in df_base.columns:
+                meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
+                df_tabla['Meta PDI'] = df_tabla['Indicador'].map(meta_pdi_dict)
+
+            # Agregar columna de Alerta
+            if 'Cumplimiento' in df_tabla.columns:
+                def calcular_alerta(cumpl):
+                    if pd.isna(cumpl):
+                        return '❓ Sin datos'
+                    elif cumpl >= 100:
+                        return '✅ Cumplido'
+                    elif cumpl >= 80:
+                        return '⚠️ Alerta'
+                    else:
+                        return '❌ Crítico'
+
+                cumpl_numerico = df_tabla['Cumplimiento'].copy()
+                df_tabla['Alerta'] = cumpl_numerico.apply(calcular_alerta)
+                df_tabla['Cumplimiento'] = cumpl_numerico.apply(
+                    lambda x: f"{x:.1f}%" if pd.notna(x) else "N/D"
+                )
+
             st.dataframe(
-                df_filtrado[columnas_disponibles].drop_duplicates(),
+                df_tabla,
                 use_container_width=True,
                 hide_index=True,
-                height=400
+                height=400,
+                column_config={
+                    "Indicador": st.column_config.TextColumn("Indicador", width="large"),
+                    "Linea": st.column_config.TextColumn("Línea", width="medium"),
+                    "Meta PDI": st.column_config.TextColumn("Meta PDI", width="small"),
+                    "Cumplimiento": st.column_config.TextColumn("Cumplimiento", width="small"),
+                    "Alerta": st.column_config.TextColumn("Estado", width="small")
+                }
             )
-            st.caption(f"Mostrando {len(df_filtrado[columnas_disponibles].drop_duplicates())} registros")
+            st.caption(f"Mostrando {len(df_tabla)} registros")
 
         st.markdown("---")
 
