@@ -610,6 +610,27 @@ def aclarar_color(color_hex, factor=0.5):
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
+def obtener_color_texto(color_hex):
+    """
+    Determina si el texto debe ser blanco o negro según la luminosidad del fondo.
+
+    Args:
+        color_hex: Color de fondo en formato hexadecimal (#RRGGBB)
+
+    Returns:
+        'white' si el fondo es oscuro, 'black' si es claro
+    """
+    color_hex = color_hex.lstrip('#')
+    r = int(color_hex[0:2], 16)
+    g = int(color_hex[2:4], 16)
+    b = int(color_hex[4:6], 16)
+
+    # Calcular luminosidad (fórmula estándar)
+    luminosidad = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+    return 'white' if luminosidad < 0.5 else 'black'
+
+
 def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégica y Objetivo"):
     """
     Crea un gráfico Sunburst para el Dashboard General.
@@ -713,6 +734,9 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
         # Usar text para mostrar el porcentaje y textinfo para controlar qué se muestra
         textos_porcentaje = [f"{c:.1f}%" for c in cumplimientos]
 
+        # Determinar colores de texto según luminosidad del fondo
+        colores_texto = [obtener_color_texto(c) for c in colores]
+
         fig = go.Figure(go.Sunburst(
             ids=ids,
             labels=labels,
@@ -723,9 +747,16 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
             ),
             text=textos_porcentaje,
             textinfo='label+text',
-            textfont=dict(size=12, color='black'),
+            textfont=dict(size=12),
+            insidetextfont=dict(color=colores_texto),
             insidetextorientation='radial',
-            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{text}<extra></extra>',
+            hovertemplate='<b>%{label}</b><br><br>Cumplimiento: %{text}<extra></extra>',
+            hoverlabel=dict(
+                bgcolor='white',
+                font_size=12,
+                font_color='black',
+                namelength=-1
+            ),
             branchvalues="remainder"
         ))
 
@@ -855,6 +886,9 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
         # Usar text para mostrar porcentaje y textinfo para controlar visibilidad
         textos_porcentaje = [f"{c:.1f}%" for c in cumplimientos]
 
+        # Determinar colores de texto según luminosidad del fondo
+        colores_texto = [obtener_color_texto(c) for c in colores]
+
         fig = go.Figure(go.Treemap(
             ids=ids,
             labels=labels,
@@ -866,10 +900,17 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
             ),
             text=textos_porcentaje,
             textinfo='label+text',
-            textfont=dict(size=11, color='black'),
+            textfont=dict(size=11),
+            insidetextfont=dict(color=colores_texto),
             textposition="middle center",
             customdata=list(zip(labels_hover, textos_porcentaje)),
-            hovertemplate='<b>%{customdata[0]}</b><br>Cumplimiento: %{customdata[1]}<extra></extra>',
+            hovertemplate='<b>%{customdata[0]}</b><br><br>Cumplimiento: %{customdata[1]}<extra></extra>',
+            hoverlabel=dict(
+                bgcolor='white',
+                font_size=12,
+                font_color='black',
+                namelength=-1  # Mostrar nombre completo sin truncar
+            ),
             branchvalues="total",
             pathbar=dict(
                 visible=True,
