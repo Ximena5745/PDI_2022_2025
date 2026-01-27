@@ -209,13 +209,25 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
             margin=dict(t=100, b=80, l=60, r=60)
         )
 
-        # Agregar líneas de referencia para semáforo
+        # Agregar líneas de referencia para semáforo (sin anotaciones superpuestas)
         fig.add_hline(y=100, line_dash="dash", line_color=COLORS['success'],
-                      annotation_text="Meta (100%)", annotation_position="right",
                       yref='y2', opacity=0.5)
         fig.add_hline(y=80, line_dash="dash", line_color=COLORS['warning'],
-                      annotation_text="Alerta (80%)", annotation_position="right",
                       yref='y2', opacity=0.5)
+
+        # Agregar anotaciones con posición fija a la izquierda para evitar superposición
+        fig.add_annotation(
+            x=0.02, y=100, xref='paper', yref='y2',
+            text="Meta (100%)", showarrow=False,
+            font=dict(size=10, color=COLORS['success']),
+            bgcolor='rgba(255,255,255,0.8)', borderpad=2
+        )
+        fig.add_annotation(
+            x=0.02, y=80, xref='paper', yref='y2',
+            text="Alerta (80%)", showarrow=False,
+            font=dict(size=10, color=COLORS['warning']),
+            bgcolor='rgba(255,255,255,0.8)', borderpad=2
+        )
 
         return fig
     except Exception as e:
