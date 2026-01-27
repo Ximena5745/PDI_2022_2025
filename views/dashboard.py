@@ -25,6 +25,7 @@ from utils.visualizations import (
 from utils.ai_analysis import (
     generar_analisis_general, preparar_lineas_para_analisis
 )
+from utils.pdf_generator import exportar_informe_pdf, previsualizar_html
 
 
 def mostrar_pagina():
@@ -233,6 +234,72 @@ def mostrar_pagina():
     # ============================================================
     with tab_datos:
         st.markdown("#### 📥 Exportar Datos del Dashboard")
+
+        # Sección de exportación PDF destacada
+        st.markdown("""
+        <div style="background: linear-gradient(90deg, #003d82 0%, #0056b3 100%);
+                    padding: 15px 20px; border-radius: 10px; margin-bottom: 20px;">
+            <span style="color: white; font-size: 16px; font-weight: bold;">
+                📄 Informe PDF Corporativo
+            </span>
+            <span style="color: rgba(255,255,255,0.8); font-size: 12px; margin-left: 10px;">
+                Genera un informe profesional con diseño institucional
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_pdf1, col_pdf2 = st.columns([2, 1])
+
+        with col_pdf1:
+            # Preparar datos para el PDF
+            df_año_pdf = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
+            if 'Fuente' in df_año_pdf.columns:
+                df_año_pdf = df_año_pdf[df_año_pdf['Fuente'] == 'Avance']
+
+            # Obtener análisis para incluir en PDF
+            try:
+                lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
+                analisis_pdf = generar_analisis_general(metricas, lineas_data)
+            except Exception:
+                analisis_pdf = ""
+
+            try:
+                pdf_bytes = exportar_informe_pdf(
+                    metricas=metricas,
+                    df_lineas=df_lineas,
+                    df_indicadores=df_año_pdf,
+                    analisis_texto=analisis_pdf,
+                    figuras=None,  # Sin gráficos por ahora (requiere kaleido)
+                    año=año_actual
+                )
+
+                st.download_button(
+                    label="📄 Descargar Informe PDF Corporativo",
+                    data=pdf_bytes,
+                    file_name=f"Informe_Estrategico_POLI_{año_actual}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    type="primary"
+                )
+            except ImportError as e:
+                st.warning(f"⚠️ Para generar PDFs, instale: `pip install weasyprint`")
+            except Exception as e:
+                st.error(f"Error al generar PDF: {str(e)}")
+
+        with col_pdf2:
+            st.markdown("""
+            <div style="background: #E3F2FD; padding: 15px; border-radius: 8px; font-size: 12px;">
+                <strong>📋 Contenido del PDF:</strong><br>
+                • Portada corporativa<br>
+                • KPIs principales<br>
+                • Análisis por línea<br>
+                • Detalle de indicadores<br>
+                • Análisis ejecutivo IA
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("#### 📊 Exportar a Excel")
 
         col1, col2 = st.columns(2)
 

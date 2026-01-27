@@ -19,3 +19,6 @@ google-genai>=1.0.0
 
 # Variables de entorno
 python-dotenv>=1.0.0
+
+
+weasyprint
