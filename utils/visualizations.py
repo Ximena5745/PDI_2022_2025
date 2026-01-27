@@ -697,7 +697,10 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
 
             cumplimientos.append(cumpl_display)
 
-        # Crear gráfico Sunburst
+        # Crear gráfico Sunburst con texto simplificado
+        # Usar text para mostrar el porcentaje y textinfo para controlar qué se muestra
+        textos_porcentaje = [f"{c:.1f}%" for c in cumplimientos]
+
         fig = go.Figure(go.Sunburst(
             ids=ids,
             labels=labels,
@@ -706,11 +709,11 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 colors=colores,
                 line=dict(color='white', width=2)
             ),
-            texttemplate='<b>%{label}</b><br>%{customdata[0]}',
-            textfont=dict(size=11, color='black'),
-            insidetextorientation='horizontal',
-            customdata=[[f"{c:.1f}%"] for c in cumplimientos],
-            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{customdata[0]}<extra></extra>',
+            text=textos_porcentaje,
+            textinfo='label+text',
+            textfont=dict(size=12, color='black'),
+            insidetextorientation='radial',
+            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{text}<extra></extra>',
             branchvalues="remainder"
         ))
 
@@ -836,7 +839,10 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
             cumplimientos.append(cumpl_display)
 
-        # Crear gráfico Treemap con texto limpio
+        # Crear gráfico Treemap con texto simplificado
+        # Usar text para mostrar porcentaje y textinfo para controlar visibilidad
+        textos_porcentaje = [f"{c:.1f}%" for c in cumplimientos]
+
         fig = go.Figure(go.Treemap(
             ids=ids,
             labels=labels,
@@ -846,10 +852,11 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
                 colors=colores,
                 line=dict(color='white', width=2)
             ),
-            texttemplate='<b>%{label}</b><br>%{customdata[1]}',
-            textfont=dict(size=12, color='black'),
+            text=textos_porcentaje,
+            textinfo='label+text',
+            textfont=dict(size=11, color='black'),
             textposition="middle center",
-            customdata=list(zip(labels_hover, [f"{c:.1f}%" for c in cumplimientos])),
+            customdata=list(zip(labels_hover, textos_porcentaje)),
             hovertemplate='<b>%{customdata[0]}</b><br>Cumplimiento: %{customdata[1]}<extra></extra>',
             branchvalues="total",
             pathbar=dict(
@@ -866,9 +873,9 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
                 x=0.5,
                 xanchor='center'
             ),
-            height=500,
+            height=550,
             margin=dict(t=80, b=20, l=20, r=20),
-            uniformtext=dict(minsize=10, mode='hide')
+            uniformtext=dict(minsize=9, mode='hide')
         )
 
         return fig

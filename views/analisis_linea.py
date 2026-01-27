@@ -100,6 +100,32 @@ def mostrar_pagina():
         en_progreso = len(df_linea_año[(df_linea_año['Cumplimiento'] >= 80) & (df_linea_año['Cumplimiento'] < 100)])
         no_cumplidos = len(df_linea_año[df_linea_año['Cumplimiento'] < 80])
 
+    # Importar COLORS para los colores de KPIs
+    color_cumpl = obtener_color_semaforo(cumplimiento_linea)
+
+    # Sticky KPIs - Siempre visibles al hacer scroll
+    st.markdown(f'''
+        <div class="sticky-kpis">
+            <div class="kpi-mini" style="background:{color_cumpl};color:white;">
+                <b>{cumplimiento_linea:.1f}%</b><br>
+                <small>Cumplimiento</small>
+            </div>
+            <div class="kpi-mini" style="background:#28a745;color:white;">
+                <b>{indicadores_cumplidos}</b><br>
+                <small>Cumplidos</small>
+            </div>
+            <div class="kpi-mini" style="background:#ffc107;color:black;">
+                <b>{en_progreso}</b><br>
+                <small>En Progreso</small>
+            </div>
+            <div class="kpi-mini" style="background:#dc3545;color:white;">
+                <b>{no_cumplidos}</b><br>
+                <small>No Cumplidos</small>
+            </div>
+        </div>
+        <div class="main-content-spacer"></div>
+    ''', unsafe_allow_html=True)
+
     # KPIs de la línea
     st.markdown(f"### 📊 Métricas de: {linea_seleccionada}")
 
@@ -145,7 +171,7 @@ def mostrar_pagina():
     # Análisis IA de la línea
     st.markdown("### 🤖 Análisis Inteligente")
 
-    with st.expander(f"Ver análisis de {linea_seleccionada}", expanded=True):
+    with st.expander(f"Ver análisis de {linea_seleccionada}", expanded=False):
         with st.spinner("Analizando línea estratégica..."):
             # Preparar datos de objetivos
             objetivos_data = preparar_objetivos_para_analisis(df_linea, año_actual)
@@ -317,7 +343,7 @@ def mostrar_pagina():
     df_cascada_linea = df_cascada_completa[df_cascada_completa['Linea'] == linea_seleccionada] if not df_cascada_completa.empty else pd.DataFrame()
 
     if not df_cascada_linea.empty:
-        with st.expander("📊 Ver Desglose Jerárquico Completo", expanded=True):
+        with st.expander("📊 Ver Desglose Jerárquico Completo", expanded=False):
             st.markdown(f"""
             **Estructura de cumplimiento para {linea_seleccionada}:**
 

@@ -57,6 +57,29 @@ def mostrar_pagina():
     metricas_anterior = calcular_metricas_generales(df_unificado, año_actual - 1)
     delta_cumplimiento = metricas['cumplimiento_promedio'] - metricas_anterior.get('cumplimiento_promedio', 0)
 
+    # Sticky KPIs - Siempre visibles al hacer scroll
+    st.markdown(f'''
+        <div class="sticky-kpis">
+            <div class="kpi-mini" style="background:#003d82;color:white;">
+                <b>{metricas['cumplimiento_promedio']:.1f}%</b><br>
+                <small>Cumplimiento</small>
+            </div>
+            <div class="kpi-mini" style="background:#28a745;color:white;">
+                <b>{metricas['indicadores_cumplidos']}</b><br>
+                <small>Cumplidos</small>
+            </div>
+            <div class="kpi-mini" style="background:#ffc107;color:black;">
+                <b>{metricas['en_progreso']}</b><br>
+                <small>En Progreso</small>
+            </div>
+            <div class="kpi-mini" style="background:#dc3545;color:white;">
+                <b>{metricas['no_cumplidos']}</b><br>
+                <small>No Cumplidos</small>
+            </div>
+        </div>
+        <div class="main-content-spacer"></div>
+    ''', unsafe_allow_html=True)
+
     # KPIs principales en tarjetas
     st.markdown("### 🎯 Indicadores Clave de Desempeño")
 
@@ -198,7 +221,7 @@ def mostrar_pagina():
     # Análisis IA - Resumen Ejecutivo
     st.markdown("### 🤖 Análisis Inteligente - Resumen Ejecutivo")
 
-    with st.expander("Ver análisis generado por IA", expanded=True):
+    with st.expander("Ver análisis generado por IA", expanded=False):
         with st.spinner("Generando análisis inteligente..."):
             # Preparar datos para el análisis
             lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
@@ -247,31 +270,30 @@ def mostrar_pagina():
 
     st.markdown("---")
 
-    # Tabla resumen por línea estratégica
-    st.markdown("### 📋 Resumen por Línea Estratégica")
+    # Tabla resumen por línea estratégica (en expander para reducir scroll)
+    with st.expander("### 📋 Resumen por Línea Estratégica", expanded=False):
+        if not df_lineas.empty:
+            # Formatear tabla
+            df_tabla = df_lineas.copy()
+            df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
+                lambda x: '✅ Meta cumplida' if x >= 100 else '⚠️ Alerta' if x >= 80 else '❌ Peligro'
+            )
+            df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(lambda x: f"{x:.1f}%")
 
-    if not df_lineas.empty:
-        # Formatear tabla
-        df_tabla = df_lineas.copy()
-        df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
-            lambda x: '✅ Meta cumplida' if x >= 100 else '⚠️ Alerta' if x >= 80 else '❌ Peligro'
-        )
-        df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(lambda x: f"{x:.1f}%")
+            # Renombrar columnas
+            df_tabla = df_tabla[['Linea', 'Total_Indicadores', 'Cumplimiento', 'Estado']]
+            df_tabla.columns = ['Línea Estratégica', 'Indicadores', 'Cumplimiento', 'Estado']
 
-        # Renombrar columnas
-        df_tabla = df_tabla[['Linea', 'Total_Indicadores', 'Cumplimiento', 'Estado']]
-        df_tabla.columns = ['Línea Estratégica', 'Indicadores', 'Cumplimiento', 'Estado']
+            st.dataframe(
+                df_tabla,
+                use_container_width=True,
+                hide_index=True
+            )
 
-        st.dataframe(
-            df_tabla,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        # Mostrar información de Meta PDI con jerarquía Línea → Objetivo → Meta
-        if df_base is not None and 'Meta_PDI' in df_base.columns:
-            st.markdown("")
-            with st.expander("🎯 Ver Metas PDI por Línea Estratégica"):
+            # Mostrar información de Meta PDI con jerarquía Línea → Objetivo → Meta
+            if df_base is not None and 'Meta_PDI' in df_base.columns:
+                st.markdown("")
+                st.markdown("**🎯 Metas PDI por Línea Estratégica:**")
                 # Filtrar datos del año actual con Fuente='Avance'
                 df_año_metas = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
                 if 'Fuente' in df_año_metas.columns:
