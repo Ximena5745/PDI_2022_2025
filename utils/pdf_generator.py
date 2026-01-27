@@ -30,46 +30,18 @@ def obtener_css_corporativo() -> str:
     """
     Retorna el CSS corporativo para el informe PDF.
     Estructura profesional con énfasis en azul institucional.
+    Compatible con xhtml2pdf (CSS 2.1 principalmente).
     """
     return f"""
     @page {{
         size: A4;
-        margin: 15mm 15mm 20mm 15mm;
-
-        @top-center {{
-            content: "Informe Estratégico POLI - Plan de Desarrollo Institucional";
-            font-size: 9pt;
-            color: {COLORES_PDF['gray']};
-        }}
-
-        @bottom-center {{
-            content: "Página " counter(page) " de " counter(pages);
-            font-size: 9pt;
-            color: {COLORES_PDF['gray']};
-        }}
-
-        @bottom-right {{
-            content: "Politécnico Grancolombiano";
-            font-size: 8pt;
-            color: {COLORES_PDF['primary']};
-        }}
-    }}
-
-    @page :first {{
-        margin-top: 0;
-        @top-center {{ content: none; }}
-    }}
-
-    * {{
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
+        margin: 2cm 1.5cm 2cm 1.5cm;
     }}
 
     body {{
-        font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+        font-family: Helvetica, Arial, sans-serif;
         font-size: 10pt;
-        line-height: 1.5;
+        line-height: 1.4;
         color: {COLORES_PDF['dark']};
         background: {COLORES_PDF['white']};
     }}
@@ -78,38 +50,22 @@ def obtener_css_corporativo() -> str:
        PORTADA
     ============================================ */
     .portada {{
-        page-break-after: always;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
         text-align: center;
-        background: linear-gradient(180deg, {COLORES_PDF['primary']} 0%, {COLORES_PDF['secondary']} 100%);
+        padding: 60px 40px;
+        background-color: {COLORES_PDF['primary']};
         color: white;
-        padding: 40px;
-        margin: -15mm -15mm 0 -15mm;
+        margin: -2cm -1.5cm 0 -1.5cm;
+        padding-top: 120px;
+        padding-bottom: 120px;
     }}
 
     .portada-logo {{
-        width: 120px;
-        height: 120px;
-        background: white;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        font-size: 60pt;
         margin-bottom: 30px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    }}
-
-    .portada-logo span {{
-        font-size: 48pt;
-        color: {COLORES_PDF['primary']};
     }}
 
     .portada-titulo {{
-        font-size: 28pt;
+        font-size: 26pt;
         font-weight: bold;
         margin-bottom: 15px;
         text-transform: uppercase;
@@ -117,155 +73,133 @@ def obtener_css_corporativo() -> str:
     }}
 
     .portada-subtitulo {{
-        font-size: 16pt;
-        opacity: 0.9;
-        margin-bottom: 40px;
+        font-size: 14pt;
+        margin-bottom: 30px;
     }}
 
     .portada-linea {{
         width: 100px;
         height: 3px;
-        background: white;
-        margin: 30px auto;
+        background-color: white;
+        margin: 20px auto;
     }}
 
     .portada-fecha {{
-        font-size: 12pt;
-        opacity: 0.8;
-        margin-top: 40px;
+        font-size: 11pt;
+        margin-top: 30px;
     }}
 
     .portada-periodo {{
-        background: rgba(255,255,255,0.2);
-        padding: 15px 40px;
-        border-radius: 30px;
-        font-size: 14pt;
-        margin-top: 20px;
+        background-color: {COLORES_PDF['secondary']};
+        padding: 12px 30px;
+        font-size: 12pt;
+        margin-top: 15px;
+        display: inline-block;
     }}
 
     /* ============================================
-       ENCABEZADOS DE SECCIÓN
+       ENCABEZADOS
     ============================================ */
-    .seccion {{
-        page-break-inside: avoid;
-        margin-bottom: 25px;
-    }}
-
-    .seccion-header {{
-        background: linear-gradient(90deg, {COLORES_PDF['primary']} 0%, {COLORES_PDF['secondary']} 100%);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px 8px 0 0;
-        margin-bottom: 0;
-    }}
-
-    .seccion-header h2 {{
-        font-size: 14pt;
-        font-weight: 600;
-        margin: 0;
-    }}
-
-    .seccion-contenido {{
-        background: {COLORES_PDF['white']};
-        border: 1px solid {COLORES_PDF['light_blue']};
-        border-top: none;
-        border-radius: 0 0 8px 8px;
-        padding: 20px;
-    }}
-
     h1 {{
         color: {COLORES_PDF['primary']};
-        font-size: 18pt;
+        font-size: 16pt;
         font-weight: bold;
-        margin-bottom: 20px;
-        padding-bottom: 10px;
+        margin-bottom: 15px;
+        padding-bottom: 8px;
         border-bottom: 3px solid {COLORES_PDF['primary']};
+        margin-top: 25px;
     }}
 
     h2 {{
         color: {COLORES_PDF['primary']};
-        font-size: 14pt;
-        font-weight: 600;
-        margin-bottom: 15px;
+        font-size: 13pt;
+        font-weight: bold;
+        margin-bottom: 10px;
+        margin-top: 20px;
     }}
 
     h3 {{
         color: {COLORES_PDF['secondary']};
-        font-size: 12pt;
-        font-weight: 600;
-        margin-bottom: 10px;
+        font-size: 11pt;
+        font-weight: bold;
+        margin-bottom: 8px;
     }}
 
     /* ============================================
-       KPIs / MÉTRICAS
+       SECCIONES
     ============================================ */
-    .kpis-container {{
-        display: flex;
-        justify-content: space-between;
-        gap: 15px;
-        margin-bottom: 25px;
+    .seccion {{
+        margin-bottom: 20px;
     }}
 
-    .kpi-card {{
-        flex: 1;
-        background: {COLORES_PDF['white']};
-        border: 2px solid {COLORES_PDF['light_blue']};
-        border-radius: 10px;
+    .seccion-header {{
+        background-color: {COLORES_PDF['primary']};
+        color: white;
+        padding: 10px 15px;
+        margin-bottom: 0;
+    }}
+
+    .seccion-header h2 {{
+        font-size: 12pt;
+        font-weight: bold;
+        margin: 0;
+        color: white;
+    }}
+
+    .seccion-contenido {{
+        background-color: {COLORES_PDF['white']};
+        border: 1px solid {COLORES_PDF['light_blue']};
+        border-top: none;
         padding: 15px;
+    }}
+
+    /* ============================================
+       KPIs - Usando tablas para compatibilidad
+    ============================================ */
+    .kpis-table {{
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 10px;
+        margin-bottom: 20px;
+    }}
+
+    .kpis-table td {{
         text-align: center;
-        position: relative;
-        overflow: hidden;
+        padding: 15px 10px;
+        border: 2px solid {COLORES_PDF['light_blue']};
+        background-color: {COLORES_PDF['white']};
+        width: 20%;
     }}
-
-    .kpi-card::before {{
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: {COLORES_PDF['primary']};
-    }}
-
-    .kpi-card.success::before {{ background: {COLORES_PDF['success']}; }}
-    .kpi-card.warning::before {{ background: {COLORES_PDF['warning']}; }}
-    .kpi-card.danger::before {{ background: {COLORES_PDF['danger']}; }}
 
     .kpi-valor {{
-        font-size: 24pt;
+        font-size: 22pt;
         font-weight: bold;
         color: {COLORES_PDF['primary']};
-        line-height: 1.2;
     }}
 
-    .kpi-card.success .kpi-valor {{ color: {COLORES_PDF['success']}; }}
-    .kpi-card.warning .kpi-valor {{ color: {COLORES_PDF['warning']}; }}
-    .kpi-card.danger .kpi-valor {{ color: {COLORES_PDF['danger']}; }}
+    .kpi-valor-success {{
+        font-size: 22pt;
+        font-weight: bold;
+        color: {COLORES_PDF['success']};
+    }}
+
+    .kpi-valor-warning {{
+        font-size: 22pt;
+        font-weight: bold;
+        color: {COLORES_PDF['warning']};
+    }}
+
+    .kpi-valor-danger {{
+        font-size: 22pt;
+        font-weight: bold;
+        color: {COLORES_PDF['danger']};
+    }}
 
     .kpi-label {{
-        font-size: 9pt;
+        font-size: 8pt;
         color: {COLORES_PDF['gray']};
         text-transform: uppercase;
-        letter-spacing: 0.5px;
         margin-top: 5px;
-    }}
-
-    .kpi-delta {{
-        font-size: 9pt;
-        margin-top: 5px;
-        padding: 2px 8px;
-        border-radius: 10px;
-        display: inline-block;
-    }}
-
-    .kpi-delta.positive {{
-        background: {COLORES_PDF['success']};
-        color: white;
-    }}
-
-    .kpi-delta.negative {{
-        background: {COLORES_PDF['danger']};
-        color: white;
     }}
 
     /* ============================================
@@ -278,189 +212,111 @@ def obtener_css_corporativo() -> str:
         font-size: 9pt;
     }}
 
-    table thead {{
-        background: {COLORES_PDF['primary']};
+    table thead tr {{
+        background-color: {COLORES_PDF['primary']};
         color: white;
     }}
 
     table th {{
-        padding: 10px 12px;
+        padding: 10px 8px;
         text-align: left;
-        font-weight: 600;
-        text-transform: uppercase;
+        font-weight: bold;
         font-size: 8pt;
-        letter-spacing: 0.5px;
+        color: white;
+        border: 1px solid {COLORES_PDF['primary']};
     }}
 
     table td {{
-        padding: 10px 12px;
-        border-bottom: 1px solid {COLORES_PDF['light_blue']};
+        padding: 8px;
+        border: 1px solid {COLORES_PDF['light_blue']};
     }}
 
-    table tbody tr:nth-child(even) {{
-        background: {COLORES_PDF['light']};
-    }}
-
-    table tbody tr:hover {{
-        background: {COLORES_PDF['light_blue']};
+    table tr.even {{
+        background-color: {COLORES_PDF['light']};
     }}
 
     /* ============================================
        BADGES DE ESTADO
     ============================================ */
     .badge {{
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 15px;
+        padding: 3px 10px;
         font-size: 8pt;
-        font-weight: 600;
-        text-transform: uppercase;
+        font-weight: bold;
     }}
 
     .badge-success {{
-        background: {COLORES_PDF['success']};
+        background-color: {COLORES_PDF['success']};
         color: white;
     }}
 
     .badge-warning {{
-        background: {COLORES_PDF['warning']};
+        background-color: {COLORES_PDF['warning']};
         color: {COLORES_PDF['dark']};
     }}
 
     .badge-danger {{
-        background: {COLORES_PDF['danger']};
+        background-color: {COLORES_PDF['danger']};
         color: white;
     }}
 
     .badge-info {{
-        background: {COLORES_PDF['accent']};
+        background-color: {COLORES_PDF['accent']};
         color: white;
     }}
 
     /* ============================================
-       GRÁFICOS
-    ============================================ */
-    .grafico-container {{
-        text-align: center;
-        margin: 20px 0;
-        page-break-inside: avoid;
-    }}
-
-    .grafico-container img {{
-        max-width: 100%;
-        height: auto;
-        border: 1px solid {COLORES_PDF['light_blue']};
-        border-radius: 8px;
-    }}
-
-    .grafico-titulo {{
-        font-size: 11pt;
-        font-weight: 600;
-        color: {COLORES_PDF['primary']};
-        margin-bottom: 10px;
-    }}
-
-    /* ============================================
-       ANÁLISIS / RESUMEN
+       ANÁLISIS
     ============================================ */
     .analisis-box {{
-        background: {COLORES_PDF['light_blue']};
+        background-color: {COLORES_PDF['light_blue']};
         border-left: 4px solid {COLORES_PDF['primary']};
-        padding: 15px 20px;
+        padding: 15px;
         margin: 15px 0;
-        border-radius: 0 8px 8px 0;
     }}
 
     .analisis-box h4 {{
         color: {COLORES_PDF['primary']};
         font-size: 11pt;
         margin-bottom: 10px;
+        margin-top: 0;
     }}
 
     .analisis-box p {{
         font-size: 10pt;
-        line-height: 1.6;
+        line-height: 1.5;
         color: {COLORES_PDF['dark']};
+        margin: 0;
     }}
 
     /* ============================================
-       LÍNEAS ESTRATÉGICAS
+       SEMÁFORO
     ============================================ */
-    .linea-card {{
-        background: {COLORES_PDF['white']};
-        border: 1px solid {COLORES_PDF['light_blue']};
-        border-radius: 8px;
-        margin-bottom: 15px;
-        overflow: hidden;
-        page-break-inside: avoid;
+    .semaforo-table {{
+        width: 100%;
+        margin: 15px 0;
+        background-color: {COLORES_PDF['light']};
     }}
 
-    .linea-header {{
-        background: {COLORES_PDF['primary']};
-        color: white;
-        padding: 10px 15px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .semaforo-table td {{
+        text-align: center;
+        padding: 10px;
+        font-size: 9pt;
     }}
 
-    .linea-nombre {{
-        font-weight: 600;
-        font-size: 11pt;
-    }}
-
-    .linea-cumplimiento {{
+    .dot-verde {{
+        color: {COLORES_PDF['success']};
         font-size: 14pt;
-        font-weight: bold;
     }}
 
-    .linea-body {{
-        padding: 15px;
+    .dot-amarillo {{
+        color: {COLORES_PDF['warning']};
+        font-size: 14pt;
     }}
 
-    .linea-objetivos {{
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
+    .dot-rojo {{
+        color: {COLORES_PDF['danger']};
+        font-size: 14pt;
     }}
-
-    .objetivo-item {{
-        background: {COLORES_PDF['light']};
-        padding: 8px 12px;
-        border-radius: 5px;
-        font-size: 9pt;
-        flex: 1 1 45%;
-    }}
-
-    /* ============================================
-       SEMÁFORO / LEYENDA
-    ============================================ */
-    .semaforo {{
-        display: flex;
-        justify-content: center;
-        gap: 30px;
-        margin: 20px 0;
-        padding: 15px;
-        background: {COLORES_PDF['light']};
-        border-radius: 8px;
-    }}
-
-    .semaforo-item {{
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 9pt;
-    }}
-
-    .semaforo-dot {{
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-    }}
-
-    .semaforo-dot.verde {{ background: {COLORES_PDF['success']}; }}
-    .semaforo-dot.amarillo {{ background: {COLORES_PDF['warning']}; }}
-    .semaforo-dot.rojo {{ background: {COLORES_PDF['danger']}; }}
 
     /* ============================================
        PIE DE PÁGINA
@@ -487,24 +343,21 @@ def obtener_css_corporativo() -> str:
         page-break-after: always;
     }}
 
-    .no-break {{
-        page-break-inside: avoid;
+    .text-center {{
+        text-align: center;
     }}
 
-    .text-center {{ text-align: center; }}
-    .text-right {{ text-align: right; }}
-    .mt-20 {{ margin-top: 20px; }}
-    .mb-20 {{ margin-bottom: 20px; }}
+    .text-right {{
+        text-align: right;
+    }}
 
-    .row {{
-        display: flex;
-        gap: 20px;
+    .mt-20 {{
+        margin-top: 20px;
+    }}
+
+    .mb-20 {{
         margin-bottom: 20px;
     }}
-
-    .col-6 {{ flex: 1; }}
-    .col-4 {{ flex: 0 0 33.33%; }}
-    .col-8 {{ flex: 0 0 66.66%; }}
     """
 
 
@@ -512,68 +365,73 @@ def generar_portada(titulo: str, subtitulo: str, periodo: str, fecha: str) -> st
     """Genera el HTML de la portada del informe."""
     return f"""
     <div class="portada">
-        <div class="portada-logo">
-            <span>📊</span>
-        </div>
+        <div class="portada-logo">POLI</div>
         <div class="portada-titulo">{titulo}</div>
         <div class="portada-subtitulo">{subtitulo}</div>
-        <div class="portada-linea"></div>
+        <div class="portada-linea">&nbsp;</div>
         <div class="portada-periodo">{periodo}</div>
         <div class="portada-fecha">Generado el {fecha}</div>
     </div>
+    <div class="page-break"></div>
     """
 
 
 def generar_seccion_kpis(metricas: Dict[str, Any]) -> str:
-    """Genera el HTML de la sección de KPIs principales."""
+    """Genera el HTML de la sección de KPIs principales usando tablas (compatible xhtml2pdf)."""
     cumplimiento = metricas.get('cumplimiento_promedio', 0)
 
     # Determinar clase del KPI principal según cumplimiento
-    clase_cumpl = 'success' if cumplimiento >= 100 else 'warning' if cumplimiento >= 80 else 'danger'
+    if cumplimiento >= 100:
+        clase_cumpl = 'kpi-valor-success'
+    elif cumplimiento >= 80:
+        clase_cumpl = 'kpi-valor-warning'
+    else:
+        clase_cumpl = 'kpi-valor-danger'
 
     return f"""
     <div class="seccion">
         <div class="seccion-header">
-            <h2>📊 Indicadores Clave de Desempeño</h2>
+            <h2>Indicadores Clave de Desempeno</h2>
         </div>
         <div class="seccion-contenido">
-            <div class="kpis-container">
-                <div class="kpi-card {clase_cumpl}">
-                    <div class="kpi-valor">{cumplimiento:.1f}%</div>
-                    <div class="kpi-label">Cumplimiento General</div>
-                </div>
-                <div class="kpi-card success">
-                    <div class="kpi-valor">{metricas.get('indicadores_cumplidos', 0)}</div>
-                    <div class="kpi-label">Indicadores Cumplidos</div>
-                </div>
-                <div class="kpi-card warning">
-                    <div class="kpi-valor">{metricas.get('en_progreso', 0)}</div>
-                    <div class="kpi-label">En Progreso</div>
-                </div>
-                <div class="kpi-card danger">
-                    <div class="kpi-valor">{metricas.get('no_cumplidos', 0)}</div>
-                    <div class="kpi-label">No Cumplidos</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-valor">{metricas.get('total_indicadores', 0)}</div>
-                    <div class="kpi-label">Total Indicadores</div>
-                </div>
-            </div>
+            <table class="kpis-table">
+                <tr>
+                    <td style="border-top: 4px solid {COLORES_PDF['primary'] if cumplimiento >= 100 else COLORES_PDF['warning'] if cumplimiento >= 80 else COLORES_PDF['danger']};">
+                        <div class="{clase_cumpl}">{cumplimiento:.1f}%</div>
+                        <div class="kpi-label">Cumplimiento General</div>
+                    </td>
+                    <td style="border-top: 4px solid {COLORES_PDF['success']};">
+                        <div class="kpi-valor-success">{metricas.get('indicadores_cumplidos', 0)}</div>
+                        <div class="kpi-label">Cumplidos</div>
+                    </td>
+                    <td style="border-top: 4px solid {COLORES_PDF['warning']};">
+                        <div class="kpi-valor-warning">{metricas.get('en_progreso', 0)}</div>
+                        <div class="kpi-label">En Progreso</div>
+                    </td>
+                    <td style="border-top: 4px solid {COLORES_PDF['danger']};">
+                        <div class="kpi-valor-danger">{metricas.get('no_cumplidos', 0)}</div>
+                        <div class="kpi-label">No Cumplidos</div>
+                    </td>
+                    <td style="border-top: 4px solid {COLORES_PDF['primary']};">
+                        <div class="kpi-valor">{metricas.get('total_indicadores', 0)}</div>
+                        <div class="kpi-label">Total</div>
+                    </td>
+                </tr>
+            </table>
 
-            <div class="semaforo">
-                <div class="semaforo-item">
-                    <div class="semaforo-dot verde"></div>
-                    <span>≥100% Meta Cumplida</span>
-                </div>
-                <div class="semaforo-item">
-                    <div class="semaforo-dot amarillo"></div>
-                    <span>80-99% En Progreso</span>
-                </div>
-                <div class="semaforo-item">
-                    <div class="semaforo-dot rojo"></div>
-                    <span>&lt;80% Requiere Atención</span>
-                </div>
-            </div>
+            <table class="semaforo-table">
+                <tr>
+                    <td>
+                        <span class="dot-verde">&#9679;</span> &ge;100% Meta Cumplida
+                    </td>
+                    <td>
+                        <span class="dot-amarillo">&#9679;</span> 80-99% En Progreso
+                    </td>
+                    <td>
+                        <span class="dot-rojo">&#9679;</span> &lt;80% Requiere Atencion
+                    </td>
+                </tr>
+            </table>
         </div>
     </div>
     """
@@ -585,37 +443,39 @@ def generar_tabla_lineas(df_lineas: pd.DataFrame) -> str:
         return "<p>No hay datos disponibles.</p>"
 
     filas_html = ""
-    for _, row in df_lineas.iterrows():
+    for idx, (_, row) in enumerate(df_lineas.iterrows()):
         cumpl = row.get('Cumplimiento', 0)
         if cumpl >= 100:
-            badge = '<span class="badge badge-success">Cumplido</span>'
+            badge = f'<span class="badge badge-success">Cumplido</span>'
         elif cumpl >= 80:
-            badge = '<span class="badge badge-warning">En Progreso</span>'
+            badge = f'<span class="badge badge-warning">En Progreso</span>'
         else:
-            badge = '<span class="badge badge-danger">Atención</span>'
+            badge = f'<span class="badge badge-danger">Atencion</span>'
+
+        clase_fila = 'even' if idx % 2 == 1 else ''
 
         filas_html += f"""
-        <tr>
+        <tr class="{clase_fila}">
             <td>{row.get('Linea', 'N/D')}</td>
-            <td class="text-center">{row.get('Total_Indicadores', 0)}</td>
-            <td class="text-right"><strong>{cumpl:.1f}%</strong></td>
-            <td class="text-center">{badge}</td>
+            <td style="text-align: center;">{row.get('Total_Indicadores', 0)}</td>
+            <td style="text-align: right;"><strong>{cumpl:.1f}%</strong></td>
+            <td style="text-align: center;">{badge}</td>
         </tr>
         """
 
     return f"""
     <div class="seccion">
         <div class="seccion-header">
-            <h2>📈 Cumplimiento por Línea Estratégica</h2>
+            <h2>Cumplimiento por Linea Estrategica</h2>
         </div>
         <div class="seccion-contenido">
             <table>
                 <thead>
                     <tr>
-                        <th>Línea Estratégica</th>
-                        <th class="text-center">Indicadores</th>
-                        <th class="text-right">Cumplimiento</th>
-                        <th class="text-center">Estado</th>
+                        <th>Linea Estrategica</th>
+                        <th style="text-align: center;">Indicadores</th>
+                        <th style="text-align: right;">Cumplimiento</th>
+                        <th style="text-align: center;">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -633,50 +493,61 @@ def generar_tabla_indicadores(df_indicadores: pd.DataFrame, titulo: str = "Detal
         return "<p>No hay datos disponibles.</p>"
 
     filas_html = ""
-    for _, row in df_indicadores.iterrows():
+    for idx, (_, row) in enumerate(df_indicadores.iterrows()):
         cumpl = row.get('Cumplimiento', 0)
         if pd.isna(cumpl):
             badge = '<span class="badge badge-info">N/D</span>'
             cumpl_str = "N/D"
         elif cumpl >= 100:
-            badge = '<span class="badge badge-success">✓</span>'
+            badge = '<span class="badge badge-success">OK</span>'
             cumpl_str = f"{cumpl:.1f}%"
         elif cumpl >= 80:
             badge = '<span class="badge badge-warning">!</span>'
             cumpl_str = f"{cumpl:.1f}%"
         else:
-            badge = '<span class="badge badge-danger">✗</span>'
+            badge = '<span class="badge badge-danger">X</span>'
             cumpl_str = f"{cumpl:.1f}%"
 
         indicador = row.get('Indicador', 'N/D')
         # Truncar si es muy largo
-        if len(str(indicador)) > 60:
-            indicador = str(indicador)[:57] + "..."
+        if len(str(indicador)) > 55:
+            indicador = str(indicador)[:52] + "..."
+
+        # Formatear meta y ejecución
+        meta = row.get('Meta', 'N/D')
+        if pd.notna(meta) and isinstance(meta, (int, float)):
+            meta = f"{meta:.2f}"
+
+        ejecucion = row.get('Ejecución', row.get('Ejecucion', 'N/D'))
+        if pd.notna(ejecucion) and isinstance(ejecucion, (int, float)):
+            ejecucion = f"{ejecucion:.2f}"
+
+        clase_fila = 'even' if idx % 2 == 1 else ''
 
         filas_html += f"""
-        <tr>
+        <tr class="{clase_fila}">
             <td>{indicador}</td>
-            <td class="text-right">{row.get('Meta', 'N/D')}</td>
-            <td class="text-right">{row.get('Ejecución', 'N/D')}</td>
-            <td class="text-right"><strong>{cumpl_str}</strong></td>
-            <td class="text-center">{badge}</td>
+            <td style="text-align: right;">{meta}</td>
+            <td style="text-align: right;">{ejecucion}</td>
+            <td style="text-align: right;"><strong>{cumpl_str}</strong></td>
+            <td style="text-align: center;">{badge}</td>
         </tr>
         """
 
     return f"""
-    <div class="seccion no-break">
+    <div class="seccion">
         <div class="seccion-header">
-            <h2>📋 {titulo}</h2>
+            <h2>{titulo}</h2>
         </div>
         <div class="seccion-contenido">
             <table>
                 <thead>
                     <tr>
                         <th style="width: 45%;">Indicador</th>
-                        <th class="text-right" style="width: 12%;">Meta</th>
-                        <th class="text-right" style="width: 12%;">Ejecución</th>
-                        <th class="text-right" style="width: 15%;">Cumplimiento</th>
-                        <th class="text-center" style="width: 10%;">Estado</th>
+                        <th style="width: 12%; text-align: right;">Meta</th>
+                        <th style="width: 12%; text-align: right;">Ejecucion</th>
+                        <th style="width: 15%; text-align: right;">Cumplimiento</th>
+                        <th style="width: 10%; text-align: center;">Estado</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -690,10 +561,14 @@ def generar_tabla_indicadores(df_indicadores: pd.DataFrame, titulo: str = "Detal
 
 def generar_seccion_analisis(titulo: str, contenido: str) -> str:
     """Genera una sección de análisis con formato de caja."""
+    # Limpiar contenido de caracteres especiales que pueden causar problemas
+    contenido_limpio = contenido.replace('**', '').replace('*', '')
+    contenido_limpio = contenido_limpio.replace('\n', '<br/>')
+
     return f"""
     <div class="analisis-box">
-        <h4>🤖 {titulo}</h4>
-        <p>{contenido}</p>
+        <h4>Analisis: {titulo}</h4>
+        <p>{contenido_limpio}</p>
     </div>
     """
 
@@ -785,19 +660,19 @@ def generar_informe_html(
     # Footer
     footer = f"""
     <div class="footer">
-        <div class="footer-logo">POLITÉCNICO GRANCOLOMBIANO</div>
-        <p>Dashboard Estratégico POLI - Plan de Desarrollo Institucional 2021-{año}</p>
-        <p>Documento generado automáticamente el {fecha_generacion}</p>
+        <div class="footer-logo">POLITECNICO GRANCOLOMBIANO</div>
+        <p>Dashboard Estrategico POLI - Plan de Desarrollo Institucional 2021-{año}</p>
+        <p>Documento generado automaticamente el {fecha_generacion}</p>
     </div>
     """
 
-    # HTML completo
+    # HTML completo - Sin emojis para compatibilidad con xhtml2pdf
     html = f"""
     <!DOCTYPE html>
     <html lang="es">
     <head>
         <meta charset="UTF-8">
-        <title>Informe Estratégico POLI {año}</title>
+        <title>Informe Estrategico POLI {año}</title>
         <style>
             {obtener_css_corporativo()}
         </style>
@@ -811,7 +686,7 @@ def generar_informe_html(
 
         <div class="page-break"></div>
 
-        <h1>Análisis por Línea Estratégica</h1>
+        <h1>Analisis por Linea Estrategica</h1>
         {tabla_lineas}
 
         {graficos_html}
@@ -831,7 +706,7 @@ def generar_informe_html(
 
 def generar_pdf(html_content: str) -> bytes:
     """
-    Convierte HTML a PDF usando weasyprint.
+    Convierte HTML a PDF usando xhtml2pdf (compatible con Windows).
 
     Args:
         html_content: Contenido HTML del informe
@@ -839,27 +714,43 @@ def generar_pdf(html_content: str) -> bytes:
     Returns:
         Bytes del archivo PDF
     """
+    # Usar xhtml2pdf como opción principal (puro Python, sin dependencias del sistema)
     try:
-        from weasyprint import HTML, CSS
+        from xhtml2pdf import pisa
 
         pdf_buffer = io.BytesIO()
-        HTML(string=html_content).write_pdf(pdf_buffer)
+        # Convertir HTML a PDF
+        pisa_status = pisa.CreatePDF(
+            src=html_content,
+            dest=pdf_buffer,
+            encoding='utf-8'
+        )
+
+        if pisa_status.err:
+            raise Exception(f"Error en xhtml2pdf: {pisa_status.err}")
+
+        pdf_buffer.seek(0)
         return pdf_buffer.getvalue()
 
     except ImportError:
-        # Fallback: intentar con xhtml2pdf
+        # Fallback: intentar con weasyprint (requiere librerías del sistema)
         try:
-            from xhtml2pdf import pisa
+            from weasyprint import HTML
 
             pdf_buffer = io.BytesIO()
-            pisa.CreatePDF(io.StringIO(html_content), dest=pdf_buffer)
+            HTML(string=html_content).write_pdf(pdf_buffer)
             return pdf_buffer.getvalue()
 
         except ImportError:
             raise ImportError(
-                "Se requiere instalar weasyprint o xhtml2pdf para generar PDFs.\n"
-                "Ejecute: pip install weasyprint\n"
-                "O: pip install xhtml2pdf"
+                "Se requiere instalar xhtml2pdf para generar PDFs.\n"
+                "Ejecute: pip install xhtml2pdf"
+            )
+        except Exception as e:
+            raise ImportError(
+                f"weasyprint requiere librerías del sistema no disponibles.\n"
+                f"Instale xhtml2pdf en su lugar: pip install xhtml2pdf\n"
+                f"Error: {str(e)}"
             )
 
 

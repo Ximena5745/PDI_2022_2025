@@ -22,3 +22,6 @@ python-dotenv>=1.0.0
 
 
 weasyprint
+
+
+xhtml2pdf
