@@ -679,7 +679,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
                 id_meta = f"L3-{idx}"
                 nombre = str(row['Meta_PDI'])
-                nombre_corto = nombre[:50] + "..." if len(nombre) > 50 else nombre
+                nombre_corto = nombre[:25] + "..." if len(nombre) > 25 else nombre
                 labels.append(f"Meta: {nombre_corto}")
                 textos.append(f"Meta: {nombre_corto}<br><b>{cumpl_display:.1f}%</b>")
                 parents.append(id_obj)
@@ -699,9 +699,9 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
                 id_ind = f"L4-{idx}"
                 nombre = row['Indicador']
-                nombre_corto = nombre[:25] + "..." if len(nombre) > 25 else nombre
+                nombre_corto = nombre[:50] + "..." if len(nombre) > 50 else nombre
                 labels.append(nombre_corto)
-                textos.append(f"{nombre}<br><b>{cumpl_display:.1f}%</b>")
+                textos.append(f"{nombre_corto}<br><b>{cumpl_display:.1f}%</b>")
                 parents.append(id_parent)
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
@@ -820,7 +820,7 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_meta = f"L3-{idx}"
                 nombre = str(row['Meta_PDI'])
-                nombre_corto = nombre[:45] + "..." if len(nombre) > 45 else nombre
+                nombre_corto = nombre[:100] + "..." if len(nombre) > 100 else nombre
                 labels.append(f"Meta: {nombre_corto}")
                 labels_hover.append(f"Meta: {nombre}")
                 parents.append(id_obj)
