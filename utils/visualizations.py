@@ -697,7 +697,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
 
             cumplimientos.append(cumpl_display)
 
-        # Crear gráfico Sunburst con texto mejorado
+        # Crear gráfico Sunburst
         fig = go.Figure(go.Sunburst(
             ids=ids,
             labels=labels,
@@ -706,14 +706,12 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 colors=colores,
                 line=dict(color='white', width=2)
             ),
-            textinfo='text',
-            text=textos,
-            textfont=dict(size=12, family="Arial Black"),
-            insidetextorientation='radial',
-            customdata=list(zip(labels, [f"{c:.1f}%" for c in cumplimientos])),
-            hovertemplate='<b>%{customdata[0]}</b><br>Cumplimiento: %{customdata[1]}<extra></extra>',
-            branchvalues="remainder",
-            maxdepth=2
+            texttemplate='<b>%{label}</b><br>%{customdata[0]}',
+            textfont=dict(size=11, color='black'),
+            insidetextorientation='horizontal',
+            customdata=[[f"{c:.1f}%"] for c in cumplimientos],
+            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{customdata[0]}<extra></extra>',
+            branchvalues="remainder"
         ))
 
         fig.update_layout(
@@ -724,8 +722,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 xanchor='center'
             ),
             height=650,
-            margin=dict(t=60, b=20, l=20, r=20),
-            uniformtext=dict(minsize=10, mode='hide')
+            margin=dict(t=60, b=20, l=20, r=20)
         )
 
         return fig
@@ -737,7 +734,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
 def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
     """
     Crea un gráfico Treemap para Análisis por Línea.
-    Permite mejor visualización de textos largos con texto centrado.
+    Muestra nombre truncado + % de cumplimiento centrado.
 
     Args:
         df_cascada: DataFrame con estructura jerárquica
@@ -774,8 +771,7 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
             if nivel == 1:
                 id_linea = f"L1-{idx}"
                 nombre = row['Linea']
-                # Texto en dos líneas: nombre arriba, % abajo (grande y centrado)
-                labels.append(f"<b>{nombre}</b><br><span style='font-size:16px'>{cumpl_display:.1f}%</span>")
+                labels.append(nombre)
                 labels_hover.append(nombre)
                 parents.append("")
                 color_linea = COLORES_LINEAS.get(row['Linea'], COLORS['primary'])
@@ -790,7 +786,9 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_obj = f"L2-{idx}"
                 nombre = row['Objetivo']
-                labels.append(f"<b>{nombre}</b><br><span style='font-size:14px'>{cumpl_display:.1f}%</span>")
+                # Truncar para mostrar en el gráfico
+                nombre_corto = nombre[:50] + "..." if len(nombre) > 50 else nombre
+                labels.append(nombre_corto)
                 labels_hover.append(nombre)
                 parents.append(id_linea)
                 color_base = linea_info[0] if linea_info else COLORS['primary']
@@ -805,7 +803,8 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_meta = f"L3-{idx}"
                 nombre = str(row['Meta_PDI'])
-                labels.append(f"<b>Meta:</b> {nombre}<br><span style='font-size:13px'>{cumpl_display:.1f}%</span>")
+                nombre_corto = nombre[:45] + "..." if len(nombre) > 45 else nombre
+                labels.append(f"Meta: {nombre_corto}")
                 labels_hover.append(f"Meta: {nombre}")
                 parents.append(id_obj)
                 linea_info = linea_color_map.get(row['Linea'])
@@ -825,7 +824,8 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_ind = f"L4-{idx}"
                 nombre = row['Indicador']
-                labels.append(f"{nombre}<br><span style='font-size:12px'><b>{cumpl_display:.1f}%</b></span>")
+                nombre_corto = nombre[:40] + "..." if len(nombre) > 40 else nombre
+                labels.append(nombre_corto)
                 labels_hover.append(nombre)
                 parents.append(id_parent)
                 linea_info = linea_color_map.get(row['Linea'])
@@ -836,7 +836,7 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
             cumplimientos.append(cumpl_display)
 
-        # Crear gráfico Treemap con texto centrado y visible
+        # Crear gráfico Treemap con texto limpio
         fig = go.Figure(go.Treemap(
             ids=ids,
             labels=labels,
@@ -846,17 +846,17 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
                 colors=colores,
                 line=dict(color='white', width=2)
             ),
-            textfont=dict(size=14, family="Arial"),
+            texttemplate='<b>%{label}</b><br>%{customdata[1]}',
+            textfont=dict(size=12, color='black'),
             textposition="middle center",
             customdata=list(zip(labels_hover, [f"{c:.1f}%" for c in cumplimientos])),
             hovertemplate='<b>%{customdata[0]}</b><br>Cumplimiento: %{customdata[1]}<extra></extra>',
             branchvalues="total",
             pathbar=dict(
                 visible=True,
-                thickness=25,
-                textfont=dict(size=13, family="Arial")
-            ),
-            root=dict(color='lightgray')
+                thickness=30,
+                textfont=dict(size=12)
+            )
         ))
 
         fig.update_layout(
@@ -868,7 +868,7 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
             ),
             height=500,
             margin=dict(t=80, b=20, l=20, r=20),
-            uniformtext=dict(minsize=11, mode='show')
+            uniformtext=dict(minsize=10, mode='hide')
         )
 
         return fig
