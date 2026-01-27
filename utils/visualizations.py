@@ -651,11 +651,11 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
         df_viz = df_cascada.copy()
 
         labels = []
+        labels_completos = []  # Lista para nombres completos (hover)
         cumplimientos = []
         colores = []
         parents = []
         ids = []
-        textos = []
 
         linea_color_map = {}
         contador_obj = {}
@@ -670,7 +670,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
                 id_linea = f"L1-{idx}"
                 nombre = row['Linea']
                 labels.append(nombre)
-                textos.append(f"{nombre}<br><b>{cumpl_display:.1f}%</b>")
+                labels_completos.append(nombre)
                 parents.append("")
                 color_linea = COLORES_LINEAS.get(row['Linea'], COLORS['primary'])
                 colores.append(color_linea)
@@ -683,10 +683,10 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
                 id_obj = f"L2-{idx}"
                 nombre = row['Objetivo']
-                # Truncar para el label pero mostrar completo en hover
+                # Truncar para el label pero guardar completo para hover
                 nombre_corto = nombre[:30] + "..." if len(nombre) > 30 else nombre
                 labels.append(nombre_corto)
-                textos.append(f"{nombre_corto}<br><b>{cumpl_display:.1f}%</b>")
+                labels_completos.append(nombre)  # Nombre completo para hover
                 parents.append(id_linea)
                 color_base = linea_info[0] if linea_info else COLORS['primary']
                 colores.append(aclarar_color(color_base, factor=0.4))
@@ -701,7 +701,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
                 nombre = str(row['Meta_PDI'])
                 nombre_corto = nombre[:25] + "..." if len(nombre) > 25 else nombre
                 labels.append(f"Meta: {nombre_corto}")
-                textos.append(f"Meta: {nombre_corto}<br><b>{cumpl_display:.1f}%</b>")
+                labels_completos.append(f"Meta: {nombre}")  # Nombre completo para hover
                 parents.append(id_obj)
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
@@ -721,7 +721,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
                 nombre = row['Indicador']
                 nombre_corto = nombre[:25] + "..." if len(nombre) > 25 else nombre
                 labels.append(nombre_corto)
-                textos.append(f"{nombre_corto}<br><b>{cumpl_display:.1f}%</b>")
+                labels_completos.append(nombre)  # Nombre completo para hover
                 parents.append(id_parent)
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
@@ -730,12 +730,14 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
             cumplimientos.append(cumpl_display)
 
-        # Crear gráfico Sunburst con texto simplificado
-        # Usar text para mostrar el porcentaje y textinfo para controlar qué se muestra
+        # Crear textos de porcentaje para mostrar en el gráfico
         textos_porcentaje = [f"{c:.1f}%" for c in cumplimientos]
 
         # Determinar colores de texto según luminosidad del fondo
         colores_texto = [obtener_color_texto(c) for c in colores]
+
+        # Crear customdata con nombre completo y porcentaje para hover
+        customdata = list(zip(labels_completos, textos_porcentaje))
 
         fig = go.Figure(go.Sunburst(
             ids=ids,
@@ -750,7 +752,8 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
             textfont=dict(size=12),
             insidetextfont=dict(color=colores_texto),
             insidetextorientation='radial',
-            hovertemplate='<b>%{label}</b><br><br>Cumplimiento: %{text}<extra></extra>',
+            customdata=customdata,
+            hovertemplate='<b>%{customdata[0]}</b><br><br>Cumplimiento: %{customdata[1]}<extra></extra>',
             hoverlabel=dict(
                 bgcolor='white',
                 font_size=12,
