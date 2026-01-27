@@ -631,6 +631,39 @@ def obtener_color_texto(color_hex):
     return 'white' if luminosidad < 0.5 else 'black'
 
 
+def dividir_texto_largo(texto, max_caracteres=40):
+    """
+    Divide un texto largo en múltiples líneas según un máximo de caracteres.
+    
+    Args:
+        texto: Texto a dividir
+        max_caracteres: Máximo de caracteres por línea (default: 40)
+    
+    Returns:
+        Texto con saltos de línea para ajustarse al ancho
+    """
+    texto = str(texto)
+    if len(texto) <= max_caracteres:
+        return texto
+    
+    palabras = texto.split()
+    lineas = []
+    linea_actual = ""
+    
+    for palabra in palabras:
+        if len(linea_actual) + len(palabra) + 1 <= max_caracteres:
+            linea_actual += (" " if linea_actual else "") + palabra
+        else:
+            if linea_actual:
+                lineas.append(linea_actual)
+            linea_actual = palabra
+    
+    if linea_actual:
+        lineas.append(linea_actual)
+    
+    return "<br>".join(lineas)
+
+
 def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégica y Objetivo"):
     """
     Crea un gráfico Sunburst para el Dashboard General.
@@ -670,7 +703,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
                 id_linea = f"L1-{idx}"
                 nombre = row['Linea']
                 # Nombre completo en label
-                labels.append(nombre)
+                labels.append(dividir_texto_largo(nombre, max_caracteres=30))
                 labels_completos.append(nombre)
                 parents.append("")
                 color_linea = COLORES_LINEAS.get(row['Linea'], COLORS['primary'])
@@ -684,8 +717,8 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
                 id_obj = f"L2-{idx}"
                 nombre = row['Objetivo']
-                # Nombre completo en label (sin truncar)
-                labels.append(nombre)
+                # Nombre dividido en múltiples líneas
+                labels.append(dividir_texto_largo(nombre, max_caracteres=35))
                 labels_completos.append(nombre)
                 parents.append(id_linea)
                 color_base = linea_info[0] if linea_info else COLORS['primary']
@@ -699,8 +732,8 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
                 id_meta = f"L3-{idx}"
                 nombre = str(row['Meta_PDI'])
-                # Nombre completo en label (sin truncar)
-                labels.append(f"Meta: {nombre}")
+                # Nombre dividido en múltiples líneas
+                labels.append(dividir_texto_largo(f"Meta: {nombre}", max_caracteres=30))
                 labels_completos.append(f"Meta: {nombre}")
                 parents.append(id_obj)
                 linea_info = linea_color_map.get(row['Linea'])
@@ -719,8 +752,8 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
                 id_ind = f"L4-{idx}"
                 nombre = row['Indicador']
-                # Nombre completo en label (sin truncar)
-                labels.append(nombre)
+                # Nombre dividido en múltiples líneas
+                labels.append(dividir_texto_largo(nombre, max_caracteres=35))
                 labels_completos.append(nombre)
                 parents.append(id_parent)
                 linea_info = linea_color_map.get(row['Linea'])
@@ -821,8 +854,8 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
             if nivel == 1:
                 id_linea = f"L1-{idx}"
                 nombre = row['Linea']
-                # Nombre completo en label
-                labels.append(nombre)
+                # Nombre dividido en múltiples líneas
+                labels.append(dividir_texto_largo(nombre, max_caracteres=30))
                 labels_hover.append(nombre)
                 parents.append("")
                 color_linea = COLORES_LINEAS.get(row['Linea'], COLORS['primary'])
@@ -837,8 +870,8 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_obj = f"L2-{idx}"
                 nombre = row['Objetivo']
-                # Nombre completo en label (sin truncar)
-                labels.append(nombre)
+                # Nombre dividido en múltiples líneas
+                labels.append(dividir_texto_largo(nombre, max_caracteres=35))
                 labels_hover.append(nombre)
                 parents.append(id_linea)
                 color_base = linea_info[0] if linea_info else COLORS['primary']
@@ -853,8 +886,8 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_meta = f"L3-{idx}"
                 nombre = str(row['Meta_PDI'])
-                # Nombre completo en label (sin truncar)
-                labels.append(f"Meta: {nombre}")
+                # Nombre dividido en múltiples líneas
+                labels.append(dividir_texto_largo(f"Meta: {nombre}", max_caracteres=30))
                 labels_hover.append(f"Meta: {nombre}")
                 parents.append(id_obj)
                 linea_info = linea_color_map.get(row['Linea'])
@@ -874,8 +907,8 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_ind = f"L4-{idx}"
                 nombre = row['Indicador']
-                # Nombre completo en label (sin truncar)
-                labels.append(nombre)
+                # Nombre dividido en múltiples líneas
+                labels.append(dividir_texto_largo(nombre, max_caracteres=35))
                 labels_hover.append(nombre)
                 parents.append(id_parent)
                 linea_info = linea_color_map.get(row['Linea'])
