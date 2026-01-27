@@ -1,6 +1,7 @@
 """
 Página 1: Dashboard General
 Informe Estratégico POLI 2025 - Resumen Ejecutivo
+Versión optimizada con Tabs para reducir scroll
 """
 
 import streamlit as st
@@ -28,13 +29,13 @@ from utils.ai_analysis import (
 
 def mostrar_pagina():
     """
-    Renderiza la página del Dashboard General.
+    Renderiza la página del Dashboard General con estructura de Tabs.
     """
-    # Header
+    # Header compacto
     st.markdown(f"""
-    <div class="header-container">
-        <div class="header-title">📊 Informe Estratégico POLI 2025</div>
-        <div class="header-subtitle">Plan de Desarrollo Institucional | Seguimiento y Monitoreo</div>
+    <div class="header-container" style="padding: 15px; margin-bottom: 10px;">
+        <div class="header-title" style="font-size: 28px;">📊 Informe Estratégico POLI 2025</div>
+        <div class="header-subtitle" style="font-size: 14px;">Plan de Desarrollo Institucional | Seguimiento y Monitoreo</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -52,12 +53,14 @@ def mostrar_pagina():
         año_actual = int(df_unificado['Año'].max())
 
     metricas = calcular_metricas_generales(df_unificado, año_actual)
-
-    # Calcular métricas del año anterior para deltas
     metricas_anterior = calcular_metricas_generales(df_unificado, año_actual - 1)
     delta_cumplimiento = metricas['cumplimiento_promedio'] - metricas_anterior.get('cumplimiento_promedio', 0)
 
-    # Sticky KPIs - Siempre visibles al hacer scroll
+    # Obtener datos necesarios
+    df_cascada = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=2)
+    df_lineas = obtener_cumplimiento_por_linea(df_unificado, año_actual)
+
+    # Sticky KPIs - Siempre visibles
     st.markdown(f'''
         <div class="sticky-kpis">
             <div class="kpi-mini" style="background:#003d82;color:white;">
@@ -76,303 +79,255 @@ def mostrar_pagina():
                 <b>{metricas['no_cumplidos']}</b><br>
                 <small>No Cumplidos</small>
             </div>
+            <div class="kpi-mini" style="background:#6c757d;color:white;">
+                <b>{metricas['total_indicadores']}</b><br>
+                <small>Total Ind.</small>
+            </div>
         </div>
         <div class="main-content-spacer"></div>
     ''', unsafe_allow_html=True)
 
-    # KPIs principales en tarjetas
-    st.markdown("### 🎯 Indicadores Clave de Desempeño")
+    # ============================================================
+    # TABS PRINCIPALES - Estructura optimizada
+    # ============================================================
+    tab_resumen, tab_analisis, tab_datos = st.tabs([
+        "📊 Resumen Ejecutivo",
+        "📈 Análisis Detallado",
+        "📥 Datos y Exportación"
+    ])
 
-    col1, col2, col3, col4 = st.columns(4)
+    # ============================================================
+    # TAB 1: RESUMEN EJECUTIVO
+    # ============================================================
+    with tab_resumen:
+        # Layout de 2 columnas: Cascada (60%) + Semáforo (40%)
+        col_cascada, col_semaforo = st.columns([3, 2])
 
-    with col1:
-        st.markdown(crear_tarjeta_kpi(
-            valor=f"{metricas['cumplimiento_promedio']:.1f}%",
-            etiqueta="Cumplimiento Promedio",
-            icono="📈",
-            delta=delta_cumplimiento if metricas_anterior.get('cumplimiento_promedio', 0) > 0 else None
-        ), unsafe_allow_html=True)
-
-    with col2:
-        st.markdown(crear_tarjeta_kpi(
-            valor=f"{metricas['indicadores_cumplidos']}",
-            etiqueta=f"Indicadores Cumplidos (≥100%)",
-            icono="✅",
-            color_fondo=f"linear-gradient(135deg, {COLORS['success']} 0%, #1e7e34 100%)"
-        ), unsafe_allow_html=True)
-
-    with col3:
-        st.markdown(crear_tarjeta_kpi(
-            valor=f"{metricas['en_progreso']}",
-            etiqueta="En Progreso (80-99%)",
-            icono="⚡",
-            color_fondo=f"linear-gradient(135deg, {COLORS['warning']} 0%, #d39e00 100%)"
-        ), unsafe_allow_html=True)
-
-    with col4:
-        st.markdown(crear_tarjeta_kpi(
-            valor=f"{metricas['no_cumplidos']}",
-            etiqueta="No Cumplidos (<80%)",
-            icono="⚠️",
-            color_fondo=f"linear-gradient(135deg, {COLORS['danger']} 0%, #a71d2a 100%)"
-        ), unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # Fila adicional con más KPIs
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric(
-            label="Total Indicadores",
-            value=metricas['total_indicadores'],
-            delta=None
-        )
-
-    with col2:
-        st.metric(
-            label="Líneas Estratégicas",
-            value=metricas['total_lineas']
-        )
-
-    with col3:
-        st.metric(
-            label="Fecha de Corte",
-            value="Diciembre 2025"
-        )
-
-    st.markdown("---")
-
-    # Sección de Cumplimiento en Cascada
-    st.markdown("### 🌊 Cumplimiento en Cascada Jerárquica")
-
-    # Obtener datos de cascada (2 niveles: Línea y Objetivo)
-    df_cascada = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=2)
-
-    if not df_cascada.empty:
-        # Tabs para diferentes vistas
-        tab1, tab2 = st.tabs(["📊 Vista Gráfica", "📋 Vista Tabla Detallada"])
-
-        with tab1:
-            col_graf, col_info = st.columns([2, 1])
-
-            with col_graf:
-                # Gráfico sunburst
+        with col_cascada:
+            st.markdown("#### 🌊 Cumplimiento en Cascada")
+            if not df_cascada.empty:
                 fig_cascada = crear_grafico_cascada(df_cascada)
-                config = {'displayModeBar': True, 'responsive': True}
+                config = {'displayModeBar': False, 'responsive': True}
                 st.plotly_chart(fig_cascada, use_container_width=True, config=config)
+            else:
+                st.info("No hay datos de cascada disponibles.")
 
-            with col_info:
-                st.markdown("""
-                **📌 Interpretación:**
+        with col_semaforo:
+            st.markdown("#### 🚦 Estado de Indicadores")
+            fig_semaforo = crear_grafico_semaforo(
+                metricas['indicadores_cumplidos'],
+                metricas['en_progreso'],
+                metricas['no_cumplidos']
+            )
+            config = {'displayModeBar': False, 'responsive': True}
+            st.plotly_chart(fig_semaforo, use_container_width=True, config=config)
 
-                Este gráfico muestra la estructura jerárquica del cumplimiento en 2 niveles:
-
-                - **Centro**: Líneas estratégicas con su color distintivo
-                - **Anillo exterior**: Objetivos dentro de cada línea
-                - **Color**: Tonos graduales del color de la línea
-
-                Haz clic en un segmento para explorar en detalle.
-
-                Para ver el desglose completo por Meta PDI e Indicador,
-                visite la página **Análisis por Línea**.
-                """)
-
-                # Resumen de niveles
-                st.markdown("**Niveles de la cascada:**")
-                st.markdown("""
-                1. 📊 **Línea Estratégica**
-                2. 🎯 **Objetivo**
-                """)
-
-        with tab2:
-            st.markdown("**Vista completa de la jerarquía de cumplimiento**")
-
-            # Tabla HTML con jerarquía
-            tabla_html = crear_tabla_cascada_html(df_cascada)
-            # Usar components.html para renderizar HTML complejo
-            import streamlit.components.v1 as components
-            components.html(tabla_html, height=min(len(df_cascada) * 35 + 100, 800), scrolling=True)
-
-            # Botón de exportación de la cascada
-            st.markdown("")
-            if st.button("📥 Exportar Cascada a Excel"):
-                buffer = io.BytesIO()
-                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                    df_cascada.to_excel(writer, sheet_name='Cascada_Cumplimiento', index=False)
-
-                st.download_button(
-                    label="⬇️ Descargar Excel de Cascada",
-                    data=buffer.getvalue(),
-                    file_name=f"cascada_cumplimiento_{año_actual}_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-    else:
-        st.info("No hay datos de Avance disponibles para generar la vista de cascada.")
-        # Mostrar métricas en 0
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Líneas Estratégicas", 0)
-        with col2:
-            st.metric("Objetivos", 0)
-
-    st.markdown("---")
-
-    # Análisis IA - Resumen Ejecutivo
-    st.markdown("### 🤖 Análisis Inteligente - Resumen Ejecutivo")
-
-    with st.expander("Ver análisis generado por IA", expanded=False):
-        with st.spinner("Generando análisis inteligente..."):
-            # Preparar datos para el análisis
-            lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
-
-            analisis = generar_analisis_general(metricas, lineas_data)
-
-            # Convertir markdown a HTML
-            analisis_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', analisis)
-            analisis_html = analisis_html.replace('\n', '<br>')
-
+            # Información rápida
             st.markdown(f"""
-            <div class="ai-analysis">
-                {analisis_html}
+            <div style="background: {COLORS['light']}; padding: 15px; border-radius: 10px; margin-top: 10px;">
+                <strong>📌 Resumen Rápido:</strong>
+                <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                    <li><strong>{metricas['total_lineas']}</strong> Líneas Estratégicas</li>
+                    <li><strong>{metricas['total_indicadores']}</strong> Indicadores totales</li>
+                    <li>Corte: <strong>Diciembre {año_actual}</strong></li>
+                </ul>
             </div>
             """, unsafe_allow_html=True)
 
-    st.markdown("---")
+        # Interpretación compacta
+        with st.expander("📌 ¿Cómo interpretar este gráfico?", expanded=False):
+            st.markdown("""
+            - **Centro del Sunburst**: Líneas estratégicas con su color distintivo
+            - **Anillo exterior**: Objetivos dentro de cada línea
+            - **Colores**: Verde (≥100%), Amarillo (80-99%), Rojo (<80%)
 
-    # Gráficos principales
-    col_graf1, col_graf2 = st.columns([3, 2])
+            Haz clic en cualquier segmento para ver más detalles.
+            """)
 
-    with col_graf1:
-        st.markdown("### 📊 Cumplimiento por Línea Estratégica")
+    # ============================================================
+    # TAB 2: ANÁLISIS DETALLADO
+    # ============================================================
+    with tab_analisis:
+        # Sub-tabs para organizar el análisis
+        subtab_lineas, subtab_ia, subtab_tabla = st.tabs([
+            "📊 Por Línea Estratégica",
+            "🤖 Análisis IA",
+            "📋 Tabla Cascada"
+        ])
 
-        # Obtener cumplimiento por línea
-        df_lineas = obtener_cumplimiento_por_linea(df_unificado, año_actual)
+        with subtab_lineas:
+            st.markdown("#### Cumplimiento por Línea Estratégica")
+            if not df_lineas.empty:
+                fig_lineas = crear_grafico_lineas(df_lineas)
+                config = {'displayModeBar': True, 'responsive': True}
+                st.plotly_chart(fig_lineas, use_container_width=True, config=config)
 
-        if not df_lineas.empty:
-            fig_lineas = crear_grafico_lineas(df_lineas)
-            # Configuración explícita para renderizado web
-            config = {'displayModeBar': True, 'responsive': True}
-            st.plotly_chart(fig_lineas, use_container_width=True, config=config)
-        else:
-            st.info("No hay datos de cumplimiento por línea disponibles.")
+                # Tabla compacta debajo
+                st.markdown("**Resumen numérico:**")
+                df_tabla = df_lineas.copy()
+                df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
+                    lambda x: '✅' if x >= 100 else '⚠️' if x >= 80 else '❌'
+                )
+                df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(lambda x: f"{x:.1f}%")
+                df_tabla = df_tabla[['Linea', 'Total_Indicadores', 'Cumplimiento', 'Estado']]
+                df_tabla.columns = ['Línea', 'Indicadores', 'Cumplimiento', 'Estado']
+                st.dataframe(df_tabla, use_container_width=True, hide_index=True, height=250)
+            else:
+                st.info("No hay datos disponibles.")
 
-    with col_graf2:
-        st.markdown("### 🚦 Distribución por Estado")
+        with subtab_ia:
+            st.markdown("#### Análisis Inteligente - Resumen Ejecutivo")
+            with st.spinner("Generando análisis..."):
+                lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
+                analisis = generar_analisis_general(metricas, lineas_data)
 
-        fig_semaforo = crear_grafico_semaforo(
-            metricas['indicadores_cumplidos'],
-            metricas['en_progreso'],
-            metricas['no_cumplidos']
-        )
-        config = {'displayModeBar': True, 'responsive': True}
-        st.plotly_chart(fig_semaforo, use_container_width=True, config=config)
+                analisis_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', analisis)
+                analisis_html = analisis_html.replace('\n', '<br>')
 
-    st.markdown("---")
+                st.markdown(f"""
+                <div class="ai-analysis">
+                    {analisis_html}
+                </div>
+                """, unsafe_allow_html=True)
 
-    # Tabla resumen por línea estratégica (en expander para reducir scroll)
-    with st.expander("### 📋 Resumen por Línea Estratégica", expanded=False):
-        if not df_lineas.empty:
-            # Formatear tabla
-            df_tabla = df_lineas.copy()
-            df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
-                lambda x: '✅ Meta cumplida' if x >= 100 else '⚠️ Alerta' if x >= 80 else '❌ Peligro'
-            )
-            df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(lambda x: f"{x:.1f}%")
+        with subtab_tabla:
+            st.markdown("#### Vista Completa de Cascada Jerárquica")
+            if not df_cascada.empty:
+                # Tabla HTML con jerarquía
+                tabla_html = crear_tabla_cascada_html(df_cascada)
+                import streamlit.components.v1 as components
+                components.html(tabla_html, height=min(len(df_cascada) * 35 + 100, 600), scrolling=True)
+            else:
+                st.info("No hay datos de cascada disponibles.")
 
-            # Renombrar columnas
-            df_tabla = df_tabla[['Linea', 'Total_Indicadores', 'Cumplimiento', 'Estado']]
-            df_tabla.columns = ['Línea Estratégica', 'Indicadores', 'Cumplimiento', 'Estado']
-
-            st.dataframe(
-                df_tabla,
-                use_container_width=True,
-                hide_index=True
-            )
-
-            # Mostrar información de Meta PDI con jerarquía Línea → Objetivo → Meta
+            # Metas PDI (si existen)
             if df_base is not None and 'Meta_PDI' in df_base.columns:
-                st.markdown("")
-                st.markdown("**🎯 Metas PDI por Línea Estratégica:**")
-                # Filtrar datos del año actual con Fuente='Avance'
-                df_año_metas = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
-                if 'Fuente' in df_año_metas.columns:
-                    df_año_metas = df_año_metas[df_año_metas['Fuente'] == 'Avance']
+                with st.expander("🎯 Ver Metas PDI por Línea", expanded=False):
+                    df_año_metas = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
+                    if 'Fuente' in df_año_metas.columns:
+                        df_año_metas = df_año_metas[df_año_metas['Fuente'] == 'Avance']
 
-                # Agregar Meta_PDI a los datos
-                meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
-                df_año_metas = df_año_metas.copy()
-                df_año_metas['Meta_PDI'] = df_año_metas['Indicador'].map(meta_pdi_dict)
+                    meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
+                    df_año_metas = df_año_metas.copy()
+                    df_año_metas['Meta_PDI'] = df_año_metas['Indicador'].map(meta_pdi_dict)
 
-                # Agrupar por Línea → Objetivo → Meta PDI
-                for linea in sorted(df_año_metas['Linea'].dropna().unique()):
-                    df_linea_data = df_año_metas[df_año_metas['Linea'] == linea]
-                    st.markdown(f"**{linea}**")
+                    for linea in sorted(df_año_metas['Linea'].dropna().unique()):
+                        df_linea_data = df_año_metas[df_año_metas['Linea'] == linea]
+                        st.markdown(f"**{linea}**")
+                        for objetivo in sorted(df_linea_data['Objetivo'].dropna().unique()):
+                            df_obj_data = df_linea_data[df_linea_data['Objetivo'] == objetivo]
+                            metas_obj = df_obj_data[['Meta_PDI']].dropna().drop_duplicates()
+                            if not metas_obj.empty:
+                                st.markdown(f"- {objetivo}")
+                                for _, row in metas_obj.iterrows():
+                                    st.markdown(f"  - `{row['Meta_PDI']}`")
 
-                    for objetivo in sorted(df_linea_data['Objetivo'].dropna().unique()):
-                        df_obj_data = df_linea_data[df_linea_data['Objetivo'] == objetivo]
-                        # Obtener metas PDI únicas para este objetivo
-                        metas_obj = df_obj_data[['Meta_PDI']].dropna().drop_duplicates()
+    # ============================================================
+    # TAB 3: DATOS Y EXPORTACIÓN
+    # ============================================================
+    with tab_datos:
+        st.markdown("#### 📥 Exportar Datos del Dashboard")
 
-                        if not metas_obj.empty:
-                            st.markdown(f"- **{objetivo}**:")
-                            for _, row in metas_obj.iterrows():
-                                st.markdown(f"  - `{row['Meta_PDI']}`")
+        col1, col2 = st.columns(2)
 
-                    st.markdown("")
-
-    st.markdown("---")
-
-    # Sección de exportación
-    st.markdown("### 📥 Exportar Datos")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        # Exportar a Excel
-        if st.button("📊 Preparar Excel", use_container_width=True):
+        with col1:
+            st.markdown("**Exportar Informe Completo**")
             try:
                 buffer = io.BytesIO()
                 with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                    # Hoja de resumen
                     df_resumen = pd.DataFrame([metricas])
                     df_resumen.to_excel(writer, sheet_name='Resumen_General', index=False)
 
-                    # Hoja de líneas
                     if not df_lineas.empty:
                         df_lineas.to_excel(writer, sheet_name='Por_Linea', index=False)
 
-                    # Hoja de datos completos del año
+                    if not df_cascada.empty:
+                        df_cascada.to_excel(writer, sheet_name='Cascada', index=False)
+
                     df_año = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
                     df_año.to_excel(writer, sheet_name='Datos_Completos', index=False)
 
                 st.download_button(
-                    label="⬇️ Descargar Excel",
+                    label="📊 Descargar Excel Completo",
                     data=buffer.getvalue(),
                     file_name=f"informe_poli_{año_actual}_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
                 )
             except Exception as e:
-                st.error(f"Error al generar Excel: {str(e)}")
+                st.error(f"Error: {str(e)}")
 
-    with col2:
-        st.button("📄 Exportar PDF", use_container_width=True, disabled=True,
-                  help="Funcionalidad próximamente disponible")
+        with col2:
+            st.markdown("**Exportar Solo Cascada**")
+            if not df_cascada.empty:
+                buffer_cascada = io.BytesIO()
+                with pd.ExcelWriter(buffer_cascada, engine='openpyxl') as writer:
+                    df_cascada.to_excel(writer, sheet_name='Cascada_Cumplimiento', index=False)
 
-    with col3:
-        if st.button("🔄 Regenerar Análisis IA", use_container_width=True):
-            # Limpiar caché de análisis
-            st.cache_data.clear()
-            st.rerun()
+                st.download_button(
+                    label="🌊 Descargar Cascada",
+                    data=buffer_cascada.getvalue(),
+                    file_name=f"cascada_{año_actual}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            else:
+                st.info("No hay datos de cascada.")
 
-    # Notas al pie
+        st.markdown("---")
+
+        # Datos completos en tabla interactiva
+        st.markdown("#### 📋 Vista de Datos Completos")
+        df_año = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
+
+        # Filtros rápidos
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            lineas_filtro = ['Todas'] + sorted(df_año['Linea'].dropna().unique().tolist())
+            linea_sel = st.selectbox("Filtrar por Línea:", lineas_filtro, key="filtro_linea_datos")
+        with col_f2:
+            estado_filtro = st.selectbox("Filtrar por Estado:", ['Todos', '✅ Cumplido', '⚠️ Alerta', '❌ Peligro'], key="filtro_estado_datos")
+
+        df_filtrado = df_año.copy()
+        if linea_sel != 'Todas':
+            df_filtrado = df_filtrado[df_filtrado['Linea'] == linea_sel]
+        if estado_filtro != 'Todos':
+            if estado_filtro == '✅ Cumplido':
+                df_filtrado = df_filtrado[df_filtrado['Cumplimiento'] >= 100]
+            elif estado_filtro == '⚠️ Alerta':
+                df_filtrado = df_filtrado[(df_filtrado['Cumplimiento'] >= 80) & (df_filtrado['Cumplimiento'] < 100)]
+            else:
+                df_filtrado = df_filtrado[df_filtrado['Cumplimiento'] < 80]
+
+        columnas_mostrar = ['Indicador', 'Linea', 'Objetivo', 'Meta', 'Ejecución', 'Cumplimiento']
+        columnas_disponibles = [c for c in columnas_mostrar if c in df_filtrado.columns]
+
+        if columnas_disponibles:
+            st.dataframe(
+                df_filtrado[columnas_disponibles].drop_duplicates(),
+                use_container_width=True,
+                hide_index=True,
+                height=400
+            )
+            st.caption(f"Mostrando {len(df_filtrado[columnas_disponibles].drop_duplicates())} registros")
+
+        st.markdown("---")
+
+        # Acciones adicionales
+        col_act1, col_act2 = st.columns(2)
+        with col_act1:
+            if st.button("🔄 Actualizar Datos", use_container_width=True):
+                st.cache_data.clear()
+                st.rerun()
+        with col_act2:
+            st.button("📄 Exportar PDF", use_container_width=True, disabled=True,
+                      help="Próximamente disponible")
+
+    # Footer compacto
     st.markdown(f"""
-    <div class="info-box">
-        <strong>📌 Notas:</strong>
-        <ul>
-            <li><strong>Línea Base:</strong> Los datos de 2021 sirven como punto de referencia inicial del PDI.</li>
-            <li><strong>Semáforo:</strong> Verde (≥100%), Amarillo (80-99%), Rojo (&lt;80%)</li>
-            <li><strong>Análisis IA:</strong> Generado automáticamente usando inteligencia artificial.</li>
-        </ul>
+    <div style="text-align: center; color: {COLORS['gray']}; font-size: 11px; padding: 10px; margin-top: 20px;">
+        <strong>Semáforo:</strong> 🟢 ≥100% | 🟡 80-99% | 🔴 <80% |
+        <strong>Línea Base:</strong> 2021 |
+        <strong>Corte:</strong> Diciembre {año_actual}
     </div>
     """, unsafe_allow_html=True)
