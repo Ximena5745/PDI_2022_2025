@@ -187,43 +187,6 @@ st.markdown(f"""
     #MainMenu {{visibility: hidden;}}
     footer {{visibility: hidden;}}
 
-    /* KPIs Sticky Header */
-    .sticky-kpis {{
-        position: fixed;
-        top: 3.5rem;
-        left: 0;
-        right: 0;
-        z-index: 999;
-        background: white;
-        padding: 0.5rem 1rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        display: flex;
-        justify-content: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-    }}
-
-    .kpi-mini {{
-        padding: 0.4rem 0.8rem;
-        border-radius: 8px;
-        text-align: center;
-        min-width: 100px;
-    }}
-
-    .kpi-mini b {{
-        font-size: 1.1rem;
-    }}
-
-    .kpi-mini small {{
-        font-size: 0.7rem;
-        opacity: 0.9;
-    }}
-
-    /* Espacio para el sticky header */
-    .main-content-spacer {{
-        height: 70px;
-    }}
-
     /* Header personalizado */
     .header-container {{
         background: linear-gradient(135deg, {COLORS['primary']} 0%, {COLORS['secondary']} 100%);

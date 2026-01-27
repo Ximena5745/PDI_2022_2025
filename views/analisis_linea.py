@@ -1,11 +1,11 @@
 """
 Página 2: Análisis por Línea Estratégica
 Detalle del desempeño de cada línea del PDI
+Versión optimizada con Tabs para reducir scroll
 """
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import re
 
@@ -14,12 +14,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import (
-    COLORS, COLORES_LINEAS, calcular_metricas_generales, obtener_color_semaforo,
-    filtrar_por_linea, obtener_lista_objetivos, LINEAS_ESTRATEGICAS,
+    COLORS, COLORES_LINEAS, obtener_color_semaforo,
+    filtrar_por_linea, obtener_lista_objetivos,
     obtener_cumplimiento_cascada
 )
 from utils.visualizations import (
-    crear_objetivo_card_html, crear_tarjeta_kpi, crear_tabla_cascada_html,
+    crear_objetivo_card_html, crear_tabla_cascada_html,
     crear_grafico_cascada_icicle
 )
 from utils.ai_analysis import (
@@ -29,10 +29,15 @@ from utils.ai_analysis import (
 
 def mostrar_pagina():
     """
-    Renderiza la página de Análisis por Línea Estratégica.
+    Renderiza la página de Análisis por Línea Estratégica con estructura de Tabs.
     """
-    st.title("📈 Análisis por Línea Estratégica")
-    st.markdown("---")
+    # Header compacto
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #003d82 0%, #0056b3 100%);
+                padding: 15px; border-radius: 10px; color: white; margin-bottom: 15px; text-align: center;">
+        <div style="font-size: 24px; font-weight: bold;">📈 Análisis por Línea Estratégica</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Obtener datos
     df_unificado = st.session_state.get('df_unificado')
@@ -47,7 +52,7 @@ def mostrar_pagina():
     if 'Año' in df_unificado.columns:
         año_actual = int(df_unificado['Año'].max())
 
-    # Selector de línea estratégica
+    # Selector de línea estratégica (siempre visible)
     lineas_disponibles = []
     if 'Linea' in df_unificado.columns:
         lineas_disponibles = sorted(df_unificado['Linea'].dropna().unique().tolist())
@@ -62,8 +67,6 @@ def mostrar_pagina():
         index=0
     )
 
-    st.markdown("---")
-
     # Filtrar datos por línea
     df_linea = filtrar_por_linea(df_unificado, linea_seleccionada)
 
@@ -76,7 +79,7 @@ def mostrar_pagina():
     if 'Año' in df_linea_año.columns:
         df_linea_año = df_linea_año[df_linea_año['Año'].isin([2022, 2023, 2024, 2025, 2026])]
 
-    # Filtrar solo registros con Fuente = 'Avance' para los cálculos
+    # Filtrar solo registros con Fuente = 'Avance'
     if 'Fuente' in df_linea_año.columns:
         df_linea_año = df_linea_año[df_linea_año['Fuente'] == 'Avance']
 
@@ -100,317 +103,256 @@ def mostrar_pagina():
         en_progreso = len(df_linea_año[(df_linea_año['Cumplimiento'] >= 80) & (df_linea_año['Cumplimiento'] < 100)])
         no_cumplidos = len(df_linea_año[df_linea_año['Cumplimiento'] < 80])
 
-    # Importar COLORS para los colores de KPIs
-    color_cumpl = obtener_color_semaforo(cumplimiento_linea)
-
-    # Sticky KPIs - Siempre visibles al hacer scroll
-    st.markdown(f'''
-        <div class="sticky-kpis">
-            <div class="kpi-mini" style="background:{color_cumpl};color:white;">
-                <b>{cumplimiento_linea:.1f}%</b><br>
-                <small>Cumplimiento</small>
-            </div>
-            <div class="kpi-mini" style="background:#28a745;color:white;">
-                <b>{indicadores_cumplidos}</b><br>
-                <small>Cumplidos</small>
-            </div>
-            <div class="kpi-mini" style="background:#ffc107;color:black;">
-                <b>{en_progreso}</b><br>
-                <small>En Progreso</small>
-            </div>
-            <div class="kpi-mini" style="background:#dc3545;color:white;">
-                <b>{no_cumplidos}</b><br>
-                <small>No Cumplidos</small>
-            </div>
-        </div>
-        <div class="main-content-spacer"></div>
-    ''', unsafe_allow_html=True)
-
-    # KPIs de la línea
-    st.markdown(f"### 📊 Métricas de: {linea_seleccionada}")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        color_cumpl = obtener_color_semaforo(cumplimiento_linea)
-        st.markdown(f"""
-        <div style="
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            border-left: 5px solid {color_cumpl};
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        ">
-            <div style="font-size: 12px; color: {COLORS['gray']}; text-transform: uppercase;">Cumplimiento</div>
-            <div style="font-size: 36px; font-weight: bold; color: {color_cumpl};">{cumplimiento_linea:.1f}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.metric(
-            label="Total Objetivos",
-            value=total_objetivos
-        )
-
-    with col3:
-        st.metric(
-            label="Total Indicadores",
-            value=total_indicadores
-        )
-
-    with col4:
-        st.metric(
-            label="Indicadores Cumplidos",
-            value=indicadores_cumplidos,
-            delta=f"{(indicadores_cumplidos/total_indicadores*100):.0f}%" if total_indicadores > 0 else "0%"
-        )
-
-    st.markdown("---")
-
-    # Análisis IA de la línea
-    st.markdown("### 🤖 Análisis Inteligente")
-
-    with st.expander(f"Ver análisis de {linea_seleccionada}", expanded=False):
-        with st.spinner("Analizando línea estratégica..."):
-            # Preparar datos de objetivos
-            objetivos_data = preparar_objetivos_para_analisis(df_linea, año_actual)
-
-            analisis = generar_analisis_linea(
-                nombre_linea=linea_seleccionada,
-                total_indicadores=total_indicadores,
-                cumplimiento_promedio=cumplimiento_linea,
-                objetivos_data=objetivos_data
-            )
-
-            # Convertir markdown a HTML
-            analisis_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', analisis)
-            analisis_html = analisis_html.replace('\n', '<br>')
-
-            st.markdown(f"""
-            <div class="ai-analysis">
-                {analisis_html}
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # Dos columnas: Gráfico y Lista de objetivos
-    col_graf, col_obj = st.columns([1, 1])
-
-    with col_graf:
-        st.markdown("### 📊 Cumplimiento por Objetivo")
-
-        if 'Objetivo' in df_linea_año.columns and 'Cumplimiento' in df_linea_año.columns:
-            # Agrupar por objetivo
-            df_objetivos = df_linea_año.groupby('Objetivo').agg({
-                'Cumplimiento': 'mean',
-                'Indicador': 'nunique'
-            }).reset_index()
-            df_objetivos.columns = ['Objetivo', 'Cumplimiento', 'Indicadores']
-            df_objetivos['Cumplimiento'] = df_objetivos['Cumplimiento'].round(1)
-            df_objetivos = df_objetivos.sort_values('Cumplimiento', ascending=True)
-
-            # Usar el color de la línea estratégica para todas las barras
-            color_linea = COLORES_LINEAS.get(linea_seleccionada, COLORS['primary'])
-
-            # Color distintivo para los labels de cumplimiento
-            color_label_cumplimiento = '#E91E63'
-
-            fig = go.Figure()
-
-            fig.add_trace(go.Bar(
-                y=df_objetivos['Objetivo'],
-                x=df_objetivos['Cumplimiento'],
-                orientation='h',
-                marker_color=color_linea,
-                text=[f"{c:.1f}%" for c in df_objetivos['Cumplimiento']],
-                textposition='outside',
-                textfont=dict(size=11, color=color_label_cumplimiento, weight='bold'),
-                hovertemplate='<b>%{y}</b><br>Cumplimiento: %{x:.1f}%<extra></extra>'
-            ))
-
-            fig.update_layout(
-                xaxis=dict(
-                    title="% Cumplimiento",
-                    range=[0, 120]
-                ),
-                yaxis=dict(title=""),
-                height=max(300, len(df_objetivos) * 50),
-                margin=dict(l=20, r=50, t=20, b=40),
-                plot_bgcolor='white',
-                paper_bgcolor='white'
-            )
-
-            # Líneas de referencia
-            fig.add_vline(x=100, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
-            fig.add_vline(x=80, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
-
-            config = {'displayModeBar': True, 'responsive': True}
-            st.plotly_chart(fig, use_container_width=True, config=config)
-        else:
-            st.info("No hay datos de cumplimiento por objetivo disponibles.")
-
-    with col_obj:
-        st.markdown("### 🎯 Lista de Objetivos")
-
-        if 'Objetivo' in df_linea_año.columns:
-            objetivos_unicos = df_linea_año.groupby('Objetivo').agg({
-                'Cumplimiento': 'mean',
-                'Indicador': 'nunique'
-            }).reset_index()
-
-            objetivos_unicos = objetivos_unicos.sort_values('Cumplimiento', ascending=False)
-
-            for _, row in objetivos_unicos.iterrows():
-                cumpl = row['Cumplimiento'] if pd.notna(row['Cumplimiento']) else 0
-                st.markdown(
-                    crear_objetivo_card_html(
-                        objetivo=row['Objetivo'],
-                        indicadores=row['Indicador'],
-                        cumplimiento=cumpl
-                    ),
-                    unsafe_allow_html=True
-                )
-
-    st.markdown("---")
-
-    # Evolución histórica de la línea
-    st.markdown("### 📈 Evolución Histórica de la Línea")
-
-    if 'Año' in df_linea.columns and 'Cumplimiento' in df_linea.columns:
-        # Filtrar solo años 2022-2025 (periodo PDI)
-        df_linea_hist = df_linea[df_linea['Año'].isin([2022, 2023, 2024, 2025])]
-
-        # Agrupar por año
-        df_historico = df_linea_hist.groupby('Año').agg({
-            'Cumplimiento': 'mean',
-            'Indicador': 'nunique'
-        }).reset_index()
-        df_historico = df_historico.sort_values('Año')
-
-        # Crear etiquetas
-        etiquetas = [str(int(año)) for año in df_historico['Año']]
-
-        fig_hist = go.Figure()
-
-        # Área de fondo para semáforo
-        fig_hist.add_hrect(y0=100, y1=120, fillcolor=COLORS['success'], opacity=0.1, line_width=0)
-        fig_hist.add_hrect(y0=80, y1=100, fillcolor=COLORS['warning'], opacity=0.1, line_width=0)
-        fig_hist.add_hrect(y0=0, y1=80, fillcolor=COLORS['danger'], opacity=0.1, line_width=0)
-
-        # Obtener color de la línea seleccionada
-        color_linea = COLORES_LINEAS.get(linea_seleccionada, COLORS['primary'])
-
-        # Convertir cumplimiento de decimal a porcentaje
-        cumpl_pct = df_historico['Cumplimiento'] * 100
-
-        fig_hist.add_trace(go.Scatter(
-            x=etiquetas,
-            y=cumpl_pct,
-            mode='lines+markers+text',
-            line=dict(color=color_linea, width=3),
-            marker=dict(size=12, color=color_linea),
-            text=[f"{c:.1f}%" for c in cumpl_pct],
-            textposition='top center',
-            hovertemplate='<b>Año %{x}</b><br>Cumplimiento: %{y:.1f}%<extra></extra>'
-        ))
-
-        fig_hist.update_layout(
-            title=f"Tendencia de Cumplimiento: {linea_seleccionada}",
-            xaxis=dict(
-                title="Año",
-                type='category',  # Forzar eje categórico
-                categoryorder='array',
-                categoryarray=['2022', '2023', '2024', '2025']
-            ),
-            yaxis=dict(title="% Cumplimiento", range=[0, 130]),
-            height=400,
-            plot_bgcolor='white',
-            paper_bgcolor='white'
-        )
-
-        config = {'displayModeBar': True, 'responsive': True}
-        st.plotly_chart(fig_hist, use_container_width=True, config=config)
-
-    st.markdown("---")
-
-    # Vista de Cascada para la línea seleccionada
-    st.markdown(f"### 🌊 Cumplimiento en Cascada: {linea_seleccionada}")
-
-    # Obtener datos de cascada con 3 niveles (Línea → Objetivo → Meta PDI)
+    # Obtener datos de cascada
     df_cascada_completa = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=3)
     df_cascada_linea = df_cascada_completa[df_cascada_completa['Linea'] == linea_seleccionada] if not df_cascada_completa.empty else pd.DataFrame()
 
-    if not df_cascada_linea.empty:
-        with st.expander("📊 Ver Desglose Jerárquico Completo", expanded=False):
+    # Color de la línea
+    color_linea = COLORES_LINEAS.get(linea_seleccionada, COLORS['primary'])
+    color_cumpl = obtener_color_semaforo(cumplimiento_linea)
+
+    # ============================================================
+    # TABS PRINCIPALES
+    # ============================================================
+    tab_resumen, tab_analisis, tab_indicadores = st.tabs([
+        "📊 Resumen",
+        "📈 Análisis Detallado",
+        "📋 Indicadores"
+    ])
+
+    # ============================================================
+    # TAB 1: RESUMEN
+    # ============================================================
+    with tab_resumen:
+        # KPIs en fila
+        st.markdown(f"#### 🎯 Métricas: {linea_seleccionada}")
+        col1, col2, col3, col4, col5 = st.columns(5)
+
+        with col1:
             st.markdown(f"""
-            **Estructura de cumplimiento para {linea_seleccionada}:**
+            <div style="background: {color_cumpl}; padding: 12px; border-radius: 10px; text-align: center; color: white;">
+                <div style="font-size: 24px; font-weight: bold;">{cumplimiento_linea:.1f}%</div>
+                <div style="font-size: 11px;">Cumplimiento</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            Esta vista muestra la cascada desde objetivos hasta metas PDI.
-            """)
+        with col2:
+            st.markdown(f"""
+            <div style="background: #28a745; padding: 12px; border-radius: 10px; text-align: center; color: white;">
+                <div style="font-size: 24px; font-weight: bold;">{indicadores_cumplidos}</div>
+                <div style="font-size: 11px;">Cumplidos</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            # Dos columnas: gráfico sunburst y tabla
-            col_graf, col_tabla = st.columns([1, 1])
+        with col3:
+            st.markdown(f"""
+            <div style="background: #ffc107; padding: 12px; border-radius: 10px; text-align: center; color: #333;">
+                <div style="font-size: 24px; font-weight: bold;">{en_progreso}</div>
+                <div style="font-size: 11px;">En Progreso</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            with col_graf:
-                # Gráfico sunburst para esta línea
-                fig_cascada = crear_grafico_cascada_icicle(df_cascada_linea, titulo=f"Cascada: {linea_seleccionada}")
-                config = {'displayModeBar': True, 'responsive': True}
-                st.plotly_chart(fig_cascada, use_container_width=True, config=config)
+        with col4:
+            st.markdown(f"""
+            <div style="background: #dc3545; padding: 12px; border-radius: 10px; text-align: center; color: white;">
+                <div style="font-size: 24px; font-weight: bold;">{no_cumplidos}</div>
+                <div style="font-size: 11px;">No Cumplidos</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            with col_tabla:
-                # Tabla HTML con jerarquía
-                tabla_cascada = crear_tabla_cascada_html(df_cascada_linea)
-                import streamlit.components.v1 as components
-                components.html(tabla_cascada, height=400, scrolling=True)
+        with col5:
+            st.markdown(f"""
+            <div style="background: #6c757d; padding: 12px; border-radius: 10px; text-align: center; color: white;">
+                <div style="font-size: 24px; font-weight: bold;">{total_objetivos}</div>
+                <div style="font-size: 11px;">Objetivos</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-            # Resumen estadístico
-            st.markdown("---")
-            col_stat1, col_stat2, col_stat3 = st.columns(3)
+        st.markdown("---")
 
-            with col_stat1:
-                total_objetivos = len(df_cascada_linea[df_cascada_linea['Nivel'] == 2])
-                st.metric("Objetivos", total_objetivos)
+        # Dos columnas: Gráfico por objetivo + Lista de objetivos
+        col_graf, col_obj = st.columns([1, 1])
 
-            with col_stat2:
-                total_metas_pdi = len(df_cascada_linea[(df_cascada_linea['Nivel'] == 3) & (df_cascada_linea['Meta_PDI'] != 'N/D')])
-                st.metric("Metas PDI Definidas", total_metas_pdi)
+        with col_graf:
+            st.markdown("#### 📊 Cumplimiento por Objetivo")
 
-            with col_stat3:
-                # Contar indicadores únicos de los datos filtrados
-                total_indicadores_linea = df_linea_año['Indicador'].nunique() if 'Indicador' in df_linea_año.columns else 0
-                st.metric("Indicadores Totales", total_indicadores_linea)
-    else:
-        # Mostrar valores en 0 cuando no hay datos
-        st.info("No hay datos de cascada disponibles para esta línea.")
-        col_stat1, col_stat2, col_stat3 = st.columns(3)
-        with col_stat1:
-            st.metric("Objetivos", 0)
-        with col_stat2:
-            st.metric("Metas PDI Definidas", 0)
-        with col_stat3:
-            st.metric("Indicadores Totales", 0)
+            if 'Objetivo' in df_linea_año.columns and 'Cumplimiento' in df_linea_año.columns:
+                df_objetivos = df_linea_año.groupby('Objetivo').agg({
+                    'Cumplimiento': 'mean',
+                    'Indicador': 'nunique'
+                }).reset_index()
+                df_objetivos.columns = ['Objetivo', 'Cumplimiento', 'Indicadores']
+                df_objetivos['Cumplimiento'] = df_objetivos['Cumplimiento'].round(1)
+                df_objetivos = df_objetivos.sort_values('Cumplimiento', ascending=True)
 
-    st.markdown("---")
+                fig = go.Figure()
+                fig.add_trace(go.Bar(
+                    y=df_objetivos['Objetivo'],
+                    x=df_objetivos['Cumplimiento'],
+                    orientation='h',
+                    marker_color=color_linea,
+                    text=[f"{c:.1f}%" for c in df_objetivos['Cumplimiento']],
+                    textposition='outside',
+                    textfont=dict(size=11, color='#E91E63', weight='bold'),
+                    hovertemplate='<b>%{y}</b><br>Cumplimiento: %{x:.1f}%<extra></extra>'
+                ))
 
-    # Tabla de indicadores de la línea (oculta por defecto)
-    st.markdown("### 📋 Indicadores de la Línea")
+                fig.update_layout(
+                    xaxis=dict(title="% Cumplimiento", range=[0, 120]),
+                    yaxis=dict(title=""),
+                    height=max(250, len(df_objetivos) * 45),
+                    margin=dict(l=20, r=50, t=10, b=40),
+                    plot_bgcolor='white',
+                    paper_bgcolor='white'
+                )
+                fig.add_vline(x=100, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
+                fig.add_vline(x=80, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
 
-    with st.expander("Ver tabla de indicadores", expanded=False):
-        # Filtros adicionales
-        col_filtro1, col_filtro2 = st.columns(2)
+                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            else:
+                st.info("No hay datos de cumplimiento por objetivo.")
 
-        with col_filtro1:
-            # Filtro por objetivo
+        with col_obj:
+            st.markdown("#### 🎯 Lista de Objetivos")
+
+            if 'Objetivo' in df_linea_año.columns:
+                objetivos_unicos = df_linea_año.groupby('Objetivo').agg({
+                    'Cumplimiento': 'mean',
+                    'Indicador': 'nunique'
+                }).reset_index()
+                objetivos_unicos = objetivos_unicos.sort_values('Cumplimiento', ascending=False)
+
+                for _, row in objetivos_unicos.iterrows():
+                    cumpl = row['Cumplimiento'] if pd.notna(row['Cumplimiento']) else 0
+                    st.markdown(
+                        crear_objetivo_card_html(
+                            objetivo=row['Objetivo'],
+                            indicadores=row['Indicador'],
+                            cumplimiento=cumpl
+                        ),
+                        unsafe_allow_html=True
+                    )
+
+    # ============================================================
+    # TAB 2: ANÁLISIS DETALLADO
+    # ============================================================
+    with tab_analisis:
+        # Sub-tabs para organizar
+        subtab_historia, subtab_cascada, subtab_ia = st.tabs([
+            "📈 Evolución Histórica",
+            "🌊 Cascada Jerárquica",
+            "🤖 Análisis IA"
+        ])
+
+        with subtab_historia:
+            st.markdown(f"#### Tendencia de Cumplimiento: {linea_seleccionada}")
+
+            if 'Año' in df_linea.columns and 'Cumplimiento' in df_linea.columns:
+                df_linea_hist = df_linea[df_linea['Año'].isin([2022, 2023, 2024, 2025])]
+                df_historico = df_linea_hist.groupby('Año').agg({
+                    'Cumplimiento': 'mean',
+                    'Indicador': 'nunique'
+                }).reset_index()
+                df_historico = df_historico.sort_values('Año')
+
+                etiquetas = [str(int(año)) for año in df_historico['Año']]
+
+                fig_hist = go.Figure()
+                fig_hist.add_hrect(y0=100, y1=120, fillcolor=COLORS['success'], opacity=0.1, line_width=0)
+                fig_hist.add_hrect(y0=80, y1=100, fillcolor=COLORS['warning'], opacity=0.1, line_width=0)
+                fig_hist.add_hrect(y0=0, y1=80, fillcolor=COLORS['danger'], opacity=0.1, line_width=0)
+
+                cumpl_pct = df_historico['Cumplimiento'] * 100
+
+                fig_hist.add_trace(go.Scatter(
+                    x=etiquetas,
+                    y=cumpl_pct,
+                    mode='lines+markers+text',
+                    line=dict(color=color_linea, width=3),
+                    marker=dict(size=12, color=color_linea),
+                    text=[f"{c:.1f}%" for c in cumpl_pct],
+                    textposition='top center',
+                    hovertemplate='<b>Año %{x}</b><br>Cumplimiento: %{y:.1f}%<extra></extra>'
+                ))
+
+                fig_hist.update_layout(
+                    xaxis=dict(title="Año", type='category', categoryorder='array', categoryarray=['2022', '2023', '2024', '2025']),
+                    yaxis=dict(title="% Cumplimiento", range=[0, 130]),
+                    height=400,
+                    plot_bgcolor='white',
+                    paper_bgcolor='white'
+                )
+
+                st.plotly_chart(fig_hist, use_container_width=True, config={'displayModeBar': True})
+            else:
+                st.info("No hay datos históricos disponibles.")
+
+        with subtab_cascada:
+            st.markdown(f"#### Desglose Jerárquico: {linea_seleccionada}")
+
+            if not df_cascada_linea.empty:
+                col_graf, col_tabla = st.columns([1, 1])
+
+                with col_graf:
+                    fig_cascada = crear_grafico_cascada_icicle(df_cascada_linea, titulo=f"Cascada: {linea_seleccionada}")
+                    st.plotly_chart(fig_cascada, use_container_width=True, config={'displayModeBar': True})
+
+                with col_tabla:
+                    tabla_cascada = crear_tabla_cascada_html(df_cascada_linea)
+                    import streamlit.components.v1 as components
+                    components.html(tabla_cascada, height=450, scrolling=True)
+
+                # Resumen estadístico
+                st.markdown("---")
+                col_s1, col_s2, col_s3 = st.columns(3)
+                with col_s1:
+                    st.metric("Objetivos", len(df_cascada_linea[df_cascada_linea['Nivel'] == 2]))
+                with col_s2:
+                    st.metric("Metas PDI", len(df_cascada_linea[(df_cascada_linea['Nivel'] == 3) & (df_cascada_linea['Meta_PDI'] != 'N/D')]))
+                with col_s3:
+                    st.metric("Indicadores", total_indicadores)
+            else:
+                st.info("No hay datos de cascada disponibles para esta línea.")
+
+        with subtab_ia:
+            st.markdown(f"#### Análisis Inteligente: {linea_seleccionada}")
+
+            with st.spinner("Generando análisis..."):
+                objetivos_data = preparar_objetivos_para_analisis(df_linea, año_actual)
+                analisis = generar_analisis_linea(
+                    nombre_linea=linea_seleccionada,
+                    total_indicadores=total_indicadores,
+                    cumplimiento_promedio=cumplimiento_linea,
+                    objetivos_data=objetivos_data
+                )
+
+                analisis_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', analisis)
+                analisis_html = analisis_html.replace('\n', '<br>')
+
+                st.markdown(f"""
+                <div class="ai-analysis">
+                    {analisis_html}
+                </div>
+                """, unsafe_allow_html=True)
+
+    # ============================================================
+    # TAB 3: INDICADORES
+    # ============================================================
+    with tab_indicadores:
+        st.markdown(f"#### 📋 Indicadores de: {linea_seleccionada}")
+
+        # Filtros en fila
+        col_f1, col_f2 = st.columns(2)
+
+        with col_f1:
             objetivos_lista = ['Todos'] + obtener_lista_objetivos(df_unificado, linea_seleccionada)
-            objetivo_filtro = st.selectbox("Filtrar por Objetivo:", objetivos_lista)
+            objetivo_filtro = st.selectbox("Filtrar por Objetivo:", objetivos_lista, key="filtro_obj")
 
-        with col_filtro2:
-            # Filtro por estado
+        with col_f2:
             estado_filtro = st.selectbox(
                 "Filtrar por Estado:",
-                ['Todos', '✅ Meta cumplida', '⚠️ Alerta', '❌ Peligro']
+                ['Todos', '✅ Cumplido', '⚠️ Alerta', '❌ Peligro'],
+                key="filtro_estado"
             )
 
         # Aplicar filtros
@@ -420,7 +362,7 @@ def mostrar_pagina():
             df_mostrar = df_mostrar[df_mostrar['Objetivo'] == objetivo_filtro]
 
         if estado_filtro != 'Todos' and 'Cumplimiento' in df_mostrar.columns:
-            if estado_filtro == '✅ Meta cumplida':
+            if estado_filtro == '✅ Cumplido':
                 df_mostrar = df_mostrar[df_mostrar['Cumplimiento'] >= 100]
             elif estado_filtro == '⚠️ Alerta':
                 df_mostrar = df_mostrar[(df_mostrar['Cumplimiento'] >= 80) & (df_mostrar['Cumplimiento'] < 100)]
@@ -451,9 +393,18 @@ def mostrar_pagina():
                 df_tabla,
                 use_container_width=True,
                 hide_index=True,
-                height=400
+                height=450
             )
 
             st.caption(f"Mostrando {len(df_tabla)} indicadores")
         else:
             st.info("No hay datos disponibles para mostrar.")
+
+    # Footer compacto
+    st.markdown(f"""
+    <div style="text-align: center; color: {COLORS['gray']}; font-size: 11px; padding: 10px; margin-top: 20px;">
+        <strong>Semáforo:</strong> 🟢 ≥100% | 🟡 80-99% | 🔴 <80% |
+        <strong>Línea:</strong> {linea_seleccionada} |
+        <strong>Corte:</strong> Diciembre {año_actual}
+    </div>
+    """, unsafe_allow_html=True)

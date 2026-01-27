@@ -60,33 +60,6 @@ def mostrar_pagina():
     df_cascada = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=2)
     df_lineas = obtener_cumplimiento_por_linea(df_unificado, año_actual)
 
-    # Sticky KPIs - Siempre visibles
-    st.markdown(f'''
-        <div class="sticky-kpis">
-            <div class="kpi-mini" style="background:#003d82;color:white;">
-                <b>{metricas['cumplimiento_promedio']:.1f}%</b><br>
-                <small>Cumplimiento</small>
-            </div>
-            <div class="kpi-mini" style="background:#28a745;color:white;">
-                <b>{metricas['indicadores_cumplidos']}</b><br>
-                <small>Cumplidos</small>
-            </div>
-            <div class="kpi-mini" style="background:#ffc107;color:black;">
-                <b>{metricas['en_progreso']}</b><br>
-                <small>En Progreso</small>
-            </div>
-            <div class="kpi-mini" style="background:#dc3545;color:white;">
-                <b>{metricas['no_cumplidos']}</b><br>
-                <small>No Cumplidos</small>
-            </div>
-            <div class="kpi-mini" style="background:#6c757d;color:white;">
-                <b>{metricas['total_indicadores']}</b><br>
-                <small>Total Ind.</small>
-            </div>
-        </div>
-        <div class="main-content-spacer"></div>
-    ''', unsafe_allow_html=True)
-
     # ============================================================
     # TABS PRINCIPALES - Estructura optimizada
     # ============================================================
@@ -100,6 +73,53 @@ def mostrar_pagina():
     # TAB 1: RESUMEN EJECUTIVO
     # ============================================================
     with tab_resumen:
+        # KPIs en fila horizontal con tarjetas compactas
+        st.markdown("#### 🎯 Indicadores Clave")
+        col1, col2, col3, col4, col5 = st.columns(5)
+
+        with col1:
+            color_cumpl = obtener_color_semaforo(metricas['cumplimiento_promedio'])
+            st.markdown(f"""
+            <div style="background: {color_cumpl}; padding: 15px; border-radius: 10px; text-align: center; color: white;">
+                <div style="font-size: 28px; font-weight: bold;">{metricas['cumplimiento_promedio']:.1f}%</div>
+                <div style="font-size: 12px; opacity: 0.9;">Cumplimiento</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col2:
+            st.markdown(f"""
+            <div style="background: #28a745; padding: 15px; border-radius: 10px; text-align: center; color: white;">
+                <div style="font-size: 28px; font-weight: bold;">{metricas['indicadores_cumplidos']}</div>
+                <div style="font-size: 12px; opacity: 0.9;">Cumplidos (≥100%)</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col3:
+            st.markdown(f"""
+            <div style="background: #ffc107; padding: 15px; border-radius: 10px; text-align: center; color: #333;">
+                <div style="font-size: 28px; font-weight: bold;">{metricas['en_progreso']}</div>
+                <div style="font-size: 12px; opacity: 0.9;">En Progreso (80-99%)</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col4:
+            st.markdown(f"""
+            <div style="background: #dc3545; padding: 15px; border-radius: 10px; text-align: center; color: white;">
+                <div style="font-size: 28px; font-weight: bold;">{metricas['no_cumplidos']}</div>
+                <div style="font-size: 12px; opacity: 0.9;">No Cumplidos (<80%)</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col5:
+            st.markdown(f"""
+            <div style="background: #6c757d; padding: 15px; border-radius: 10px; text-align: center; color: white;">
+                <div style="font-size: 28px; font-weight: bold;">{metricas['total_indicadores']}</div>
+                <div style="font-size: 12px; opacity: 0.9;">Total Indicadores</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("---")
+
         # Layout de 2 columnas: Cascada (60%) + Semáforo (40%)
         col_cascada, col_semaforo = st.columns([3, 2])
 
@@ -122,17 +142,8 @@ def mostrar_pagina():
             config = {'displayModeBar': False, 'responsive': True}
             st.plotly_chart(fig_semaforo, use_container_width=True, config=config)
 
-            # Información rápida
-            st.markdown(f"""
-            <div style="background: {COLORS['light']}; padding: 15px; border-radius: 10px; margin-top: 10px;">
-                <strong>📌 Resumen Rápido:</strong>
-                <ul style="margin: 10px 0 0 0; padding-left: 20px;">
-                    <li><strong>{metricas['total_lineas']}</strong> Líneas Estratégicas</li>
-                    <li><strong>{metricas['total_indicadores']}</strong> Indicadores totales</li>
-                    <li>Corte: <strong>Diciembre {año_actual}</strong></li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+            # Info compacta
+            st.info(f"📌 **{metricas['total_lineas']}** Líneas Estratégicas | Corte: **Diciembre {año_actual}**")
 
         # Interpretación compacta
         with st.expander("📌 ¿Cómo interpretar este gráfico?", expanded=False):
