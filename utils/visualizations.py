@@ -763,10 +763,10 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
             cumplimientos.append(cumpl_display)
 
-        # Crear textos de porcentaje para mostrar en el gráfico (con negrita)
-        textos_porcentaje = [f"<b>{c:.1f}%</b>" for c in cumplimientos]
+        # Crear textos de porcentaje para mostrar en el gráfico (con negrita y color mejorado)
+        textos_porcentaje = [f"<b style='font-size: 16px'>{c:.1f}%</b>" for c in cumplimientos]
 
-        # Determinar colores de texto según luminosidad del fondo
+        # Determinar colores de texto según luminosidad del fondo (usar colores más oscuros)
         colores_texto = [obtener_color_texto(c) for c in colores]
 
         # Crear customdata con nombre completo y porcentaje para hover
@@ -778,34 +778,41 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
             parents=parents,
             marker=dict(
                 colors=colores,
-                line=dict(color='white', width=2)
+                line=dict(color='white', width=3)  # Aumentar grosor de borde
             ),
             text=textos_porcentaje,
             textinfo='text+label',  # Mostrar porcentaje primero, luego label
-            textfont=dict(size=13, color='black'),  # Aumentar tamaño de fuente a 13
-            insidetextfont=dict(color=colores_texto, size=11),  # Aumentar tamaño interno a 11
+            textfont=dict(size=14, color='#1a1a1a', family='Arial Black'),  # Aumentar tamaño, color oscuro, fuente más pesada
+            insidetextfont=dict(color=colores_texto, size=13, family='Arial Black'),  # Aumentar tamaño interno
             insidetextorientation='radial',  # Permitir orientación radial para más espacio
             customdata=customdata,
             hovertemplate='<b>%{customdata[0]}</b><br><br>Cumplimiento: %{customdata[1]}<extra></extra>',
             hoverlabel=dict(
                 bgcolor='white',
-                font_size=12,
+                font_size=13,
                 font_color='black',
-                namelength=-1
+                namelength=-1,
+                bordercolor='#333'  # Borde oscuro para mejor contraste
             ),
             branchvalues="remainder"
         ))
 
         fig.update_layout(
             title=dict(
-                text=f"<b>{titulo}</b>",
-                font=dict(size=16, color=COLORS['primary']),
+                text=f"<b style='font-size: 18px'>{titulo}</b>",
+                font=dict(size=18, color=COLORS['primary'], family='Arial Black'),
                 x=0.5,
-                xanchor='center'
+                xanchor='center',
+                y=0.98,
+                yanchor='top'
             ),
-            height=800,  # Aumentar altura para más espacio
-            margin=dict(t=60, b=20, l=20, r=20),
-            uniformtext=dict(minsize=7, mode='show')  # Usar 'show' para mostrar etiquetas sin restricciones de tamaño
+            height=850,  # Aumentar altura para más espacio
+            width=1000,  # Ancho optimizado
+            margin=dict(t=80, b=20, l=20, r=20),
+            uniformtext=dict(minsize=8, mode='show'),  # Usar 'show' para mostrar etiquetas sin restricciones de tamaño
+            paper_bgcolor='rgba(245, 245, 245, 0.9)',  # Fondo muy claro para mejor contraste
+            plot_bgcolor='rgba(245, 245, 245, 0.9)',
+            font=dict(family='Arial, sans-serif', size=12, color='#1a1a1a')
         )
 
         return fig
@@ -921,7 +928,7 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
         # Crear gráfico Treemap con texto simplificado
         # Usar text para mostrar porcentaje y textinfo para controlar visibilidad
-        textos_porcentaje = [f"<b>{c:.1f}%</b>" for c in cumplimientos]  # Agregar negrita
+        textos_porcentaje = [f"<b style='font-size: 15px'>{c:.1f}%</b>" for c in cumplimientos]  # Agregar negrita con tamaño
 
         # Determinar colores de texto según luminosidad del fondo
         colores_texto = [obtener_color_texto(c) for c in colores]
@@ -933,39 +940,46 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
             values=valores,
             marker=dict(
                 colors=colores,
-                line=dict(color='white', width=2)
+                line=dict(color='white', width=3)  # Aumentar grosor de borde
             ),
             text=textos_porcentaje,
             textinfo='text+label',  # Mostrar porcentaje primero, luego label
-            textfont=dict(size=12, color='black'),  # Aumentar tamaño a 12
-            insidetextfont=dict(color=colores_texto, size=10),  # Aumentar tamaño interno a 10
+            textfont=dict(size=13, color='#1a1a1a', family='Arial Black'),  # Aumentar tamaño, color oscuro, fuente pesada
+            insidetextfont=dict(color=colores_texto, size=12, family='Arial Black'),  # Aumentar tamaño interno a 12
             textposition="middle center",
             customdata=list(zip(labels_hover, textos_porcentaje)),
             hovertemplate='<b>%{customdata[0]}</b><br><br>Cumplimiento: %{customdata[1]}<extra></extra>',
             hoverlabel=dict(
                 bgcolor='white',
-                font_size=12,
+                font_size=13,
                 font_color='black',
-                namelength=-1  # Mostrar nombre completo sin truncar
+                namelength=-1,  # Mostrar nombre completo sin truncar
+                bordercolor='#333'  # Borde oscuro para mejor contraste
             ),
             branchvalues="total",
             pathbar=dict(
                 visible=True,
-                thickness=30,
-                textfont=dict(size=12)
+                thickness=35,  # Aumentar grosor de pathbar
+                textfont=dict(size=13, family='Arial Black')  # Fuente más pesada
             )
         ))
 
         fig.update_layout(
             title=dict(
-                text=f"<b>{titulo}</b>",
-                font=dict(size=16, color=COLORS['primary']),
+                text=f"<b style='font-size: 18px'>{titulo}</b>",
+                font=dict(size=18, color=COLORS['primary'], family='Arial Black'),
                 x=0.5,
-                xanchor='center'
+                xanchor='center',
+                y=0.98,
+                yanchor='top'
             ),
-            height=600,  # Aumentar altura
+            height=700,  # Aumentar altura
+            width=1000,  # Ancho optimizado
             margin=dict(t=80, b=20, l=20, r=20),
-            uniformtext=dict(minsize=8, mode='show')  # Usar 'show' para mostrar etiquetas sin restricciones de tamaño
+            uniformtext=dict(minsize=8, mode='show'),  # Usar 'show' para mostrar etiquetas sin restricciones de tamaño
+            paper_bgcolor='rgba(245, 245, 245, 0.9)',  # Fondo muy claro para mejor contraste
+            plot_bgcolor='rgba(245, 245, 245, 0.9)',
+            font=dict(family='Arial, sans-serif', size=12, color='#1a1a1a')
         )
 
         return fig
