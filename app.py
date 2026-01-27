@@ -262,10 +262,10 @@ with st.sidebar:
         total_indicadores = df_unificado['Indicador'].nunique()
 
     st.info(f"""
-    **Periodo:** 2021-2025
-    **Última actualización:** {datetime.now().strftime('%d/%m/%Y')}
-    **Total indicadores:** {total_indicadores}
-    """)
+    **Periodo:** 2022-2025<br>
+    **Última actualización:** {datetime.now().strftime('%d/%m/%Y')}<br>
+    **Total Indicadores:** {total_indicadores}
+    """,unsafe_allow_html=True)
 
     st.markdown("---")
 

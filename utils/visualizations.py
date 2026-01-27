@@ -610,7 +610,7 @@ def aclarar_color(color_hex, factor=0.5):
     return f"#{r:02x}{g:02x}{b:02x}"
 
 
-def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
+def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégica y Objetivo"):
     """
     Crea un gráfico Sunburst para el Dashboard General.
     Muestra la jerarquía de cumplimiento con colores por línea estratégica.
@@ -635,6 +635,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
         parents = []
         ids = []
         textos = []
+        customdata = []
 
         linea_color_map = {}
         contador_obj = {}
@@ -678,7 +679,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_meta = f"L3-{idx}"
                 nombre = str(row['Meta_PDI'])
-                nombre_corto = nombre[:25] + "..." if len(nombre) > 25 else nombre
+                nombre_corto = nombre[:50] + "..." if len(nombre) > 50 else nombre
                 labels.append(f"Meta: {nombre_corto}")
                 textos.append(f"Meta: {nombre_corto}<br><b>{cumpl_display:.1f}%</b>")
                 parents.append(id_obj)
@@ -700,12 +701,13 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 nombre = row['Indicador']
                 nombre_corto = nombre[:25] + "..." if len(nombre) > 25 else nombre
                 labels.append(nombre_corto)
-                textos.append(f"{nombre_corto}<br><b>{cumpl_display:.1f}%</b>")
+                textos.append(f"{nombre}<br><b>{cumpl_display:.1f}%</b>")
                 parents.append(id_parent)
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
                 colores.append(aclarar_color(color_base, factor=0.75))
                 ids.append(id_ind)
+
 
             cumplimientos.append(cumpl_display)
 
@@ -722,7 +724,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 line=dict(color='white', width=2)
             ),
             text=textos_porcentaje,
-            textinfo='label+text',
+            textinfo='text',
             textfont=dict(size=12, color='black'),
             insidetextorientation='radial',
             hovertemplate='<b>%{label}</b><br>Cumplimiento: %{text}<extra></extra>',
