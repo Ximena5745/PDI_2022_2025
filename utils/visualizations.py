@@ -772,7 +772,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
             ),
             height=800,  # Aumentar altura para más espacio
             margin=dict(t=60, b=20, l=20, r=20),
-            uniformtext=dict(minsize=7, mode='clip')  # Cambiar 'hide' a 'clip' para mostrar etiquetas cortadas
+            uniformtext=dict(minsize=7, mode='show')  # Usar 'show' para mostrar etiquetas sin restricciones de tamaño
         )
 
         return fig
@@ -932,7 +932,7 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
             ),
             height=600,  # Aumentar altura
             margin=dict(t=80, b=20, l=20, r=20),
-            uniformtext=dict(minsize=8, mode='clip')  # Cambiar a 'clip' para mostrar etiquetas parciales
+            uniformtext=dict(minsize=8, mode='show')  # Usar 'show' para mostrar etiquetas sin restricciones de tamaño
         )
 
         return fig
