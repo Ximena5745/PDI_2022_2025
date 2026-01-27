@@ -635,7 +635,6 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
         parents = []
         ids = []
         textos = []
-        customdata = []
 
         linea_color_map = {}
         contador_obj = {}
@@ -699,7 +698,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
                 id_ind = f"L4-{idx}"
                 nombre = row['Indicador']
-                nombre_corto = nombre[:50] + "..." if len(nombre) > 50 else nombre
+                nombre_corto = nombre[:25] + "..." if len(nombre) > 25 else nombre
                 labels.append(nombre_corto)
                 textos.append(f"{nombre_corto}<br><b>{cumpl_display:.1f}%</b>")
                 parents.append(id_parent)
@@ -707,7 +706,6 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
                 color_base = linea_info[0] if linea_info else COLORS['primary']
                 colores.append(aclarar_color(color_base, factor=0.75))
                 ids.append(id_ind)
-
 
             cumplimientos.append(cumpl_display)
 
@@ -724,7 +722,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
                 line=dict(color='white', width=2)
             ),
             text=textos_porcentaje,
-            textinfo='text',
+            textinfo='label+text',
             textfont=dict(size=12, color='black'),
             insidetextorientation='radial',
             hovertemplate='<b>%{label}</b><br>Cumplimiento: %{text}<extra></extra>',
@@ -820,7 +818,7 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_meta = f"L3-{idx}"
                 nombre = str(row['Meta_PDI'])
-                nombre_corto = nombre[:100] + "..." if len(nombre) > 100 else nombre
+                nombre_corto = nombre[:45] + "..." if len(nombre) > 45 else nombre
                 labels.append(f"Meta: {nombre_corto}")
                 labels_hover.append(f"Meta: {nombre}")
                 parents.append(id_obj)
