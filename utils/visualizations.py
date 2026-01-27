@@ -697,7 +697,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
 
             cumplimientos.append(cumpl_display)
 
-        # Crear gráfico Sunburst
+        # Crear gráfico Sunburst con texto mejorado
         fig = go.Figure(go.Sunburst(
             ids=ids,
             labels=labels,
@@ -708,11 +708,12 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
             ),
             textinfo='text',
             text=textos,
-            textfont=dict(size=10),
-            insidetextorientation='horizontal',
-            customdata=[[f"{c:.1f}%"] for c in cumplimientos],
-            hovertemplate='<b>%{label}</b><br>Cumplimiento: %{customdata[0]}<extra></extra>',
-            branchvalues="remainder"
+            textfont=dict(size=12, family="Arial Black"),
+            insidetextorientation='radial',
+            customdata=list(zip(labels, [f"{c:.1f}%" for c in cumplimientos])),
+            hovertemplate='<b>%{customdata[0]}</b><br>Cumplimiento: %{customdata[1]}<extra></extra>',
+            branchvalues="remainder",
+            maxdepth=2
         ))
 
         fig.update_layout(
@@ -722,8 +723,9 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
                 x=0.5,
                 xanchor='center'
             ),
-            height=600,
-            margin=dict(t=60, b=20, l=20, r=20)
+            height=650,
+            margin=dict(t=60, b=20, l=20, r=20),
+            uniformtext=dict(minsize=10, mode='hide')
         )
 
         return fig
@@ -734,8 +736,8 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento en Cascada"):
 
 def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
     """
-    Crea un gráfico Icicle horizontal para Análisis por Línea.
-    Permite mejor visualización de textos largos con orientación horizontal.
+    Crea un gráfico Treemap para Análisis por Línea.
+    Permite mejor visualización de textos largos con texto centrado.
 
     Args:
         df_cascada: DataFrame con estructura jerárquica
@@ -752,11 +754,12 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
         df_viz = df_cascada.copy()
 
         labels = []
-        labels_completos = []
+        labels_hover = []
         cumplimientos = []
         colores = []
         parents = []
         ids = []
+        valores = []
 
         linea_color_map = {}
         contador_obj = {}
@@ -766,17 +769,20 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
             nivel = int(row['Nivel'])
             cumpl = row['Cumplimiento']
             cumpl_display = min(cumpl, 200) if pd.notna(cumpl) else 0
+            total_ind = row.get('Total_Indicadores', 1)
 
             if nivel == 1:
                 id_linea = f"L1-{idx}"
                 nombre = row['Linea']
-                labels.append(f"<b>{nombre}</b> - {cumpl_display:.1f}%")
-                labels_completos.append(nombre)
+                # Texto en dos líneas: nombre arriba, % abajo (grande y centrado)
+                labels.append(f"<b>{nombre}</b><br><span style='font-size:16px'>{cumpl_display:.1f}%</span>")
+                labels_hover.append(nombre)
                 parents.append("")
                 color_linea = COLORES_LINEAS.get(row['Linea'], COLORS['primary'])
                 colores.append(color_linea)
                 linea_color_map[row['Linea']] = (color_linea, id_linea)
                 ids.append(id_linea)
+                valores.append(total_ind)
 
             elif nivel == 2:
                 linea_info = linea_color_map.get(row['Linea'])
@@ -784,28 +790,30 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_obj = f"L2-{idx}"
                 nombre = row['Objetivo']
-                labels.append(f"{nombre} - {cumpl_display:.1f}%")
-                labels_completos.append(nombre)
+                labels.append(f"<b>{nombre}</b><br><span style='font-size:14px'>{cumpl_display:.1f}%</span>")
+                labels_hover.append(nombre)
                 parents.append(id_linea)
                 color_base = linea_info[0] if linea_info else COLORS['primary']
-                colores.append(aclarar_color(color_base, factor=0.4))
+                colores.append(aclarar_color(color_base, factor=0.35))
                 ids.append(id_obj)
                 contador_obj[f"{row['Linea']}-{row['Objetivo']}"] = id_obj
+                valores.append(total_ind)
 
             elif nivel == 3:
                 key_obj = f"{row['Linea']}-{row['Objetivo']}"
                 id_obj = contador_obj.get(key_obj, "")
 
                 id_meta = f"L3-{idx}"
-                nombre = f"Meta: {row['Meta_PDI']}"
-                labels.append(f"{nombre} - {cumpl_display:.1f}%")
-                labels_completos.append(nombre)
+                nombre = str(row['Meta_PDI'])
+                labels.append(f"<b>Meta:</b> {nombre}<br><span style='font-size:13px'>{cumpl_display:.1f}%</span>")
+                labels_hover.append(f"Meta: {nombre}")
                 parents.append(id_obj)
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
-                colores.append(aclarar_color(color_base, factor=0.6))
+                colores.append(aclarar_color(color_base, factor=0.55))
                 ids.append(id_meta)
                 contador_meta[f"{row['Linea']}-{row['Objetivo']}-{row['Meta_PDI']}"] = id_meta
+                valores.append(total_ind)
 
             elif nivel == 4:
                 if row['Meta_PDI'] == 'N/D' or pd.isna(row['Meta_PDI']):
@@ -817,35 +825,38 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
                 id_ind = f"L4-{idx}"
                 nombre = row['Indicador']
-                labels.append(f"{nombre} - {cumpl_display:.1f}%")
-                labels_completos.append(nombre)
+                labels.append(f"{nombre}<br><span style='font-size:12px'><b>{cumpl_display:.1f}%</b></span>")
+                labels_hover.append(nombre)
                 parents.append(id_parent)
                 linea_info = linea_color_map.get(row['Linea'])
                 color_base = linea_info[0] if linea_info else COLORS['primary']
-                colores.append(aclarar_color(color_base, factor=0.75))
+                colores.append(aclarar_color(color_base, factor=0.7))
                 ids.append(id_ind)
+                valores.append(1)
 
             cumplimientos.append(cumpl_display)
 
-        # Crear gráfico Icicle horizontal para mejor lectura de texto
-        fig = go.Figure(go.Icicle(
+        # Crear gráfico Treemap con texto centrado y visible
+        fig = go.Figure(go.Treemap(
             ids=ids,
             labels=labels,
             parents=parents,
+            values=valores,
             marker=dict(
                 colors=colores,
-                line=dict(color='white', width=1)
+                line=dict(color='white', width=2)
             ),
-            textfont=dict(size=12, color='black'),
-            customdata=list(zip(labels_completos, [f"{c:.1f}%" for c in cumplimientos])),
+            textfont=dict(size=14, family="Arial"),
+            textposition="middle center",
+            customdata=list(zip(labels_hover, [f"{c:.1f}%" for c in cumplimientos])),
             hovertemplate='<b>%{customdata[0]}</b><br>Cumplimiento: %{customdata[1]}<extra></extra>',
-            branchvalues="remainder",
-            tiling=dict(
-                orientation='h',  # Horizontal: mejor lectura de texto largo
-                flip='y'
+            branchvalues="total",
+            pathbar=dict(
+                visible=True,
+                thickness=25,
+                textfont=dict(size=13, family="Arial")
             ),
-            root=dict(color='white'),
-            pathbar=dict(visible=True)
+            root=dict(color='lightgray')
         ))
 
         fig.update_layout(
@@ -855,13 +866,14 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
                 x=0.5,
                 xanchor='center'
             ),
-            height=450,
-            margin=dict(t=60, b=20, l=20, r=20)
+            height=500,
+            margin=dict(t=80, b=20, l=20, r=20),
+            uniformtext=dict(minsize=11, mode='show')
         )
 
         return fig
     except Exception as e:
-        st.error(f"Error al crear gráfico Icicle: {str(e)}")
+        st.error(f"Error al crear gráfico Treemap: {str(e)}")
         return go.Figure()
 
 
