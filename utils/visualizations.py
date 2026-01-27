@@ -612,13 +612,14 @@ def aclarar_color(color_hex, factor=0.5):
 
 def obtener_color_texto(color_hex):
     """
-    Determina si el texto debe ser blanco o negro según la luminosidad del fondo.
+    Determina un color de texto visualmente atractivo según la luminosidad del fondo.
+    Usa colores más vibrantes y contrastantes.
 
     Args:
         color_hex: Color de fondo en formato hexadecimal (#RRGGBB)
 
     Returns:
-        'white' si el fondo es oscuro, 'black' si es claro
+        Color de texto en formato hexadecimal para mejor contraste
     """
     color_hex = color_hex.lstrip('#')
     r = int(color_hex[0:2], 16)
@@ -628,7 +629,13 @@ def obtener_color_texto(color_hex):
     # Calcular luminosidad (fórmula estándar)
     luminosidad = (0.299 * r + 0.587 * g + 0.114 * b) / 255
 
-    return 'white' if luminosidad < 0.5 else 'black'
+    # Retornar colores más visuales en lugar de solo blanco/negro
+    if luminosidad < 0.4:
+        return '#FFFFFF'  # Blanco para fondos muy oscuros
+    elif luminosidad < 0.6:
+        return '#FFFFFF'  # Blanco para fondos oscuros/medios
+    else:
+        return '#1a1a1a'  # Gris oscuro para fondos claros
 
 
 def dividir_texto_largo(texto, max_caracteres=40):
@@ -763,10 +770,25 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
 
             cumplimientos.append(cumpl_display)
 
-        # Crear textos de porcentaje para mostrar en el gráfico (con negrita y color mejorado)
-        textos_porcentaje = [f"<b style='font-size: 16px'>{c:.1f}%</b>" for c in cumplimientos]
+        # Crear textos de porcentaje con colores dinámicos (mejorados visualmente)
+        textos_porcentaje = []
+        for i, c in enumerate(cumplimientos):
+            color_fondo = colores[i]
+            color_hex = color_fondo.lstrip('#')
+            r = int(color_hex[0:2], 16)
+            g = int(color_hex[2:4], 16)
+            b = int(color_hex[4:6], 16)
+            luminosidad = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+            
+            # Usar colores más vibrantes según el fondo
+            if luminosidad < 0.5:
+                color_texto_porcentaje = '#FFFFFF'  # Blanco para fondos oscuros
+            else:
+                color_texto_porcentaje = '#0A3F6B'  # Azul oscuro para fondos claros
+            
+            textos_porcentaje.append(f"<b style='font-size: 16px; color: {color_texto_porcentaje}'>{c:.1f}%</b>")
 
-        # Determinar colores de texto según luminosidad del fondo (usar colores más oscuros)
+        # Determinar colores de texto según luminosidad del fondo
         colores_texto = [obtener_color_texto(c) for c in colores]
 
         # Crear customdata con nombre completo y porcentaje para hover
@@ -784,7 +806,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
             textinfo='text+label',  # Mostrar porcentaje primero, luego label
             textfont=dict(size=14, color='#1a1a1a', family='Arial Black'),  # Aumentar tamaño, color oscuro, fuente más pesada
             insidetextfont=dict(color=colores_texto, size=13, family='Arial Black'),  # Aumentar tamaño interno
-            insidetextorientation='radial',  # Permitir orientación radial para más espacio
+            insidetextorientation='horizontal',  # Cambiar a horizontal para mejor legibilidad
             customdata=customdata,
             hovertemplate='<b>%{customdata[0]}</b><br><br>Cumplimiento: %{customdata[1]}<extra></extra>',
             hoverlabel=dict(
@@ -926,9 +948,24 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
 
             cumplimientos.append(cumpl_display)
 
-        # Crear gráfico Treemap con texto simplificado
+        # Crear gráfico Treemap con texto simplificado y colores dinámicos
         # Usar text para mostrar porcentaje y textinfo para controlar visibilidad
-        textos_porcentaje = [f"<b style='font-size: 15px'>{c:.1f}%</b>" for c in cumplimientos]  # Agregar negrita con tamaño
+        textos_porcentaje = []
+        for i, c in enumerate(cumplimientos):
+            color_fondo = colores[i]
+            color_hex = color_fondo.lstrip('#')
+            r = int(color_hex[0:2], 16)
+            g = int(color_hex[2:4], 16)
+            b = int(color_hex[4:6], 16)
+            luminosidad = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+            
+            # Usar colores más vibrantes según el fondo
+            if luminosidad < 0.5:
+                color_texto_porcentaje = '#FFFFFF'  # Blanco para fondos oscuros
+            else:
+                color_texto_porcentaje = '#0A3F6B'  # Azul oscuro para fondos claros
+            
+            textos_porcentaje.append(f"<b style='font-size: 15px; color: {color_texto_porcentaje}'>{c:.1f}%</b>")
 
         # Determinar colores de texto según luminosidad del fondo
         colores_texto = [obtener_color_texto(c) for c in colores]
