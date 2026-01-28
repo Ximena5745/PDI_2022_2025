@@ -327,7 +327,7 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
         return go.Figure()
 
 
-def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos):
+def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos, stand_by=0):
     """
     Crea un gráfico de dona mostrando la distribución por semáforo.
 
@@ -335,13 +335,14 @@ def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos):
         indicadores_cumplidos: Cantidad de indicadores con cumplimiento >= 100%
         en_progreso: Cantidad de indicadores con cumplimiento 80-99.9%
         no_cumplidos: Cantidad de indicadores con cumplimiento < 80%
+        stand_by: Cantidad de indicadores en Stand by
 
     Returns:
         Figura de Plotly
     """
-    labels = ['Cumplido (≥100%)', 'En Progreso (80-99%)', 'No Cumplido (<80%)']
-    values = [indicadores_cumplidos, en_progreso, no_cumplidos]
-    colors = [COLORS['success'], COLORS['warning'], COLORS['danger']]
+    labels = ['Cumplido (≥100%)', 'En Progreso (80-99%)', 'No Cumplido (<80%)', 'Stand by']
+    values = [indicadores_cumplidos, en_progreso, no_cumplidos, stand_by]
+    colors = [COLORS['success'], COLORS['warning'], COLORS['danger'], COLORS['standby']]
 
     total = sum(values)
 
@@ -361,7 +362,7 @@ def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos):
         textposition='outside',
         textfont=dict(size=10),
         insidetextorientation='horizontal',
-        pull=[0.02, 0.02, 0.02],  # Separar ligeramente los segmentos
+        pull=[0.02, 0.02, 0.02, 0.02],  # Separar ligeramente los segmentos
         hovertemplate='<b>%{label}</b><br>Indicadores: %{value}<br>Porcentaje: %{percent}<extra></extra>'
     )])
 
