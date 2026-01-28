@@ -877,7 +877,7 @@ def crear_grafico_cascada(df_cascada, titulo="Cumplimiento por Línea Estratégi
             textinfo='text+label',
             textfont=dict(size=10, color='#1a1a1a', family='Arial'),
             insidetextfont=dict(color=colores_texto, size=9, family='Arial'),
-            insidetextorientation='radial',  # Orientación radial para mejor ajuste
+            insidetextorientation='horizontal',  # Orientación horizontal para mejor legibilidad
             customdata=customdata,
             hovertemplate='<b>%{customdata[0]}</b><br><br>Cumplimiento: %{customdata[1]}<extra></extra>',
             hoverlabel=dict(

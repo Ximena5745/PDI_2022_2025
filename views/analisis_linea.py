@@ -16,11 +16,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.data_loader import (
     COLORS, COLORES_LINEAS, obtener_color_semaforo,
     filtrar_por_linea, obtener_lista_objetivos,
-    obtener_cumplimiento_cascada
+    obtener_cumplimiento_cascada, calcular_estado_proyectos
 )
 from utils.visualizations import (
     crear_objetivo_card_html, crear_tabla_cascada_html,
-    crear_grafico_cascada_icicle
+    crear_grafico_cascada_icicle, crear_grafico_proyectos
 )
 from utils.ai_analysis import (
     generar_analisis_linea, preparar_objetivos_para_analisis
@@ -106,6 +106,10 @@ def mostrar_pagina():
     # Obtener datos de cascada
     df_cascada_completa = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=3)
     df_cascada_linea = df_cascada_completa[df_cascada_completa['Linea'] == linea_seleccionada] if not df_cascada_completa.empty else pd.DataFrame()
+
+    # Calcular estado de proyectos para la línea seleccionada
+    df_proyectos_linea = df_unificado[df_unificado['Linea'] == linea_seleccionada] if 'Linea' in df_unificado.columns else df_unificado
+    estado_proyectos_linea = calcular_estado_proyectos(df_proyectos_linea, año_actual)
 
     # Color de la línea
     color_linea = COLORES_LINEAS.get(linea_seleccionada, COLORS['primary'])
@@ -227,6 +231,20 @@ def mostrar_pagina():
                         ),
                         unsafe_allow_html=True
                     )
+
+        # Gráfico de proyectos para la línea
+        if estado_proyectos_linea['total_proyectos'] > 0:
+            st.markdown("---")
+            st.markdown(f"#### 📋 Proyectos de: {linea_seleccionada}")
+            col_proy1, col_proy2, col_proy3 = st.columns([1, 2, 1])
+            with col_proy2:
+                fig_proyectos = crear_grafico_proyectos(
+                    estado_proyectos_linea['finalizados'],
+                    estado_proyectos_linea['en_ejecucion'],
+                    estado_proyectos_linea['stand_by']
+                )
+                st.plotly_chart(fig_proyectos, use_container_width=True, config={'displayModeBar': False})
+                st.info(f"📋 **{estado_proyectos_linea['total_proyectos']}** Proyectos | **{estado_proyectos_linea['finalizados']}** Finalizados | **{estado_proyectos_linea['en_ejecucion']}** En Ejecución | **{estado_proyectos_linea['stand_by']}** Stand by")
 
     # ============================================================
     # TAB 2: ANÁLISIS DETALLADO
