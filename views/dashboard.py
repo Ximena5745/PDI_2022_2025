@@ -16,11 +16,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.data_loader import (
     COLORS, calcular_metricas_generales, obtener_cumplimiento_por_linea,
-    obtener_color_semaforo, exportar_a_excel, obtener_cumplimiento_cascada
+    obtener_color_semaforo, exportar_a_excel, obtener_cumplimiento_cascada,
+    calcular_estado_proyectos
 )
 from utils.visualizations import (
     crear_grafico_lineas, crear_grafico_semaforo, crear_tarjeta_kpi,
-    crear_grafico_cascada, crear_tabla_cascada_html
+    crear_grafico_cascada, crear_tabla_cascada_html, crear_grafico_proyectos
 )
 from utils.ai_analysis import (
     generar_analisis_general, preparar_lineas_para_analisis
@@ -60,6 +61,7 @@ def mostrar_pagina():
     # Obtener datos necesarios
     df_cascada = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=2)
     df_lineas = obtener_cumplimiento_por_linea(df_unificado, año_actual)
+    estado_proyectos = calcular_estado_proyectos(df_unificado, año_actual)
 
     # ============================================================
     # TABS PRINCIPALES - Estructura optimizada
@@ -140,6 +142,17 @@ def mostrar_pagina():
 
             # Info compacta
             st.info(f"📌 **{metricas['total_lineas']}** Líneas Estratégicas | Corte: **Diciembre {año_actual}**")
+
+            # Gráfico de proyectos
+            if estado_proyectos['total_proyectos'] > 0:
+                st.markdown("#### 📋 Estado de Proyectos")
+                fig_proyectos = crear_grafico_proyectos(
+                    estado_proyectos['finalizados'],
+                    estado_proyectos['en_ejecucion'],
+                    estado_proyectos['stand_by']
+                )
+                st.plotly_chart(fig_proyectos, use_container_width=True, config=config)
+                st.info(f"📋 **{estado_proyectos['total_proyectos']}** Proyectos | **{estado_proyectos['finalizados']}** Finalizados")
 
         # Interpretación compacta
         with st.expander("📌 ¿Cómo interpretar este gráfico?", expanded=False):

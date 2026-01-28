@@ -397,6 +397,76 @@ def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos):
     return fig
 
 
+def crear_grafico_proyectos(finalizados, en_ejecucion, stand_by):
+    """
+    Crea un gráfico de dona mostrando la distribución de proyectos por estado.
+
+    Args:
+        finalizados: Cantidad de proyectos con Ejecución = 100%
+        en_ejecucion: Cantidad de proyectos con Ejecución > 0% y < 100%
+        stand_by: Cantidad de proyectos en Stand by
+
+    Returns:
+        Figura de Plotly
+    """
+    labels = ['Finalizado (100%)', 'En Ejecución (<100%)', 'Stand by']
+    values = [finalizados, en_ejecucion, stand_by]
+    colors = [COLORS['success'], COLORS['warning'], COLORS['standby']]
+
+    total = sum(values)
+
+    # Crear texto personalizado para mostrar dentro y fuera
+    custom_text = []
+    for label, value in zip(labels, values):
+        pct = (value / total * 100) if total > 0 else 0
+        custom_text.append(f"{value}<br>{pct:.1f}%")
+
+    fig = go.Figure(data=[go.Pie(
+        labels=labels,
+        values=values,
+        hole=0.5,
+        marker_colors=colors,
+        textinfo='text',
+        text=custom_text,
+        textposition='outside',
+        textfont=dict(size=10),
+        insidetextorientation='horizontal',
+        pull=[0.02, 0.02, 0.02],  # Separar ligeramente los segmentos
+        hovertemplate='<b>%{label}</b><br>Proyectos: %{value}<br>Porcentaje: %{percent}<extra></extra>'
+    )])
+
+    fig.update_layout(
+        title=dict(
+            text="<b>Distribución de Proyectos por Estado</b>",
+            font=dict(size=14, color=COLORS['primary']),
+            x=0.5,
+            xanchor='center'
+        ),
+        annotations=[dict(
+            text=f'<b>{total}</b><br>Total',
+            x=0.5, y=0.5,
+            font_size=16,
+            font_color=COLORS['primary'],
+            showarrow=False
+        )],
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="top",
+            y=-0.05,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=10)
+        ),
+        height=450,
+        margin=dict(t=60, b=100, l=60, r=60),
+        uniformtext_minsize=9,
+        uniformtext_mode='hide'
+    )
+
+    return fig
+
+
 def crear_grafico_tendencia(df_indicador, nombre_indicador):
     """
     Crea un gráfico de línea mostrando la tendencia del cumplimiento.

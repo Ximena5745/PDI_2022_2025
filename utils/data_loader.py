@@ -17,8 +17,12 @@ COLORS = {
     'success': '#28a745',
     'warning': '#ffc107',
     'danger': '#dc3545',
-    'white': '#ffffff'
+    'white': '#ffffff',
+    'standby': '#6c757d'  # Gris para objetivos en Stand by
 }
+
+# Objetivo en estado Stand by (0% de avance)
+OBJETIVO_STANDBY = "Incursionar en los niveles de educación media y de educación para el trabajo y el desarrollo humano"
 
 # Colores representativos de cada Línea Estratégica
 COLORES_LINEAS = {
@@ -181,14 +185,17 @@ def calcular_cumplimiento(meta, ejecucion, sentido='Creciente'):
         return (ejecucion / meta) * 100
 
 
-def obtener_color_semaforo(cumplimiento):
+def obtener_color_semaforo(cumplimiento, es_standby=False):
     """
     Retorna el color del semáforo según el nivel de cumplimiento.
 
+    - Gris Stand by: Objetivos en pausa
     - Verde: >= 100%
     - Amarillo: 80-99.9%
     - Rojo: 0-79.9%
     """
+    if es_standby:
+        return COLORS['standby']
     if cumplimiento is None or pd.isna(cumplimiento):
         return COLORS['gray']
     elif cumplimiento >= 100:
@@ -199,10 +206,12 @@ def obtener_color_semaforo(cumplimiento):
         return COLORS['danger']
 
 
-def obtener_estado_semaforo(cumplimiento):
+def obtener_estado_semaforo(cumplimiento, es_standby=False):
     """
     Retorna el estado del semáforo como texto.
     """
+    if es_standby:
+        return 'Stand by', 'standby'
     if cumplimiento is None or pd.isna(cumplimiento):
         return 'Sin datos', 'gray'
     elif cumplimiento >= 100:
@@ -211,6 +220,15 @@ def obtener_estado_semaforo(cumplimiento):
         return 'Alerta', 'warning'
     else:
         return 'Peligro', 'danger'
+
+
+def es_objetivo_standby(objetivo):
+    """
+    Verifica si un objetivo está en estado Stand by.
+    """
+    if objetivo is None or pd.isna(objetivo):
+        return False
+    return str(objetivo).strip().lower() == OBJETIVO_STANDBY.lower()
 
 
 def calcular_metricas_generales(df_unificado, año=None):
@@ -280,6 +298,90 @@ def calcular_metricas_generales(df_unificado, año=None):
         'no_cumplidos': no_cumplidos,
         'total_lineas': total_lineas,
         'año_actual': año
+    }
+
+
+def calcular_estado_proyectos(df_unificado, año=None):
+    """
+    Calcula el estado de los proyectos (Proyectos=1 en el dataset).
+
+    Clasificación:
+    - Finalizado: Ejecución = 100
+    - En ejecución: Ejecución > 0 y < 100
+    - Stand by: Ejecución vacío o 0, y Ejecución s = 'Stand by'
+
+    Args:
+        df_unificado: DataFrame con datos unificados
+        año: Año a filtrar (opcional, usa el más reciente por defecto)
+
+    Returns:
+        dict: Diccionario con conteo de proyectos por estado
+    """
+    if df_unificado is None or df_unificado.empty:
+        return {
+            'finalizados': 0,
+            'en_ejecucion': 0,
+            'stand_by': 0,
+            'total_proyectos': 0
+        }
+
+    # Verificar que existe la columna Proyectos
+    if 'Proyectos' not in df_unificado.columns:
+        return {
+            'finalizados': 0,
+            'en_ejecucion': 0,
+            'stand_by': 0,
+            'total_proyectos': 0
+        }
+
+    # Filtrar solo proyectos (Proyectos = 1)
+    df_proyectos = df_unificado[df_unificado['Proyectos'] == 1].copy()
+
+    if df_proyectos.empty:
+        return {
+            'finalizados': 0,
+            'en_ejecucion': 0,
+            'stand_by': 0,
+            'total_proyectos': 0
+        }
+
+    # Filtrar por año si se especifica
+    if año is None:
+        año = df_proyectos['Año'].max() if 'Año' in df_proyectos.columns else 2025
+
+    if 'Año' in df_proyectos.columns:
+        df_proyectos = df_proyectos[df_proyectos['Año'] == año]
+
+    # Obtener proyectos únicos (última fila por indicador/proyecto)
+    df_proyectos = df_proyectos.sort_values(['Indicador', 'Año']).drop_duplicates('Indicador', keep='last')
+
+    # Clasificar proyectos
+    def clasificar_proyecto(row):
+        ejec = row.get('Ejecución')
+        ejec_s = row.get('Ejecución s', '')
+
+        if pd.notna(ejec) and ejec == 100:
+            return 'Finalizado'
+        elif (pd.isna(ejec) or ejec == 0) and str(ejec_s).strip().lower() == 'stand by':
+            return 'Stand by'
+        elif pd.notna(ejec) and ejec > 0 and ejec < 100:
+            return 'En ejecución'
+        else:
+            # Si no cumple ninguna condición, clasificar según el valor
+            if pd.notna(ejec) and ejec > 0:
+                return 'En ejecución'
+            return 'Sin clasificar'
+
+    df_proyectos['Estado'] = df_proyectos.apply(clasificar_proyecto, axis=1)
+
+    # Contar por estado
+    conteo = df_proyectos['Estado'].value_counts()
+
+    return {
+        'finalizados': int(conteo.get('Finalizado', 0)),
+        'en_ejecucion': int(conteo.get('En ejecución', 0)),
+        'stand_by': int(conteo.get('Stand by', 0)),
+        'total_proyectos': len(df_proyectos)
     }
 
 
