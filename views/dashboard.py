@@ -143,16 +143,20 @@ def mostrar_pagina():
             # Info compacta
             st.info(f"📌 **{metricas['total_lineas']}** Líneas Estratégicas | Corte: **Diciembre {año_actual}**")
 
-            # Gráfico de proyectos
-            if estado_proyectos['total_proyectos'] > 0:
+        # Gráfico de proyectos en fila separada
+        if estado_proyectos['total_proyectos'] > 0:
+            st.markdown("---")
+            col_proy1, col_proy2, col_proy3 = st.columns([1, 2, 1])
+            with col_proy2:
                 st.markdown("#### 📋 Estado de Proyectos")
                 fig_proyectos = crear_grafico_proyectos(
                     estado_proyectos['finalizados'],
                     estado_proyectos['en_ejecucion'],
                     estado_proyectos['stand_by']
                 )
+                config = {'displayModeBar': False, 'responsive': True}
                 st.plotly_chart(fig_proyectos, use_container_width=True, config=config)
-                st.info(f"📋 **{estado_proyectos['total_proyectos']}** Proyectos | **{estado_proyectos['finalizados']}** Finalizados")
+                st.info(f"📋 **{estado_proyectos['total_proyectos']}** Proyectos | **{estado_proyectos['finalizados']}** Finalizados | **{estado_proyectos['en_ejecucion']}** En Ejecución | **{estado_proyectos['stand_by']}** Stand by")
 
         # Interpretación compacta
         with st.expander("📌 ¿Cómo interpretar este gráfico?", expanded=False):
