@@ -379,6 +379,11 @@ def mostrar_pagina():
             estado_filtro = st.selectbox("Filtrar por Estado:", ['Todos', '✅ Cumplido', '⚠️ Alerta', '❌ Peligro'], key="filtro_estado_datos")
 
         df_filtrado = df_año.copy()
+
+        # Filtrar solo indicadores (excluir proyectos)
+        if 'Proyectos' in df_filtrado.columns:
+            df_filtrado = df_filtrado[df_filtrado['Proyectos'] == 0]
+
         if linea_sel != 'Todas':
             df_filtrado = df_filtrado[df_filtrado['Linea'] == linea_sel]
         if estado_filtro != 'Todos':
@@ -418,6 +423,11 @@ def mostrar_pagina():
                     lambda x: f"{x:.1f}%" if pd.notna(x) else "N/D"
                 )
 
+            # Reordenar columnas: Indicador, Linea, Objetivo, Meta PDI, Meta, Ejecución, Cumplimiento, Estado
+            columnas_orden = ['Indicador', 'Linea', 'Objetivo', 'Meta PDI', 'Meta', 'Ejecución', 'Cumplimiento', 'Alerta']
+            columnas_finales = [c for c in columnas_orden if c in df_tabla.columns]
+            df_tabla = df_tabla[columnas_finales]
+
             st.dataframe(
                 df_tabla,
                 use_container_width=True,
@@ -426,7 +436,10 @@ def mostrar_pagina():
                 column_config={
                     "Indicador": st.column_config.TextColumn("Indicador", width="large"),
                     "Linea": st.column_config.TextColumn("Línea", width="medium"),
+                    "Objetivo": st.column_config.TextColumn("Objetivo", width="medium"),
                     "Meta PDI": st.column_config.TextColumn("Meta PDI", width="small"),
+                    "Meta": st.column_config.NumberColumn("Meta", format="%.2f"),
+                    "Ejecución": st.column_config.NumberColumn("Ejecución", format="%.2f"),
                     "Cumplimiento": st.column_config.TextColumn("Cumplimiento", width="small"),
                     "Alerta": st.column_config.TextColumn("Estado", width="small")
                 }

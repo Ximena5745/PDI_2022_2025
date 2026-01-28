@@ -371,6 +371,10 @@ def mostrar_pagina():
         # Aplicar filtros
         df_mostrar = df_linea_año.copy()
 
+        # Filtrar solo indicadores (excluir proyectos)
+        if 'Proyectos' in df_mostrar.columns:
+            df_mostrar = df_mostrar[df_mostrar['Proyectos'] == 0]
+
         if objetivo_filtro != 'Todos' and 'Objetivo' in df_mostrar.columns:
             df_mostrar = df_mostrar[df_mostrar['Objetivo'] == objetivo_filtro]
 
@@ -413,8 +417,8 @@ def mostrar_pagina():
                     lambda x: f"{x:.1f}%" if pd.notna(x) else "N/D"
                 )
 
-            # Reordenar columnas para mejor visualización
-            columnas_orden = ['Indicador', 'Objetivo', 'Meta', 'Meta PDI', 'Ejecución', 'Cumplimiento', 'Alerta']
+            # Reordenar columnas: Indicador, Objetivo, Meta PDI, Meta, Ejecución, Cumplimiento, Estado
+            columnas_orden = ['Indicador', 'Objetivo', 'Meta PDI', 'Meta', 'Ejecución', 'Cumplimiento', 'Alerta']
             columnas_finales = [c for c in columnas_orden if c in df_tabla.columns]
             df_tabla = df_tabla[columnas_finales]
 
@@ -427,11 +431,11 @@ def mostrar_pagina():
                 column_config={
                     "Indicador": st.column_config.TextColumn("Indicador", width="large"),
                     "Objetivo": st.column_config.TextColumn("Objetivo", width="medium"),
-                    "Meta": st.column_config.NumberColumn("Meta Anual", format="%.2f"),
                     "Meta PDI": st.column_config.TextColumn("Meta PDI", width="small"),
+                    "Meta": st.column_config.NumberColumn("Meta", format="%.2f"),
                     "Ejecución": st.column_config.NumberColumn("Ejecución", format="%.2f"),
                     "Cumplimiento": st.column_config.TextColumn("Cumplimiento", width="small"),
-                    "Alerta": st.column_config.TextColumn("Estado/Alerta", width="small")
+                    "Alerta": st.column_config.TextColumn("Estado", width="small")
                 }
             )
 
