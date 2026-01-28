@@ -250,6 +250,7 @@ def calcular_metricas_generales(df_unificado, año=None):
             'indicadores_cumplidos': 0,
             'en_progreso': 0,
             'no_cumplidos': 0,
+            'stand_by': 0,
             'total_lineas': 0,
             'año_actual': 2025
         }
@@ -273,7 +274,12 @@ def calcular_metricas_generales(df_unificado, año=None):
         df_año = df_año[df_año['Cumplimiento'].notna()]
 
     # Calcular métricas
+    stand_by = 0
     if 'Cumplimiento' in df_año.columns and not df_año.empty:
+        # Contar Stand by (Ejecución s = 'Stand by')
+        if 'Ejecución s' in df_año.columns:
+            stand_by = len(df_año[df_año['Ejecución s'].astype(str).str.strip().str.lower() == 'stand by'])
+        
         cumplimiento_promedio = df_año['Cumplimiento'].mean()
         indicadores_cumplidos = len(df_año[df_año['Cumplimiento'] >= 100])
         en_progreso = len(df_año[(df_año['Cumplimiento'] >= 80) & (df_año['Cumplimiento'] < 100)])
@@ -296,6 +302,7 @@ def calcular_metricas_generales(df_unificado, año=None):
         'indicadores_cumplidos': indicadores_cumplidos,
         'en_progreso': en_progreso,
         'no_cumplidos': no_cumplidos,
+        'stand_by': stand_by,
         'total_lineas': total_lineas,
         'año_actual': año
     }

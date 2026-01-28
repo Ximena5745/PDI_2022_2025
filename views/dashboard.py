@@ -76,9 +76,9 @@ def mostrar_pagina():
     # TAB 1: RESUMEN EJECUTIVO
     # ============================================================
     with tab_resumen:
-        # KPIs usando st.metric nativo (mejor compatibilidad con columnas)
+    # KPIs usando st.metric nativo (mejor compatibilidad con columnas)
         st.markdown("#### 🎯 Indicadores Clave")
-        col1, col2, col3, col4, col5 = st.columns(5)
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
 
         with col1:
             delta_str = f"{delta_cumplimiento:+.1f}%" if delta_cumplimiento != 0 else None
@@ -111,6 +111,13 @@ def mostrar_pagina():
 
         with col5:
             st.metric(
+                label="⏸️ Stand by",
+                value=metricas['stand_by'],
+                help="Indicadores en pausa o sin iniciarse"
+            )
+
+        with col6:
+            st.metric(
                 label="📋 Total",
                 value=metricas['total_indicadores'],
                 help="Total de indicadores evaluados"
@@ -135,7 +142,8 @@ def mostrar_pagina():
             fig_semaforo = crear_grafico_semaforo(
                 metricas['indicadores_cumplidos'],
                 metricas['en_progreso'],
-                metricas['no_cumplidos']
+                metricas['no_cumplidos'],
+                metricas.get('stand_by', 0)
             )
             config = {'displayModeBar': False, 'responsive': True}
             st.plotly_chart(fig_semaforo, use_container_width=True, config=config)

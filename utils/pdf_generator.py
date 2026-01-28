@@ -195,6 +195,12 @@ def obtener_css_corporativo() -> str:
         color: {COLORES_PDF['danger']};
     }}
 
+    .kpi-valor-standby {{
+        font-size: 22pt;
+        font-weight: bold;
+        color: #6c757d;
+    }}
+
     .kpi-label {{
         font-size: 8pt;
         color: {COLORES_PDF['gray']};
@@ -318,6 +324,11 @@ def obtener_css_corporativo() -> str:
         font-size: 14pt;
     }}
 
+    .dot-gris {{
+        color: #6c757d;
+        font-size: 14pt;
+    }}
+
     /* ============================================
        PIE DE PÁGINA
     ============================================ */
@@ -412,6 +423,10 @@ def generar_seccion_kpis(metricas: Dict[str, Any]) -> str:
                         <div class="kpi-valor-danger">{metricas.get('no_cumplidos', 0)}</div>
                         <div class="kpi-label">No Cumplidos</div>
                     </td>
+                    <td style="border-top: 4px solid #6c757d;">
+                        <div class="kpi-valor-standby">{metricas.get('stand_by', 0)}</div>
+                        <div class="kpi-label">Stand by</div>
+                    </td>
                     <td style="border-top: 4px solid {COLORES_PDF['primary']};">
                         <div class="kpi-valor">{metricas.get('total_indicadores', 0)}</div>
                         <div class="kpi-label">Total</div>
@@ -429,6 +444,9 @@ def generar_seccion_kpis(metricas: Dict[str, Any]) -> str:
                     </td>
                     <td>
                         <span class="dot-rojo">&#9679;</span> &lt;80% Requiere Atencion
+                    </td>
+                    <td>
+                        <span class="dot-gris">&#9679;</span> Stand by (Sin iniciarse)
                     </td>
                 </tr>
             </table>
@@ -779,11 +797,12 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
         ('Cumplidos', str(metricas.get('indicadores_cumplidos', 0)), (40, 167, 69)),
         ('En Progreso', str(metricas.get('en_progreso', 0)), (255, 193, 7)),
         ('No Cumplidos', str(metricas.get('no_cumplidos', 0)), (220, 53, 69)),
-        ('Total', str(metricas.get('total_indicadores', 0)), (108, 117, 125)),
+        ('Stand by', str(metricas.get('stand_by', 0)), (108, 117, 125)),
+        ('Total', str(metricas.get('total_indicadores', 0)), (50, 50, 50)),
     ]
 
-    x_start = 15
-    box_width = 35
+    x_start = 12
+    box_width = 30
     for i, (label, valor, color) in enumerate(kpis):
         x = x_start + i * (box_width + 3)
         pdf.set_fill_color(*color)
@@ -804,14 +823,16 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
 
     # Semaforo
     pdf.set_fill_color(248, 249, 250)
-    pdf.rect(10, pdf.get_y(), 190, 12, 'F')
-    pdf.set_font('Helvetica', '', 8)
+    pdf.rect(10, pdf.get_y(), 190, 16, 'F')
+    pdf.set_font('Helvetica', '', 7.5)
     pdf.set_text_color(40, 167, 69)
-    pdf.cell(60, 12, '  >= 100% Meta Cumplida', 0, 0, 'C')
+    pdf.cell(47, 8, '  >= 100% Meta Cumplida', 0, 0, 'C')
     pdf.set_text_color(255, 193, 7)
-    pdf.cell(60, 12, '  80-99% En Progreso', 0, 0, 'C')
+    pdf.cell(47, 8, '  80-99% En Progreso', 0, 0, 'C')
     pdf.set_text_color(220, 53, 69)
-    pdf.cell(60, 12, '  < 80% Requiere Atencion', 0, 1, 'C')
+    pdf.cell(47, 8, '  < 80% Requiere Atencion', 0, 0, 'C')
+    pdf.set_text_color(108, 117, 125)
+    pdf.cell(49, 8, '  Stand by (Sin iniciarse)', 0, 1, 'C')
     pdf.ln(10)
 
     # Analisis
