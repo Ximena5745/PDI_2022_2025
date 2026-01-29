@@ -52,7 +52,9 @@ def mostrar_pagina():
     # Calcular métricas generales
     año_actual = 2025
     if 'Año' in df_unificado.columns:
-        año_actual = int(df_unificado['Año'].max())
+        # Limitar a 2025 máximo
+        año_max = int(df_unificado['Año'].max())
+        año_actual = min(año_max, 2025)
 
     metricas = calcular_metricas_generales(df_unificado, año_actual)
     metricas_anterior = calcular_metricas_generales(df_unificado, año_actual - 1)

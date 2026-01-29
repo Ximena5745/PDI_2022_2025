@@ -18,7 +18,8 @@ COLORS = {
     'warning': '#ffc107',
     'danger': '#dc3545',
     'white': '#ffffff',
-    'standby': '#6c757d'  # Gris para objetivos en Stand by
+    'standby': '#6c757d',  # Gris para objetivos en Stand by
+    'unclassified': '#9b9fa8'  # Gris más oscuro para sin clasificar
 }
 
 # Objetivo en estado Stand by (0% de avance)
@@ -515,9 +516,16 @@ def obtener_historico_indicador_completo(df_unificado, df_base, indicador_nombre
     # Filtrar por indicador
     df_ind = df_unificado[df_unificado['Indicador'] == indicador_nombre].copy()
 
-    # Filtrar solo registros con Fuente = 'Cierre' para las gráficas de indicadores
+    # Filtrar por Fuente: preferir 'Cierre', si no hay usar 'Avance'
     if 'Fuente' in df_ind.columns:
-        df_ind = df_ind[df_ind['Fuente'] == 'Cierre']
+        df_cierre = df_ind[df_ind['Fuente'] == 'Cierre']
+        if not df_cierre.empty:
+            df_ind = df_cierre
+        else:
+            # Fallback a 'Avance' si no hay datos de 'Cierre'
+            df_avance = df_ind[df_ind['Fuente'] == 'Avance']
+            if not df_avance.empty:
+                df_ind = df_avance
 
     if df_ind.empty:
         return pd.DataFrame(), 'Anual', 'Creciente', '', ''

@@ -311,13 +311,15 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
             ),
             yaxis=dict(
                 title="",
-                tickfont=dict(size=11)
+                tickfont=dict(size=11),
+                automargin=True
             ),
             height=altura,
             plot_bgcolor='white',
             paper_bgcolor='white',
-            margin=dict(l=200, r=80, t=60, b=40),
-            showlegend=False
+            margin=dict(l=250, r=100, t=60, b=40),
+            showlegend=False,
+            autosize=True
         )
 
         # Líneas de referencia
@@ -431,7 +433,7 @@ def crear_grafico_proyectos(finalizados, en_ejecucion, stand_by, sin_clasificar=
     if sin_clasificar > 0:
         labels.append('Sin clasificar')
         values.append(sin_clasificar)
-        colors.append(COLORS['gray'])
+        colors.append(COLORS['unclassified'])
 
     total = sum(values)
 
@@ -617,15 +619,20 @@ def crear_indicador_semaforo_html(cumplimiento, texto=None):
     Returns:
         str: HTML del indicador
     """
-    color = obtener_color_semaforo(cumplimiento)
-
-    if texto is None:
-        if cumplimiento >= 100:
-            texto = "✅ Meta cumplida"
-        elif cumplimiento >= 80:
-            texto = "⚠️ Alerta"
-        else:
-            texto = "❌ Peligro"
+    # Verificar si hay cumplimiento (Stand by si está vacío o es NaN)
+    if cumplimiento is None or (isinstance(cumplimiento, float) and pd.isna(cumplimiento)):
+        color = COLORS['standby']
+        if texto is None:
+            texto = "⏸️ Stand by"
+    else:
+        color = obtener_color_semaforo(cumplimiento)
+        if texto is None:
+            if cumplimiento >= 100:
+                texto = "✅ Meta cumplida"
+            elif cumplimiento >= 80:
+                texto = "⚠️ Alerta"
+            else:
+                texto = "❌ Peligro"
 
     return f"""
     <div style="
