@@ -275,8 +275,6 @@ def mostrar_pagina():
         st.markdown("---")
 
         if subtab_historia:
-
-        with subtab_historia:
             st.markdown(f"#### Tendencia de Cumplimiento: {linea_seleccionada}")
 
             if 'Año' in df_linea.columns and 'Cumplimiento' in df_linea.columns:
