@@ -169,7 +169,10 @@ def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente',
                     font=dict(size=12, color=COLORS['gray'])
                 ),
                 tickfont=dict(size=10),
-                tickangle=-45 if len(etiquetas) > 5 else 0
+                tickangle=-45 if len(etiquetas) > 5 else 0,
+                type='category',  # Forzar eje categórico para evitar decimales
+                categoryorder='array',
+                categoryarray=etiquetas  # Usar etiquetas en orden
             ),
             yaxis=dict(
                 title=dict(
@@ -327,7 +330,7 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
         return go.Figure()
 
 
-def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos):
+def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos, stand_by=0):
     """
     Crea un gráfico de dona mostrando la distribución por semáforo.
 
@@ -335,13 +338,20 @@ def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos):
         indicadores_cumplidos: Cantidad de indicadores con cumplimiento >= 100%
         en_progreso: Cantidad de indicadores con cumplimiento 80-99.9%
         no_cumplidos: Cantidad de indicadores con cumplimiento < 80%
+        stand_by: Cantidad de indicadores en estado Stand by
 
     Returns:
         Figura de Plotly
     """
-    labels = ['Cumplido (≥100%)', 'En Progreso (80-99%)', 'No Cumplido (<80%)']
+    labels = ['Cumplido (>=100%)', 'En Progreso (80-99%)', 'No Cumplido (<80%)']
     values = [indicadores_cumplidos, en_progreso, no_cumplidos]
     colors = [COLORS['success'], COLORS['warning'], COLORS['danger']]
+
+    # Agregar Stand by si hay indicadores en ese estado
+    if stand_by > 0:
+        labels.append('Stand by')
+        values.append(stand_by)
+        colors.append(COLORS['standby'])
 
     total = sum(values)
 
@@ -350,6 +360,9 @@ def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos):
     for label, value in zip(labels, values):
         pct = (value / total * 100) if total > 0 else 0
         custom_text.append(f"{value}<br>{pct:.1f}%")
+
+    # Configurar pull para separar segmentos
+    pull_values = [0.02] * len(values)
 
     fig = go.Figure(data=[go.Pie(
         labels=labels,
@@ -361,13 +374,13 @@ def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos):
         textposition='outside',
         textfont=dict(size=10),
         insidetextorientation='horizontal',
-        pull=[0.02, 0.02, 0.02],  # Separar ligeramente los segmentos
+        pull=pull_values,
         hovertemplate='<b>%{label}</b><br>Indicadores: %{value}<br>Porcentaje: %{percent}<extra></extra>'
     )])
 
     fig.update_layout(
         title=dict(
-            text="<b>Distribución de Indicadores por Estado</b>",
+            text="<b>Distribucion de Indicadores por Estado</b>",
             font=dict(size=14, color=COLORS['primary']),
             x=0.5,
             xanchor='center'
@@ -1092,6 +1105,101 @@ def crear_grafico_cascada_icicle(df_cascada, titulo="Cumplimiento en Cascada"):
         return fig
     except Exception as e:
         st.error(f"Error al crear gráfico Treemap: {str(e)}")
+        return go.Figure()
+
+
+def crear_grafico_barras_objetivos(df_cascada, linea_seleccionada=None, titulo="Cumplimiento por Objetivo"):
+    """
+    Crea un gráfico de barras horizontales agrupadas por objetivo.
+    Alternativa más amigable al treemap.
+
+    Args:
+        df_cascada: DataFrame con estructura jerárquica
+        linea_seleccionada: Filtrar por línea específica (opcional)
+        titulo: Título del gráfico
+
+    Returns:
+        Figura de Plotly
+    """
+    if df_cascada is None or df_cascada.empty:
+        return go.Figure()
+
+    try:
+        df = df_cascada.copy()
+
+        # Filtrar por línea si se especifica
+        if linea_seleccionada:
+            df = df[df['Linea'] == linea_seleccionada]
+
+        # Filtrar solo nivel 2 (objetivos)
+        df_objetivos = df[df['Nivel'] == 2].copy()
+
+        if df_objetivos.empty:
+            return go.Figure()
+
+        # Ordenar por cumplimiento
+        df_objetivos = df_objetivos.sort_values('Cumplimiento', ascending=True)
+
+        # Truncar nombres largos
+        df_objetivos['Objetivo_corto'] = df_objetivos['Objetivo'].apply(
+            lambda x: str(x)[:60] + '...' if len(str(x)) > 60 else str(x)
+        )
+
+        # Asignar colores según semáforo
+        colores = []
+        for cumpl in df_objetivos['Cumplimiento']:
+            if cumpl >= 100:
+                colores.append(COLORS['success'])
+            elif cumpl >= 80:
+                colores.append(COLORS['warning'])
+            else:
+                colores.append(COLORS['danger'])
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Bar(
+            y=df_objetivos['Objetivo_corto'],
+            x=df_objetivos['Cumplimiento'],
+            orientation='h',
+            marker_color=colores,
+            text=[f"{c:.1f}%" for c in df_objetivos['Cumplimiento']],
+            textposition='outside',
+            textfont=dict(size=11, weight='bold'),
+            customdata=df_objetivos['Objetivo'],
+            hovertemplate='<b>%{customdata}</b><br>Cumplimiento: %{x:.1f}%<br>Indicadores: %{meta}<extra></extra>',
+            meta=df_objetivos['Total_Indicadores']
+        ))
+
+        # Líneas de referencia
+        fig.add_vline(x=100, line_dash="dash", line_color=COLORS['success'], opacity=0.6)
+        fig.add_vline(x=80, line_dash="dash", line_color=COLORS['warning'], opacity=0.6)
+
+        altura = max(350, len(df_objetivos) * 40)
+
+        fig.update_layout(
+            title=dict(
+                text=f"<b>{titulo}</b>",
+                font=dict(size=14, color=COLORS['primary']),
+                x=0.5,
+                xanchor='center'
+            ),
+            xaxis=dict(
+                title="% Cumplimiento",
+                range=[0, max(df_objetivos['Cumplimiento'].max() * 1.15, 120)],
+                ticksuffix='%'
+            ),
+            yaxis=dict(title="", tickfont=dict(size=10)),
+            height=altura,
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            margin=dict(l=250, r=80, t=50, b=40),
+            showlegend=False
+        )
+
+        return fig
+
+    except Exception as e:
+        st.error(f"Error al crear grafico de barras: {str(e)}")
         return go.Figure()
 
 

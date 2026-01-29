@@ -20,7 +20,8 @@ from utils.data_loader import (
 )
 from utils.visualizations import (
     crear_objetivo_card_html, crear_tabla_cascada_html,
-    crear_grafico_cascada_icicle, crear_grafico_proyectos
+    crear_grafico_cascada_icicle, crear_grafico_proyectos,
+    crear_grafico_barras_objetivos
 )
 from utils.ai_analysis import (
     generar_analisis_linea, preparar_objetivos_para_analisis
@@ -247,73 +248,176 @@ def mostrar_pagina():
                 st.info(f"📋 **{estado_proyectos_linea['total_proyectos']}** Proyectos | **{estado_proyectos_linea['finalizados']}** Finalizados | **{estado_proyectos_linea['en_ejecucion']}** En Ejecución | **{estado_proyectos_linea['stand_by']}** Stand by")
 
     # ============================================================
-    # TAB 2: ANÁLISIS DETALLADO
+    # TAB 2: ANÁLISIS DETALLADO (Simplificado)
     # ============================================================
     with tab_analisis:
-        # Sub-tabs para organizar
-        subtab_historia, subtab_cascada, subtab_ia = st.tabs([
-            "📈 Evolución Histórica",
-            "🌊 Cascada Jerárquica",
-            "🤖 Análisis IA"
-        ])
+        # Selector simple de vista
+        vista_analisis = st.radio(
+            "Seleccione vista:",
+            ["Evolucion Historica", "Desglose por Objetivo", "Analisis IA"],
+            horizontal=True,
+            key="vista_analisis_linea"
+        )
+
+        if vista_analisis == "Evolucion Historica":
+            subtab_historia = True
+            subtab_cascada = False
+            subtab_ia = False
+        elif vista_analisis == "Desglose por Objetivo":
+            subtab_historia = False
+            subtab_cascada = True
+            subtab_ia = False
+        else:
+            subtab_historia = False
+            subtab_cascada = False
+            subtab_ia = True
+
+        st.markdown("---")
+
+        if subtab_historia:
 
         with subtab_historia:
             st.markdown(f"#### Tendencia de Cumplimiento: {linea_seleccionada}")
 
             if 'Año' in df_linea.columns and 'Cumplimiento' in df_linea.columns:
-                df_linea_hist = df_linea[df_linea['Año'].isin([2022, 2023, 2024, 2025])]
-                df_historico = df_linea_hist.groupby('Año').agg({
-                    'Cumplimiento': 'mean',
-                    'Indicador': 'nunique'
-                }).reset_index()
+                # Filtrar solo Fuente = 'Avance' y excluir proyectos
+                df_linea_hist = df_linea.copy()
+                if 'Fuente' in df_linea_hist.columns:
+                    df_linea_hist = df_linea_hist[df_linea_hist['Fuente'] == 'Avance']
+                if 'Proyectos' in df_linea_hist.columns:
+                    df_linea_hist = df_linea_hist[df_linea_hist['Proyectos'] == 0]
+
+                df_linea_hist = df_linea_hist[df_linea_hist['Año'].isin([2022, 2023, 2024, 2025])]
+                df_linea_hist = df_linea_hist[df_linea_hist['Cumplimiento'].notna()]
+
+                # Calcular cumplimiento jerárquico: indicadores -> objetivos -> línea
+                if 'Objetivo' in df_linea_hist.columns:
+                    # Paso 1: Promedio de indicadores por objetivo y año
+                    df_por_objetivo = df_linea_hist.groupby(['Año', 'Objetivo'])['Cumplimiento'].mean().reset_index()
+                    # Paso 2: Promedio de objetivos por año
+                    df_historico = df_por_objetivo.groupby('Año').agg({
+                        'Cumplimiento': 'mean'
+                    }).reset_index()
+                    # Agregar conteo de indicadores
+                    indicadores_por_año = df_linea_hist.groupby('Año')['Indicador'].nunique().reset_index()
+                    indicadores_por_año.columns = ['Año', 'Total_Indicadores']
+                    df_historico = df_historico.merge(indicadores_por_año, on='Año', how='left')
+                else:
+                    df_historico = df_linea_hist.groupby('Año').agg({
+                        'Cumplimiento': 'mean',
+                        'Indicador': 'nunique'
+                    }).reset_index()
+                    df_historico.columns = ['Año', 'Cumplimiento', 'Total_Indicadores']
+
                 df_historico = df_historico.sort_values('Año')
 
-                etiquetas = [str(int(año)) for año in df_historico['Año']]
+                if not df_historico.empty:
+                    etiquetas = [str(int(año)) for año in df_historico['Año']]
 
-                fig_hist = go.Figure()
-                fig_hist.add_hrect(y0=100, y1=120, fillcolor=COLORS['success'], opacity=0.1, line_width=0)
-                fig_hist.add_hrect(y0=80, y1=100, fillcolor=COLORS['warning'], opacity=0.1, line_width=0)
-                fig_hist.add_hrect(y0=0, y1=80, fillcolor=COLORS['danger'], opacity=0.1, line_width=0)
+                    fig_hist = go.Figure()
 
-                cumpl_pct = df_historico['Cumplimiento'] * 100
+                    # Areas de fondo para semáforo
+                    max_cumpl = max(df_historico['Cumplimiento'].max() * 1.1, 120)
+                    fig_hist.add_hrect(y0=100, y1=max_cumpl, fillcolor=COLORS['success'], opacity=0.15, line_width=0)
+                    fig_hist.add_hrect(y0=80, y1=100, fillcolor=COLORS['warning'], opacity=0.15, line_width=0)
+                    fig_hist.add_hrect(y0=0, y1=80, fillcolor=COLORS['danger'], opacity=0.15, line_width=0)
 
-                fig_hist.add_trace(go.Scatter(
-                    x=etiquetas,
-                    y=cumpl_pct,
-                    mode='lines+markers+text',
-                    line=dict(color=color_linea, width=3),
-                    marker=dict(size=12, color=color_linea),
-                    text=[f"{c:.1f}%" for c in cumpl_pct],
-                    textposition='top center',
-                    hovertemplate='<b>Año %{x}</b><br>Cumplimiento: %{y:.1f}%<extra></extra>'
-                ))
+                    # El cumplimiento ya está en porcentaje, no multiplicar por 100
+                    cumpl_values = df_historico['Cumplimiento'].tolist()
 
-                fig_hist.update_layout(
-                    xaxis=dict(title="Año", type='category', categoryorder='array', categoryarray=['2022', '2023', '2024', '2025']),
-                    yaxis=dict(title="% Cumplimiento", range=[0, 130]),
-                    height=400,
-                    plot_bgcolor='white',
-                    paper_bgcolor='white'
-                )
+                    fig_hist.add_trace(go.Scatter(
+                        x=etiquetas,
+                        y=cumpl_values,
+                        mode='lines+markers+text',
+                        line=dict(color=color_linea, width=4),
+                        marker=dict(size=14, color=color_linea, line=dict(width=2, color='white')),
+                        text=[f"{c:.1f}%" for c in cumpl_values],
+                        textposition='top center',
+                        textfont=dict(size=12, color=color_linea, weight='bold'),
+                        hovertemplate='<b>Ano %{x}</b><br>Cumplimiento: %{y:.1f}%<extra></extra>',
+                        name='Cumplimiento'
+                    ))
 
-                st.plotly_chart(fig_hist, use_container_width=True, config={'displayModeBar': True})
+                    # Líneas de referencia
+                    fig_hist.add_hline(y=100, line_dash="dash", line_color=COLORS['success'], opacity=0.7,
+                                       annotation_text="Meta 100%", annotation_position="right")
+                    fig_hist.add_hline(y=80, line_dash="dash", line_color=COLORS['warning'], opacity=0.7,
+                                       annotation_text="Alerta 80%", annotation_position="right")
+
+                    fig_hist.update_layout(
+                        xaxis=dict(
+                            title="Ano",
+                            type='category',
+                            categoryorder='array',
+                            categoryarray=['2022', '2023', '2024', '2025'],
+                            tickfont=dict(size=12)
+                        ),
+                        yaxis=dict(
+                            title="% Cumplimiento",
+                            range=[0, max_cumpl],
+                            ticksuffix='%',
+                            tickfont=dict(size=11)
+                        ),
+                        height=450,
+                        plot_bgcolor='white',
+                        paper_bgcolor='white',
+                        showlegend=False,
+                        margin=dict(t=40, b=60, l=60, r=100)
+                    )
+
+                    st.plotly_chart(fig_hist, use_container_width=True, config={'displayModeBar': True})
+
+                    # Mostrar tabla resumen
+                    st.markdown("**Resumen por ano:**")
+                    df_resumen = df_historico.copy()
+                    df_resumen['Cumplimiento'] = df_resumen['Cumplimiento'].apply(lambda x: f"{x:.1f}%")
+                    df_resumen['Año'] = df_resumen['Año'].astype(int)
+                    df_resumen.columns = ['Ano', 'Cumplimiento', 'Indicadores']
+                    st.dataframe(df_resumen, use_container_width=True, hide_index=True, height=150)
+                else:
+                    st.info("No hay datos historicos disponibles para esta linea.")
             else:
-                st.info("No hay datos históricos disponibles.")
+                st.info("No hay datos historicos disponibles.")
 
-        with subtab_cascada:
-            st.markdown(f"#### Desglose Jerárquico: {linea_seleccionada}")
+        if subtab_cascada:
+            st.markdown(f"#### Desglose Jerarquico: {linea_seleccionada}")
 
             if not df_cascada_linea.empty:
-                col_graf, col_tabla = st.columns([1, 1])
+                # Selector de tipo de visualización
+                tipo_viz = st.radio(
+                    "Tipo de visualizacion:",
+                    ["Barras por Objetivo (Recomendado)", "Treemap Jerarquico", "Tabla Detallada"],
+                    horizontal=True,
+                    key="tipo_viz_cascada"
+                )
 
-                with col_graf:
+                if tipo_viz == "Barras por Objetivo (Recomendado)":
+                    # Gráfico de barras más amigable
+                    fig_barras = crear_grafico_barras_objetivos(
+                        df_cascada_linea,
+                        linea_seleccionada=linea_seleccionada,
+                        titulo=f"Cumplimiento por Objetivo - {linea_seleccionada}"
+                    )
+                    st.plotly_chart(fig_barras, use_container_width=True, config={'displayModeBar': True})
+
+                    # Leyenda de colores
+                    st.markdown("""
+                    <div style="display: flex; gap: 20px; justify-content: center; margin-top: 10px;">
+                        <span style="color: #28a745; font-weight: bold;">Verde: >=100%</span>
+                        <span style="color: #ffc107; font-weight: bold;">Amarillo: 80-99%</span>
+                        <span style="color: #dc3545; font-weight: bold;">Rojo: <80%</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                elif tipo_viz == "Treemap Jerarquico":
                     fig_cascada = crear_grafico_cascada_icicle(df_cascada_linea, titulo=f"Cascada: {linea_seleccionada}")
                     st.plotly_chart(fig_cascada, use_container_width=True, config={'displayModeBar': True})
+                    st.info("Haz clic en los segmentos para navegar por la jerarquia. Usa el pathbar superior para volver.")
 
-                with col_tabla:
+                else:  # Tabla Detallada
                     tabla_cascada = crear_tabla_cascada_html(df_cascada_linea)
                     import streamlit.components.v1 as components
-                    components.html(tabla_cascada, height=450, scrolling=True)
+                    components.html(tabla_cascada, height=500, scrolling=True)
 
                 # Resumen estadístico
                 st.markdown("---")
@@ -321,14 +425,15 @@ def mostrar_pagina():
                 with col_s1:
                     st.metric("Objetivos", len(df_cascada_linea[df_cascada_linea['Nivel'] == 2]))
                 with col_s2:
-                    st.metric("Metas PDI", len(df_cascada_linea[(df_cascada_linea['Nivel'] == 3) & (df_cascada_linea['Meta_PDI'] != 'N/D')]))
+                    metas_pdi = df_cascada_linea[(df_cascada_linea['Nivel'] == 3) & (df_cascada_linea['Meta_PDI'] != 'N/D')]
+                    st.metric("Metas PDI", len(metas_pdi) if not metas_pdi.empty else 0)
                 with col_s3:
                     st.metric("Indicadores", total_indicadores)
             else:
-                st.info("No hay datos de cascada disponibles para esta línea.")
+                st.info("No hay datos de cascada disponibles para esta linea.")
 
-        with subtab_ia:
-            st.markdown(f"#### Análisis Inteligente: {linea_seleccionada}")
+        if subtab_ia:
+            st.markdown(f"#### Analisis Inteligente: {linea_seleccionada}")
 
             with st.spinner("Generando análisis..."):
                 objetivos_data = preparar_objetivos_para_analisis(df_linea, año_actual)

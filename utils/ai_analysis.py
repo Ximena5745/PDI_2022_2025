@@ -109,70 +109,297 @@ def generar_analisis_fallback(prompt):
     """
     Genera un mensaje cuando la API no está disponible.
     """
-    return """📊 **Análisis automático no disponible**
+    return """**Analisis automatico no disponible**
 
-Para habilitar el análisis inteligente con IA (GRATUITO):
+Para habilitar el analisis inteligente con IA (GRATUITO):
 
-1. Ve a [aistudio.google.com](https://aistudio.google.com/app/apikey)
+1. Ve a aistudio.google.com/app/apikey
 2. Crea una API Key gratuita
-3. En Streamlit Cloud: Settings > Secrets, agrega:
-   ```
-   GOOGLE_API_KEY = "tu_api_key"
-   ```
-4. O localmente, crea un archivo `.env` con:
-   ```
-   GOOGLE_API_KEY=tu_api_key
-   ```
+3. En Streamlit Cloud: Settings > Secrets, agrega GOOGLE_API_KEY
+4. O localmente, crea un archivo .env con GOOGLE_API_KEY=tu_api_key
 
 **Google Gemini es GRATUITO** (60 consultas por minuto)."""
+
+
+def generar_analisis_estatico_general(metricas_dict, cumplimiento_por_linea):
+    """
+    Genera un analisis estatico basado en reglas cuando la API de IA no esta disponible.
+    No requiere conexion a internet.
+
+    Args:
+        metricas_dict: Diccionario con metricas generales
+        cumplimiento_por_linea: Lista de diccionarios con cumplimiento por linea
+
+    Returns:
+        str: Texto del analisis generado
+    """
+    cumplimiento = metricas_dict.get('cumplimiento_promedio', 0)
+    total = metricas_dict.get('total_indicadores', 0)
+    cumplidos = metricas_dict.get('indicadores_cumplidos', 0)
+    en_progreso = metricas_dict.get('en_progreso', 0)
+    no_cumplidos = metricas_dict.get('no_cumplidos', 0)
+
+    # Determinar estado general
+    if cumplimiento >= 100:
+        estado = "EXCELENTE"
+        mensaje_estado = f"El PDI presenta un cumplimiento sobresaliente del {cumplimiento:.1f}%."
+    elif cumplimiento >= 90:
+        estado = "MUY BUENO"
+        mensaje_estado = f"El PDI muestra un cumplimiento muy satisfactorio del {cumplimiento:.1f}%."
+    elif cumplimiento >= 80:
+        estado = "BUENO"
+        mensaje_estado = f"El PDI tiene un cumplimiento aceptable del {cumplimiento:.1f}%, aunque hay oportunidades de mejora."
+    elif cumplimiento >= 70:
+        estado = "REGULAR"
+        mensaje_estado = f"El PDI presenta un cumplimiento del {cumplimiento:.1f}% que requiere atencion."
+    else:
+        estado = "CRITICO"
+        mensaje_estado = f"El PDI tiene un cumplimiento del {cumplimiento:.1f}% que requiere accion inmediata."
+
+    # Analizar lineas
+    lineas_destacadas = []
+    lineas_criticas = []
+
+    if cumplimiento_por_linea:
+        for linea in cumplimiento_por_linea:
+            if linea['cumplimiento'] >= 100:
+                lineas_destacadas.append(f"{linea['linea']} ({linea['cumplimiento']:.1f}%)")
+            elif linea['cumplimiento'] < 80:
+                lineas_criticas.append(f"{linea['linea']} ({linea['cumplimiento']:.1f}%)")
+
+    # Construir analisis
+    analisis = f"""**RESUMEN EJECUTIVO PDI - Analisis Automatico**
+
+**Estado General:** {estado}
+
+{mensaje_estado}
+
+**Distribucion de Indicadores:**
+- Total evaluados: {total}
+- Cumplidos (>=100%): {cumplidos} ({(cumplidos/total*100):.1f}% del total)
+- En progreso (80-99%): {en_progreso}
+- Requieren atencion (<80%): {no_cumplidos}
+
+"""
+
+    if lineas_destacadas:
+        analisis += f"**Lineas con mejor desempeno:** {', '.join(lineas_destacadas[:3])}\n\n"
+
+    if lineas_criticas:
+        analisis += f"**Lineas que requieren atencion:** {', '.join(lineas_criticas[:3])}\n\n"
+
+    # Recomendaciones basadas en el estado
+    if no_cumplidos > cumplidos:
+        analisis += "**Recomendacion:** Se sugiere priorizar las lineas con menor cumplimiento y establecer planes de accion inmediatos."
+    elif cumplimiento >= 100:
+        analisis += "**Recomendacion:** Mantener las estrategias actuales y documentar las mejores practicas para replicar en otras areas."
+    else:
+        analisis += "**Recomendacion:** Revisar los indicadores en progreso para asegurar que alcancen la meta antes del cierre del periodo."
+
+    return analisis
+
+
+def generar_analisis_estatico_linea(nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data):
+    """
+    Genera un analisis estatico para una linea estrategica especifica.
+
+    Args:
+        nombre_linea: Nombre de la linea estrategica
+        total_indicadores: Total de indicadores
+        cumplimiento_promedio: Cumplimiento promedio de la linea
+        objetivos_data: Lista de diccionarios con datos de objetivos
+
+    Returns:
+        str: Texto del analisis generado
+    """
+    # Determinar estado
+    if cumplimiento_promedio >= 100:
+        estado = "sobresaliente"
+        icono = "[OK]"
+    elif cumplimiento_promedio >= 80:
+        estado = "satisfactorio"
+        icono = "[!]"
+    else:
+        estado = "requiere atencion"
+        icono = "[X]"
+
+    analisis = f"""**ANALISIS: {nombre_linea}**
+
+{icono} **Estado:** La linea presenta un cumplimiento {estado} del **{cumplimiento_promedio:.1f}%** con {total_indicadores} indicadores activos.
+
+"""
+
+    # Analizar objetivos
+    if objetivos_data:
+        objetivos_cumplidos = [o for o in objetivos_data if o['cumplimiento'] >= 100]
+        objetivos_criticos = [o for o in objetivos_data if o['cumplimiento'] < 80]
+
+        if objetivos_cumplidos:
+            analisis += f"**Objetivos destacados:** {len(objetivos_cumplidos)} de {len(objetivos_data)} objetivos han alcanzado o superado la meta.\n\n"
+
+        if objetivos_criticos:
+            nombres_criticos = [o['objetivo'][:50] + '...' if len(o['objetivo']) > 50 else o['objetivo'] for o in objetivos_criticos[:2]]
+            analisis += f"**Objetivos a mejorar:** {', '.join(nombres_criticos)}\n\n"
+
+    # Recomendacion
+    if cumplimiento_promedio >= 100:
+        analisis += "**Recomendacion:** Documentar las estrategias exitosas y compartir con otras lineas."
+    elif cumplimiento_promedio >= 80:
+        analisis += "**Recomendacion:** Intensificar esfuerzos en los indicadores cercanos a la meta para alcanzar el 100%."
+    else:
+        analisis += "**Recomendacion:** Revisar y ajustar las estrategias actuales. Considerar reasignar recursos a los objetivos criticos."
+
+    return analisis
+
+
+def generar_analisis_estatico_indicador(nombre_indicador, linea, historico_data, sentido="Creciente"):
+    """
+    Genera un analisis estatico para un indicador especifico.
+
+    Args:
+        nombre_indicador: Nombre del indicador
+        linea: Linea estrategica
+        historico_data: Lista de diccionarios con datos historicos
+        sentido: Sentido del indicador (Creciente o Decreciente)
+
+    Returns:
+        str: Texto del analisis generado
+    """
+    if not historico_data:
+        return f"**{nombre_indicador}**\n\nNo hay datos historicos disponibles para analizar."
+
+    # Obtener ultimo y primer valor
+    ultimo = historico_data[-1] if historico_data else None
+    primero = historico_data[0] if historico_data else None
+
+    if not ultimo or not primero:
+        return f"**{nombre_indicador}**\n\nDatos insuficientes para el analisis."
+
+    cumpl_actual = ultimo.get('cumplimiento', 0)
+    cumpl_inicial = primero.get('cumplimiento', 0)
+    variacion = cumpl_actual - cumpl_inicial
+
+    # Determinar tendencia
+    if variacion > 10:
+        tendencia = "positiva"
+        icono_tendencia = "^"
+    elif variacion < -10:
+        tendencia = "negativa"
+        icono_tendencia = "v"
+    else:
+        tendencia = "estable"
+        icono_tendencia = "-"
+
+    # Determinar estado
+    if cumpl_actual >= 100:
+        estado = "[OK] Meta cumplida"
+    elif cumpl_actual >= 80:
+        estado = "[!] En progreso"
+    else:
+        estado = "[X] Requiere atencion"
+
+    analisis = f"""**ANALISIS: {nombre_indicador[:60]}{'...' if len(nombre_indicador) > 60 else ''}**
+
+**Linea Estrategica:** {linea}
+**Sentido:** {sentido} ({'mayor es mejor' if sentido == 'Creciente' else 'menor es mejor'})
+
+**Estado actual:** {estado} - Cumplimiento: **{cumpl_actual:.1f}%**
+
+**Evolucion ({icono_tendencia} Tendencia {tendencia}):**
+- Linea base ({primero.get('año', 'N/D')}): {cumpl_inicial:.1f}%
+- Actual ({ultimo.get('año', 'N/D')}): {cumpl_actual:.1f}%
+- Variacion: {variacion:+.1f} puntos porcentuales
+
+"""
+
+    # Analisis de brechas
+    if 'meta' in ultimo and 'ejecucion' in ultimo:
+        brecha = ultimo['meta'] - ultimo['ejecucion']
+        if brecha > 0:
+            analisis += f"**Brecha actual:** {abs(brecha):.2f} unidades por debajo de la meta.\n\n"
+        else:
+            analisis += f"**Desempeno:** Supera la meta en {abs(brecha):.2f} unidades.\n\n"
+
+    # Recomendacion
+    if cumpl_actual >= 100:
+        analisis += "**Recomendacion:** Mantener las acciones actuales y documentar las buenas practicas."
+    elif cumpl_actual >= 80 and variacion > 0:
+        analisis += "**Recomendacion:** Continuar con la estrategia actual, la tendencia es favorable."
+    elif variacion < 0:
+        analisis += "**Recomendacion:** Revisar las acciones implementadas, hay una tendencia descendente que requiere correccion."
+    else:
+        analisis += "**Recomendacion:** Intensificar las acciones y revisar los recursos asignados al indicador."
+
+    return analisis
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def generar_analisis_general(metricas_dict, cumplimiento_por_linea):
     """
-    Genera el análisis general del dashboard.
+    Genera el analisis general del dashboard.
+    Usa IA si esta disponible, sino genera analisis estatico.
     """
+    # Primero intentar con IA
+    client = get_gemini_client()
+
+    if client is None:
+        # Usar analisis estatico si no hay API
+        return generar_analisis_estatico_general(metricas_dict, cumplimiento_por_linea)
+
     lineas_texto = "\n".join([
         f"- {item['linea']}: {item['cumplimiento']:.1f}% ({item['indicadores']} indicadores)"
         for item in cumplimiento_por_linea
     ]) if cumplimiento_por_linea else "No hay datos disponibles"
 
-    prompt = f"""Eres un analista estratégico del Politécnico Grancolombiano. Analiza los siguientes datos del Plan Estratégico Institucional (PDI) 2021-2025:
+    prompt = f"""Eres un analista estrategico del Politecnico Grancolombiano. Analiza los siguientes datos del Plan Estrategico Institucional (PDI) 2021-2025:
 
-**Métricas Generales (Año {metricas_dict.get('año_actual', 2025)}):**
+**Metricas Generales (Ano {metricas_dict.get('año_actual', 2025)}):**
 - Cumplimiento promedio general: {metricas_dict.get('cumplimiento_promedio', 0):.1f}%
 - Total de indicadores activos: {metricas_dict.get('total_indicadores', 0)}
-- Indicadores cumplidos (≥100%): {metricas_dict.get('indicadores_cumplidos', 0)}
+- Indicadores cumplidos (>=100%): {metricas_dict.get('indicadores_cumplidos', 0)}
 - Indicadores en progreso (80-99%): {metricas_dict.get('en_progreso', 0)}
 - Indicadores no cumplidos (<80%): {metricas_dict.get('no_cumplidos', 0)}
 
-**Cumplimiento por Línea Estratégica:**
+**Cumplimiento por Linea Estrategica:**
 {lineas_texto}
 
-Genera un RESUMEN EJECUTIVO de máximo 150 palabras que incluya:
+Genera un RESUMEN EJECUTIVO de maximo 150 palabras que incluya:
 1. Estado general del cumplimiento del PDI
-2. Las 2 líneas estratégicas con mejor desempeño
-3. Las líneas que requieren mayor atención
-4. Una conclusión sobre la tendencia general
+2. Las 2 lineas estrategicas con mejor desempeno
+3. Las lineas que requieren mayor atencion
+4. Una conclusion sobre la tendencia general
 
-Usa un tono profesional, conciso y orientado a la acción. Escribe en español."""
+Usa un tono profesional, conciso y orientado a la accion. Escribe en espanol."""
 
-    return generar_analisis_con_ia(prompt)
+    resultado = generar_analisis_con_ia(prompt)
+
+    # Si la API falla, usar analisis estatico
+    if "No se pudo generar" in resultado or "RESOURCE_EXHAUSTED" in resultado:
+        return generar_analisis_estatico_general(metricas_dict, cumplimiento_por_linea)
+
+    return resultado
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def generar_analisis_linea(nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data):
     """
-    Genera análisis para una línea estratégica específica.
+    Genera analisis para una linea estrategica especifica.
+    Usa IA si esta disponible, sino genera analisis estatico.
     """
+    # Primero intentar con IA
+    client = get_gemini_client()
+
+    if client is None:
+        return generar_analisis_estatico_linea(nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data)
+
     objetivos_texto = "\n".join([
         f"- {obj['objetivo']}: {obj['cumplimiento']:.1f}% ({obj['indicadores']} indicadores)"
         for obj in objetivos_data
     ]) if objetivos_data else "No hay datos de objetivos disponibles"
 
-    prompt = f"""Eres un analista estratégico del Politécnico Grancolombiano. Analiza el desempeño de la siguiente línea estratégica del PDI 2021-2025:
+    prompt = f"""Eres un analista estrategico del Politecnico Grancolombiano. Analiza el desempeno de la siguiente linea estrategica del PDI 2021-2025:
 
-**Línea Estratégica: {nombre_linea}**
+**Linea Estrategica: {nombre_linea}**
 
 **Datos Generales:**
 - Total de indicadores: {total_indicadores}
@@ -181,27 +408,39 @@ def generar_analisis_linea(nombre_linea, total_indicadores, cumplimiento_promedi
 **Objetivos y su Cumplimiento:**
 {objetivos_texto}
 
-Genera un ANÁLISIS de máximo 120 palabras que incluya:
-1. Evaluación del estado actual de cumplimiento de la línea
-2. Los objetivos con mejor desempeño (destacados)
-3. Áreas de mejora identificadas
-4. Una recomendación estratégica específica y accionable
+Genera un ANALISIS de maximo 120 palabras que incluya:
+1. Evaluacion del estado actual de cumplimiento de la linea
+2. Los objetivos con mejor desempeno (destacados)
+3. Areas de mejora identificadas
+4. Una recomendacion estrategica especifica y accionable
 
-Usa un tono profesional y enfocado en acciones concretas. Escribe en español."""
+Usa un tono profesional y enfocado en acciones concretas. Escribe en espanol."""
 
-    return generar_analisis_con_ia(prompt)
+    resultado = generar_analisis_con_ia(prompt)
+
+    # Si la API falla, usar analisis estatico
+    if "No se pudo generar" in resultado or "RESOURCE_EXHAUSTED" in resultado:
+        return generar_analisis_estatico_linea(nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data)
+
+    return resultado
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def generar_analisis_indicador(nombre_indicador, linea, descripcion, historico_data, sentido="Creciente"):
     """
-    Genera análisis detallado para un indicador específico.
-    Primero busca en el cache de análisis pre-generados, si no existe genera con API.
+    Genera analisis detallado para un indicador especifico.
+    Primero busca en cache, luego intenta IA, finalmente usa analisis estatico.
     """
     # Primero intentar obtener del cache pre-generado
     analisis_cache = obtener_analisis_cache(nombre_indicador)
     if analisis_cache:
-        return f"📊 **Análisis del Indicador**\n\n{analisis_cache}"
+        return f"**Analisis del Indicador**\n\n{analisis_cache}"
+
+    # Intentar con IA
+    client = get_gemini_client()
+
+    if client is None:
+        return generar_analisis_estatico_indicador(nombre_indicador, linea, historico_data, sentido)
 
     # Si no está en cache, generar con API
     historico_texto = "\n".join([
@@ -238,7 +477,13 @@ Genera un ANALISIS de maximo 100 palabras que incluya:
 
 Se conciso, profesional y enfocado en la accion. Escribe en espanol."""
 
-    return generar_analisis_con_ia(prompt)
+    resultado = generar_analisis_con_ia(prompt)
+
+    # Si la API falla, usar analisis estatico
+    if "No se pudo generar" in resultado or "RESOURCE_EXHAUSTED" in resultado:
+        return generar_analisis_estatico_indicador(nombre_indicador, linea, historico_data, sentido)
+
+    return resultado
 
 
 def preparar_historico_para_analisis(df_indicador):

@@ -131,11 +131,12 @@ def mostrar_pagina():
                 st.info("No hay datos de cascada disponibles.")
 
         with col_semaforo:
-            st.markdown("#### 🚦 Estado de Indicadores")
+            st.markdown("#### Estado de Indicadores")
             fig_semaforo = crear_grafico_semaforo(
                 metricas['indicadores_cumplidos'],
                 metricas['en_progreso'],
-                metricas['no_cumplidos']
+                metricas['no_cumplidos'],
+                metricas.get('stand_by', 0)
             )
             config = {'displayModeBar': False, 'responsive': True}
             st.plotly_chart(fig_semaforo, use_container_width=True, config=config)
@@ -169,39 +170,34 @@ def mostrar_pagina():
             """)
 
     # ============================================================
-    # TAB 2: ANÁLISIS DETALLADO
+    # TAB 2: ANÁLISIS DETALLADO (Simplificado)
     # ============================================================
     with tab_analisis:
-        # Sub-tabs para organizar el análisis
-        subtab_lineas, subtab_ia, subtab_tabla = st.tabs([
-            "📊 Por Línea Estratégica",
-            "🤖 Análisis IA",
-            "📋 Tabla Cascada"
-        ])
+        # Dos columnas: Gráfico de líneas + Análisis IA
+        col_graf, col_analisis = st.columns([1, 1])
 
-        with subtab_lineas:
-            st.markdown("#### Cumplimiento por Línea Estratégica")
+        with col_graf:
+            st.markdown("#### Cumplimiento por Linea Estrategica")
             if not df_lineas.empty:
                 fig_lineas = crear_grafico_lineas(df_lineas)
                 config = {'displayModeBar': True, 'responsive': True}
                 st.plotly_chart(fig_lineas, use_container_width=True, config=config)
 
                 # Tabla compacta debajo
-                st.markdown("**Resumen numérico:**")
                 df_tabla = df_lineas.copy()
                 df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
-                    lambda x: '✅' if x >= 100 else '⚠️' if x >= 80 else '❌'
+                    lambda x: '[OK]' if x >= 100 else '[!]' if x >= 80 else '[X]'
                 )
                 df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(lambda x: f"{x:.1f}%")
                 df_tabla = df_tabla[['Linea', 'Total_Indicadores', 'Cumplimiento', 'Estado']]
-                df_tabla.columns = ['Línea', 'Indicadores', 'Cumplimiento', 'Estado']
-                st.dataframe(df_tabla, use_container_width=True, hide_index=True, height=250)
+                df_tabla.columns = ['Linea', 'Indicadores', 'Cumplimiento', 'Estado']
+                st.dataframe(df_tabla, use_container_width=True, hide_index=True, height=200)
             else:
                 st.info("No hay datos disponibles.")
 
-        with subtab_ia:
-            st.markdown("#### Análisis Inteligente - Resumen Ejecutivo")
-            with st.spinner("Generando análisis..."):
+        with col_analisis:
+            st.markdown("#### Analisis Inteligente - Resumen Ejecutivo")
+            with st.spinner("Generando analisis..."):
                 lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
                 analisis = generar_analisis_general(metricas, lineas_data)
 
@@ -214,37 +210,14 @@ def mostrar_pagina():
                 </div>
                 """, unsafe_allow_html=True)
 
-        with subtab_tabla:
-            st.markdown("#### Vista Completa de Cascada Jerárquica")
+        # Vista de cascada en expander (opcional)
+        with st.expander("Ver desglose jerarquico completo", expanded=False):
             if not df_cascada.empty:
-                # Tabla HTML con jerarquía
                 tabla_html = crear_tabla_cascada_html(df_cascada)
                 import streamlit.components.v1 as components
-                components.html(tabla_html, height=min(len(df_cascada) * 35 + 100, 600), scrolling=True)
+                components.html(tabla_html, height=min(len(df_cascada) * 35 + 100, 500), scrolling=True)
             else:
                 st.info("No hay datos de cascada disponibles.")
-
-            # Metas PDI (si existen)
-            if df_base is not None and 'Meta_PDI' in df_base.columns:
-                with st.expander("🎯 Ver Metas PDI por Línea", expanded=False):
-                    df_año_metas = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
-                    if 'Fuente' in df_año_metas.columns:
-                        df_año_metas = df_año_metas[df_año_metas['Fuente'] == 'Avance']
-
-                    meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
-                    df_año_metas = df_año_metas.copy()
-                    df_año_metas['Meta_PDI'] = df_año_metas['Indicador'].map(meta_pdi_dict)
-
-                    for linea in sorted(df_año_metas['Linea'].dropna().unique()):
-                        df_linea_data = df_año_metas[df_año_metas['Linea'] == linea]
-                        st.markdown(f"**{linea}**")
-                        for objetivo in sorted(df_linea_data['Objetivo'].dropna().unique()):
-                            df_obj_data = df_linea_data[df_linea_data['Objetivo'] == objetivo]
-                            metas_obj = df_obj_data[['Meta_PDI']].dropna().drop_duplicates()
-                            if not metas_obj.empty:
-                                st.markdown(f"- {objetivo}")
-                                for _, row in metas_obj.iterrows():
-                                    st.markdown(f"  - `{row['Meta_PDI']}`")
 
     # ============================================================
     # TAB 3: DATOS Y EXPORTACIÓN

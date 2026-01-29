@@ -1,14 +1,91 @@
 """
-Generador de Informes PDF - Dashboard Estratégico POLI
-Estructura corporativa profesional con énfasis en azul institucional
-Utiliza HTML/CSS + weasyprint para conversión a PDF
+Generador de Informes PDF - Dashboard Estrategico POLI
+Estructura corporativa profesional con enfasis en azul institucional
+Utiliza HTML/CSS + weasyprint para conversion a PDF
 """
 
 import io
 import base64
+import re
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 import pandas as pd
+
+
+def limpiar_texto_pdf(texto):
+    """
+    Limpia el texto para evitar caracteres no soportados por Helvetica en PDF.
+    Reemplaza emojis y caracteres Unicode especiales por texto ASCII equivalente.
+    """
+    if texto is None:
+        return ""
+
+    texto = str(texto)
+
+    # Mapeo de emojis/caracteres especiales a texto ASCII
+    reemplazos = {
+        '⚠️': '[!]',
+        '⚠': '[!]',
+        '✅': '[OK]',
+        '❌': '[X]',
+        '📊': '',
+        '📈': '',
+        '📉': '',
+        '🎯': '',
+        '📋': '',
+        '🔍': '',
+        '📥': '',
+        '🤖': '',
+        '🚦': '',
+        '🌊': '',
+        '📌': '',
+        '🎖️': '',
+        '📄': '',
+        '❓': '[?]',
+        '●': '*',
+        '○': '-',
+        '•': '-',
+        '→': '->',
+        '←': '<-',
+        '↑': '^',
+        '↓': 'v',
+        '≥': '>=',
+        '≤': '<=',
+        '≠': '!=',
+        '±': '+/-',
+        '°': ' grados',
+        '×': 'x',
+        '÷': '/',
+        '—': '-',
+        '–': '-',
+        '"': '"',
+        '"': '"',
+        ''': "'",
+        ''': "'",
+        '…': '...',
+        'á': 'a',
+        'é': 'e',
+        'í': 'i',
+        'ó': 'o',
+        'ú': 'u',
+        'Á': 'A',
+        'É': 'E',
+        'Í': 'I',
+        'Ó': 'O',
+        'Ú': 'U',
+        'ñ': 'n',
+        'Ñ': 'N',
+        'ü': 'u',
+        'Ü': 'U',
+    }
+
+    for original, reemplazo in reemplazos.items():
+        texto = texto.replace(original, reemplazo)
+
+    # Eliminar cualquier otro caracter no ASCII
+    texto = texto.encode('ascii', 'ignore').decode('ascii')
+
+    return texto
 
 # Colores corporativos POLI - Énfasis en Azul
 COLORES_PDF = {
@@ -832,8 +909,8 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
         pdf.set_x(15)
         pdf.set_font('Helvetica', '', 9)
         pdf.set_text_color(33, 37, 41)
-        # Limpiar texto
-        texto_limpio = analisis_texto.replace('**', '').replace('*', '')[:400]
+        # Limpiar texto de caracteres especiales
+        texto_limpio = limpiar_texto_pdf(analisis_texto.replace('**', '').replace('*', ''))[:400]
         pdf.multi_cell(180, 5, texto_limpio)
         pdf.ln(10)
 
@@ -862,7 +939,7 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
             else:
                 pdf.set_fill_color(248, 249, 250)
 
-            linea = str(row.get('Linea', 'N/D'))[:50]
+            linea = limpiar_texto_pdf(str(row.get('Linea', 'N/D')))[:50]
             cumpl = row.get('Cumplimiento', 0)
             total_ind = row.get('Total_Indicadores', 0)
 
@@ -915,13 +992,13 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
             else:
                 pdf.set_fill_color(248, 249, 250)
 
-            indicador = str(row.get('Indicador', 'N/D'))[:45]
+            indicador = limpiar_texto_pdf(str(row.get('Indicador', 'N/D')))[:45]
             meta = row.get('Meta', 'N/D')
             ejec = row.get('Ejecución', row.get('Ejecucion', 'N/D'))
             cumpl = row.get('Cumplimiento', 0)
 
-            meta_str = f"{meta:.2f}" if isinstance(meta, (int, float)) and pd.notna(meta) else str(meta)
-            ejec_str = f"{ejec:.2f}" if isinstance(ejec, (int, float)) and pd.notna(ejec) else str(ejec)
+            meta_str = f"{meta:.2f}" if isinstance(meta, (int, float)) and pd.notna(meta) else limpiar_texto_pdf(str(meta))
+            ejec_str = f"{ejec:.2f}" if isinstance(ejec, (int, float)) and pd.notna(ejec) else limpiar_texto_pdf(str(ejec))
 
             if pd.isna(cumpl):
                 cumpl_str = "N/D"

@@ -234,7 +234,8 @@ def es_objetivo_standby(objetivo):
 def calcular_metricas_generales(df_unificado, año=None):
     """
     Calcula las métricas generales del dashboard.
-    Solo considera registros donde Fuente = 'Avance'.
+    Solo considera registros donde Fuente = 'Avance' y Proyectos = 0.
+    El cumplimiento se calcula como: promedio de indicadores por objetivo, luego promedio de objetivos por línea.
 
     Args:
         df_unificado: DataFrame con datos unificados
@@ -250,6 +251,7 @@ def calcular_metricas_generales(df_unificado, año=None):
             'indicadores_cumplidos': 0,
             'en_progreso': 0,
             'no_cumplidos': 0,
+            'stand_by': 0,
             'total_lineas': 0,
             'año_actual': 2025
         }
@@ -268,13 +270,35 @@ def calcular_metricas_generales(df_unificado, año=None):
     if 'Fuente' in df_año.columns:
         df_año = df_año[df_año['Fuente'] == 'Avance']
 
+    # Filtrar solo indicadores (excluir proyectos: Proyectos = 0)
+    if 'Proyectos' in df_año.columns:
+        df_año = df_año[df_año['Proyectos'] == 0]
+
+    # Identificar indicadores en Stand by (Ejecución = 0 o NaN y Ejecución s = 'Stand by')
+    stand_by = 0
+    if 'Ejecución s' in df_año.columns:
+        df_standby = df_año[df_año['Ejecución s'].astype(str).str.strip().str.lower() == 'stand by']
+        stand_by = df_standby['Indicador'].nunique() if 'Indicador' in df_standby.columns else len(df_standby)
+        # Excluir stand by para el cálculo de cumplimiento
+        df_año = df_año[df_año['Ejecución s'].astype(str).str.strip().str.lower() != 'stand by']
+
     # Omitir registros con cumplimiento vacío
     if 'Cumplimiento' in df_año.columns:
         df_año = df_año[df_año['Cumplimiento'].notna()]
 
-    # Calcular métricas
+    # Calcular cumplimiento jerárquico: indicadores -> objetivos -> líneas
+    cumplimiento_promedio = 0
     if 'Cumplimiento' in df_año.columns and not df_año.empty:
-        cumplimiento_promedio = df_año['Cumplimiento'].mean()
+        if 'Objetivo' in df_año.columns and 'Linea' in df_año.columns:
+            # Paso 1: Promedio de indicadores por objetivo
+            df_por_objetivo = df_año.groupby(['Linea', 'Objetivo'])['Cumplimiento'].mean().reset_index()
+            # Paso 2: Promedio de objetivos por línea
+            df_por_linea = df_por_objetivo.groupby('Linea')['Cumplimiento'].mean().reset_index()
+            # Paso 3: Promedio de líneas = cumplimiento general
+            cumplimiento_promedio = df_por_linea['Cumplimiento'].mean()
+        else:
+            cumplimiento_promedio = df_año['Cumplimiento'].mean()
+
         indicadores_cumplidos = len(df_año[df_año['Cumplimiento'] >= 100])
         en_progreso = len(df_año[(df_año['Cumplimiento'] >= 80) & (df_año['Cumplimiento'] < 100)])
         no_cumplidos = len(df_año[df_año['Cumplimiento'] < 80])
@@ -284,7 +308,7 @@ def calcular_metricas_generales(df_unificado, año=None):
         en_progreso = 0
         no_cumplidos = 0
 
-    # Contar indicadores únicos
+    # Contar indicadores únicos (excluyendo stand by)
     total_indicadores = df_año['Indicador'].nunique() if 'Indicador' in df_año.columns else len(df_año)
 
     # Contar líneas estratégicas
@@ -296,6 +320,7 @@ def calcular_metricas_generales(df_unificado, año=None):
         'indicadores_cumplidos': indicadores_cumplidos,
         'en_progreso': en_progreso,
         'no_cumplidos': no_cumplidos,
+        'stand_by': stand_by,
         'total_lineas': total_lineas,
         'año_actual': año
     }
@@ -388,6 +413,8 @@ def calcular_estado_proyectos(df_unificado, año=None):
 def obtener_cumplimiento_por_linea(df_unificado, año=None):
     """
     Obtiene el cumplimiento promedio por línea estratégica.
+    El cumplimiento se calcula como: promedio de indicadores por objetivo, luego promedio de objetivos.
+    Solo considera indicadores (Proyectos = 0).
     """
     if df_unificado is None or df_unificado.empty:
         return pd.DataFrame()
@@ -397,12 +424,42 @@ def obtener_cumplimiento_por_linea(df_unificado, año=None):
 
     df_año = df_unificado[df_unificado['Año'] == año] if 'Año' in df_unificado.columns else df_unificado
 
+    # Filtrar solo indicadores (excluir proyectos)
+    if 'Proyectos' in df_año.columns:
+        df_año = df_año[df_año['Proyectos'] == 0]
+
+    # Filtrar solo Fuente = 'Avance'
+    if 'Fuente' in df_año.columns:
+        df_año = df_año[df_año['Fuente'] == 'Avance']
+
+    # Excluir Stand by
+    if 'Ejecución s' in df_año.columns:
+        df_año = df_año[df_año['Ejecución s'].astype(str).str.strip().str.lower() != 'stand by']
+
+    # Omitir registros con cumplimiento vacío
+    if 'Cumplimiento' in df_año.columns:
+        df_año = df_año[df_año['Cumplimiento'].notna()]
+
     if 'Linea' in df_año.columns and 'Cumplimiento' in df_año.columns:
-        resumen = df_año.groupby('Linea').agg({
-            'Cumplimiento': 'mean',
-            'Indicador': 'nunique'
-        }).reset_index()
-        resumen.columns = ['Linea', 'Cumplimiento', 'Total_Indicadores']
+        if 'Objetivo' in df_año.columns:
+            # Cálculo jerárquico: indicadores -> objetivos -> línea
+            # Paso 1: Promedio de indicadores por objetivo (por línea)
+            df_por_objetivo = df_año.groupby(['Linea', 'Objetivo'])['Cumplimiento'].mean().reset_index()
+            # Paso 2: Promedio de objetivos por línea
+            resumen = df_por_objetivo.groupby('Linea').agg({
+                'Cumplimiento': 'mean'
+            }).reset_index()
+            # Agregar conteo de indicadores únicos
+            indicadores_por_linea = df_año.groupby('Linea')['Indicador'].nunique().reset_index()
+            indicadores_por_linea.columns = ['Linea', 'Total_Indicadores']
+            resumen = resumen.merge(indicadores_por_linea, on='Linea', how='left')
+        else:
+            resumen = df_año.groupby('Linea').agg({
+                'Cumplimiento': 'mean',
+                'Indicador': 'nunique'
+            }).reset_index()
+            resumen.columns = ['Linea', 'Cumplimiento', 'Total_Indicadores']
+
         resumen['Cumplimiento'] = resumen['Cumplimiento'].round(1)
         resumen['Color'] = resumen['Cumplimiento'].apply(obtener_color_semaforo)
         return resumen.sort_values('Cumplimiento', ascending=False)
