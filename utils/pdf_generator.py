@@ -1043,7 +1043,8 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
     pdf.set_text_color(100, 100, 100)
     pdf.cell(0, 5, f'Dashboard Estrategico POLI - PDI 2021-{año}', 0, 1, 'C')
 
-    return pdf.output()
+    # pdf.output() devuelve bytearray, convertir a bytes para Streamlit
+    return bytes(pdf.output())
 
 
 def generar_pdf(html_content: str) -> bytes:

@@ -402,11 +402,20 @@ def calcular_estado_proyectos(df_unificado, año=None):
     # Contar por estado
     conteo = df_proyectos['Estado'].value_counts()
 
+    finalizados = int(conteo.get('Finalizado', 0))
+    en_ejecucion = int(conteo.get('En ejecución', 0))
+    stand_by = int(conteo.get('Stand by', 0))
+    sin_clasificar = int(conteo.get('Sin clasificar', 0))
+
+    # Total = suma de estados mostrados (para consistencia con el gráfico)
+    total = finalizados + en_ejecucion + stand_by + sin_clasificar
+
     return {
-        'finalizados': int(conteo.get('Finalizado', 0)),
-        'en_ejecucion': int(conteo.get('En ejecución', 0)),
-        'stand_by': int(conteo.get('Stand by', 0)),
-        'total_proyectos': len(df_proyectos)
+        'finalizados': finalizados,
+        'en_ejecucion': en_ejecucion,
+        'stand_by': stand_by,
+        'sin_clasificar': sin_clasificar,
+        'total_proyectos': total
     }
 
 
@@ -623,7 +632,7 @@ def obtener_lista_objetivos(df_unificado, linea=None):
     return []
 
 
-def obtener_cumplimiento_cascada(df_unificado, df_base, año=None, max_niveles=4):
+def obtener_cumplimiento_cascada(df_unificado, df_base, año=None, max_niveles=4, filtro_tipo='indicadores'):
     """
     Obtiene el cumplimiento en cascada de hasta 4 niveles:
     1. Por Línea Estratégica
@@ -639,6 +648,7 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None, max_niveles=4
         df_base: DataFrame con metadatos (Meta_PDI)
         año: Año a filtrar (opcional)
         max_niveles: Número máximo de niveles a incluir (1-4, default 4)
+        filtro_tipo: 'indicadores' (Proyectos=0), 'proyectos' (Proyectos=1), 'todos'
 
     Returns:
         DataFrame con estructura jerárquica de cumplimiento
@@ -660,6 +670,14 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None, max_niveles=4
     if 'Fuente' in df_año.columns:
         df_año = df_año[df_año['Fuente'] == 'Avance']
 
+    # Filtrar por tipo (indicadores, proyectos, todos)
+    if 'Proyectos' in df_año.columns:
+        if filtro_tipo == 'indicadores':
+            df_año = df_año[df_año['Proyectos'] == 0]
+        elif filtro_tipo == 'proyectos':
+            df_año = df_año[df_año['Proyectos'] == 1]
+        # Si es 'todos', no filtrar
+
     # Omitir registros con cumplimiento vacío
     if 'Cumplimiento' in df_año.columns:
         df_año = df_año[df_año['Cumplimiento'].notna()]
@@ -679,7 +697,15 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None, max_niveles=4
     if 'Linea' in df_año.columns:
         for linea in sorted(df_año['Linea'].dropna().unique()):
             df_linea = df_año[df_año['Linea'] == linea]
-            cumpl_linea = df_linea['Cumplimiento'].mean() if 'Cumplimiento' in df_linea.columns else 0
+
+            # Calcular cumplimiento jerárquico: promedio de objetivos, no de indicadores
+            if 'Objetivo' in df_linea.columns and df_linea['Objetivo'].notna().any():
+                # Primero calcular promedio por objetivo
+                cumpl_por_objetivo = df_linea.groupby('Objetivo')['Cumplimiento'].mean()
+                # Luego promedio de los objetivos = cumplimiento de la línea
+                cumpl_linea = cumpl_por_objetivo.mean() if len(cumpl_por_objetivo) > 0 else 0
+            else:
+                cumpl_linea = df_linea['Cumplimiento'].mean() if 'Cumplimiento' in df_linea.columns else 0
 
             # Nivel 1: Línea
             cascada.append({

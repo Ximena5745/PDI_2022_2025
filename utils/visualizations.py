@@ -410,7 +410,7 @@ def crear_grafico_semaforo(indicadores_cumplidos, en_progreso, no_cumplidos, sta
     return fig
 
 
-def crear_grafico_proyectos(finalizados, en_ejecucion, stand_by):
+def crear_grafico_proyectos(finalizados, en_ejecucion, stand_by, sin_clasificar=0):
     """
     Crea un gráfico de dona mostrando la distribución de proyectos por estado.
 
@@ -418,6 +418,7 @@ def crear_grafico_proyectos(finalizados, en_ejecucion, stand_by):
         finalizados: Cantidad de proyectos con Ejecución = 100%
         en_ejecucion: Cantidad de proyectos con Ejecución > 0% y < 100%
         stand_by: Cantidad de proyectos en Stand by
+        sin_clasificar: Cantidad de proyectos sin clasificar (opcional)
 
     Returns:
         Figura de Plotly
@@ -426,6 +427,12 @@ def crear_grafico_proyectos(finalizados, en_ejecucion, stand_by):
     values = [finalizados, en_ejecucion, stand_by]
     colors = [COLORS['success'], COLORS['warning'], COLORS['standby']]
 
+    # Agregar sin clasificar si hay proyectos en ese estado
+    if sin_clasificar > 0:
+        labels.append('Sin clasificar')
+        values.append(sin_clasificar)
+        colors.append(COLORS['gray'])
+
     total = sum(values)
 
     # Crear texto personalizado para mostrar dentro y fuera
@@ -433,6 +440,8 @@ def crear_grafico_proyectos(finalizados, en_ejecucion, stand_by):
     for label, value in zip(labels, values):
         pct = (value / total * 100) if total > 0 else 0
         custom_text.append(f"{value}<br>{pct:.1f}%")
+
+    pull_values = [0.02] * len(values)
 
     fig = go.Figure(data=[go.Pie(
         labels=labels,
@@ -444,7 +453,7 @@ def crear_grafico_proyectos(finalizados, en_ejecucion, stand_by):
         textposition='outside',
         textfont=dict(size=10),
         insidetextorientation='horizontal',
-        pull=[0.02, 0.02, 0.02],  # Separar ligeramente los segmentos
+        pull=pull_values,
         hovertemplate='<b>%{label}</b><br>Proyectos: %{value}<br>Porcentaje: %{percent}<extra></extra>'
     )])
 

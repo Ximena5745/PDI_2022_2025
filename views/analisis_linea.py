@@ -242,10 +242,15 @@ def mostrar_pagina():
                 fig_proyectos = crear_grafico_proyectos(
                     estado_proyectos_linea['finalizados'],
                     estado_proyectos_linea['en_ejecucion'],
-                    estado_proyectos_linea['stand_by']
+                    estado_proyectos_linea['stand_by'],
+                    estado_proyectos_linea.get('sin_clasificar', 0)
                 )
                 st.plotly_chart(fig_proyectos, use_container_width=True, config={'displayModeBar': False})
-                st.info(f"📋 **{estado_proyectos_linea['total_proyectos']}** Proyectos | **{estado_proyectos_linea['finalizados']}** Finalizados | **{estado_proyectos_linea['en_ejecucion']}** En Ejecución | **{estado_proyectos_linea['stand_by']}** Stand by")
+
+                resumen_proy = f"📋 **{estado_proyectos_linea['total_proyectos']}** Proyectos | **{estado_proyectos_linea['finalizados']}** Finalizados | **{estado_proyectos_linea['en_ejecucion']}** En Ejecución | **{estado_proyectos_linea['stand_by']}** Stand by"
+                if estado_proyectos_linea.get('sin_clasificar', 0) > 0:
+                    resumen_proy += f" | **{estado_proyectos_linea['sin_clasificar']}** Sin clasificar"
+                st.info(resumen_proy)
 
     # ============================================================
     # TAB 2: ANÁLISIS DETALLADO (Simplificado)

@@ -123,12 +123,30 @@ def mostrar_pagina():
 
         with col_cascada:
             st.markdown("#### 🌊 Cumplimiento en Cascada")
-            if not df_cascada.empty:
-                fig_cascada = crear_grafico_cascada(df_cascada)
+
+            # Selector para filtrar indicadores/proyectos/todos
+            filtro_cascada = st.radio(
+                "Filtrar por:",
+                ["Indicadores", "Proyectos", "Todos"],
+                horizontal=True,
+                key="filtro_cascada_dashboard",
+                help="Indicadores: métricas de gestión | Proyectos: iniciativas específicas"
+            )
+
+            # Mapear selección a parámetro
+            filtro_map = {"Indicadores": "indicadores", "Proyectos": "proyectos", "Todos": "todos"}
+            df_cascada_filtrado = obtener_cumplimiento_cascada(
+                df_unificado, df_base, año_actual,
+                max_niveles=2,
+                filtro_tipo=filtro_map[filtro_cascada]
+            )
+
+            if not df_cascada_filtrado.empty:
+                fig_cascada = crear_grafico_cascada(df_cascada_filtrado)
                 config = {'displayModeBar': False, 'responsive': True}
                 st.plotly_chart(fig_cascada, use_container_width=True, config=config)
             else:
-                st.info("No hay datos de cascada disponibles.")
+                st.info(f"No hay datos de {filtro_cascada.lower()} disponibles.")
 
         with col_semaforo:
             st.markdown("#### Estado de Indicadores")
@@ -153,11 +171,17 @@ def mostrar_pagina():
                 fig_proyectos = crear_grafico_proyectos(
                     estado_proyectos['finalizados'],
                     estado_proyectos['en_ejecucion'],
-                    estado_proyectos['stand_by']
+                    estado_proyectos['stand_by'],
+                    estado_proyectos.get('sin_clasificar', 0)
                 )
                 config = {'displayModeBar': False, 'responsive': True}
                 st.plotly_chart(fig_proyectos, use_container_width=True, config=config)
-                st.info(f"📋 **{estado_proyectos['total_proyectos']}** Proyectos | **{estado_proyectos['finalizados']}** Finalizados | **{estado_proyectos['en_ejecucion']}** En Ejecución | **{estado_proyectos['stand_by']}** Stand by")
+
+                # Construir texto de resumen
+                resumen_proy = f"📋 **{estado_proyectos['total_proyectos']}** Proyectos | **{estado_proyectos['finalizados']}** Finalizados | **{estado_proyectos['en_ejecucion']}** En Ejecución | **{estado_proyectos['stand_by']}** Stand by"
+                if estado_proyectos.get('sin_clasificar', 0) > 0:
+                    resumen_proy += f" | **{estado_proyectos['sin_clasificar']}** Sin clasificar"
+                st.info(resumen_proy)
 
         # Interpretación compacta
         with st.expander("📌 ¿Cómo interpretar este gráfico?", expanded=False):
