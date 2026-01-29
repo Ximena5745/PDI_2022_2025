@@ -5,7 +5,8 @@
       "Bash(python:*)",
       "Bash(del temp_dataset.xlsx)",
       "Bash(cmd /c \"cd /d c:\\\\Users\\\\ximen\\\\OneDrive\\\\Proyectos_DS\\\\PDI_2022_2025 && copy Data\\\\Dataset_Unificado.xlsx temp_dataset.xlsx\")",
-      "Bash(cmd /c \"cd /d c:\\\\Users\\\\ximen\\\\OneDrive\\\\Proyectos_DS\\\\PDI_2022_2025 && Scripts\\\\pip.exe list | findstr streamlit\")"
+      "Bash(cmd /c \"cd /d c:\\\\Users\\\\ximen\\\\OneDrive\\\\Proyectos_DS\\\\PDI_2022_2025 && Scripts\\\\pip.exe list | findstr streamlit\")",
+      "Bash(streamlit run:*)"
     ]
   }
 }
