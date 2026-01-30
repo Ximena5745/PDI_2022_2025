@@ -52,9 +52,10 @@ def mostrar_pagina():
     # Calcular métricas generales
     año_actual = 2025
     if 'Año' in df_unificado.columns:
-        # Limitar a 2025 máximo
-        año_max = int(df_unificado['Año'].max())
-        año_actual = min(año_max, 2025)
+        año_actual = int(df_unificado['Año'].max())
+
+    # Mostrar cortes en los títulos como 'Diciembre 2025' (fijo)
+    display_corte = 2025
 
     metricas = calcular_metricas_generales(df_unificado, año_actual)
     metricas_anterior = calcular_metricas_generales(df_unificado, año_actual - 1)
@@ -162,7 +163,7 @@ def mostrar_pagina():
             st.plotly_chart(fig_semaforo, use_container_width=True, config=config)
 
             # Info compacta
-            st.info(f"📌 **{metricas['total_lineas']}** Líneas Estratégicas | Corte: **Diciembre {año_actual}**")
+            st.info(f"📌 **{metricas['total_lineas']}** Líneas Estratégicas | Corte: **Diciembre {display_corte}**")
 
         # Gráfico de proyectos en fila separada
         if estado_proyectos['total_proyectos'] > 0:
@@ -462,6 +463,6 @@ def mostrar_pagina():
     <div style="text-align: center; color: {COLORS['gray']}; font-size: 11px; padding: 10px; margin-top: 20px;">
         <strong>Semáforo:</strong> 🟢 ≥100% | 🟡 80-99% | 🔴 <80% |
         <strong>Línea Base:</strong> 2021 |
-        <strong>Corte:</strong> Diciembre {año_actual}
+        <strong>Corte:</strong> Diciembre {display_corte}
     </div>
     """, unsafe_allow_html=True)

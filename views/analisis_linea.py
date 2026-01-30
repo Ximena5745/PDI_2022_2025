@@ -51,9 +51,10 @@ def mostrar_pagina():
     # Año de análisis
     año_actual = 2025
     if 'Año' in df_unificado.columns:
-        # Limitar a 2025 máximo
-        año_max = int(df_unificado['Año'].max())
-        año_actual = min(año_max, 2025)
+        año_actual = int(df_unificado['Año'].max())
+
+    # Mostrar cortes en los títulos como 'Diciembre 2025' (fijo)
+    display_corte = 2025
 
     # Selector de línea estratégica (siempre visible)
     lineas_disponibles = []
@@ -558,6 +559,6 @@ def mostrar_pagina():
     <div style="text-align: center; color: {COLORS['gray']}; font-size: 11px; padding: 10px; margin-top: 20px;">
         <strong>Semáforo:</strong> 🟢 ≥100% | 🟡 80-99% | 🔴 <80% |
         <strong>Línea:</strong> {linea_seleccionada} |
-        <strong>Corte:</strong> Diciembre {año_actual}
+        <strong>Corte:</strong> Diciembre {display_corte}
     </div>
     """, unsafe_allow_html=True)
