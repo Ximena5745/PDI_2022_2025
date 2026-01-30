@@ -998,9 +998,6 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
     pdf.set_fill_color(25, 118, 210)  # Azul institucional claro
     pdf.rect(0, 200, 210, 97, 'F')
 
-    # Barra decorativa diagonal (opcional, agrega dinamismo)
-    pdf.set_fill_color(255, 255, 255, 30)  # Blanco semi-transparente
-
     # Logo del Poli (texto estilizado)
     # NOTA: Reemplazar con imagen real del logo usando: pdf.image('logo_poli.png', x, y, w)
     pdf.set_text_color(255, 255, 255)
@@ -1024,9 +1021,8 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
     pdf.set_font('Helvetica', '', 14)
     pdf.cell(0, 8, 'Plan de Desarrollo Institucional', 0, 1, 'C')
 
-    # Periodo destacado con recuadro
+    # Periodo destacado
     pdf.set_y(185)
-    pdf.set_fill_color(255, 255, 255, 25)  # Fondo semi-transparente
     pdf.set_font('Helvetica', 'B', 16)
     pdf.cell(0, 12, f'Periodo 2021-{año}', 0, 1, 'C')
 
@@ -1040,7 +1036,7 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
 
     # Barra inferior decorativa
     pdf.set_y(270)
-    pdf.set_fill_color(0, 0, 0, 40)  # Negro semi-transparente
+    pdf.set_fill_color(0, 30, 80)  # Azul oscuro
     pdf.rect(0, 270, 210, 27, 'F')
     pdf.set_font('Helvetica', 'I', 8)
     pdf.set_text_color(255, 255, 255)

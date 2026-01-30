@@ -311,13 +311,14 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
             ),
             yaxis=dict(
                 title="",
-                tickfont=dict(size=11),
-                automargin=True
+                tickfont=dict(size=10),
+                automargin=True,
+                tickmode='linear'
             ),
             height=altura,
             plot_bgcolor='white',
             paper_bgcolor='white',
-            margin=dict(l=250, r=100, t=60, b=40),
+            margin=dict(l=300, r=100, t=60, b=40),  # Aumentado margen izquierdo para labels completos
             showlegend=False,
             autosize=True
         )

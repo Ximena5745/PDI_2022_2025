@@ -210,15 +210,53 @@ def mostrar_pagina():
                 config = {'displayModeBar': True, 'responsive': True}
                 st.plotly_chart(fig_lineas, use_container_width=True, config=config)
 
-                # Tabla compacta debajo
+                # Tabla compacta debajo con mejor visualización
                 df_tabla = df_lineas.copy()
-                df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(
-                    lambda x: '[OK]' if x >= 100 else '[!]' if x >= 80 else '[X]'
-                )
+
+                # Agregar columna de estado con mejor formato
+                def get_estado_badge(cumpl):
+                    if cumpl >= 100:
+                        return '✅ Cumple'
+                    elif cumpl >= 80:
+                        return '⚠️ Alerta'
+                    else:
+                        return '❌ Crítico'
+
+                df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(get_estado_badge)
+
+                # Formatear cumplimiento
+                cumpl_valores = df_tabla['Cumplimiento'].copy()
                 df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(lambda x: f"{x:.1f}%")
+
+                # Seleccionar y renombrar columnas
                 df_tabla = df_tabla[['Linea', 'Total_Indicadores', 'Cumplimiento', 'Estado']]
-                df_tabla.columns = ['Linea', 'Indicadores', 'Cumplimiento', 'Estado']
-                st.dataframe(df_tabla, use_container_width=True, hide_index=True, height=200)
+                df_tabla.columns = ['Línea Estratégica', 'Indicadores', '% Cumplimiento', 'Estado']
+
+                # Mostrar con configuración mejorada
+                st.dataframe(
+                    df_tabla,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=250,
+                    column_config={
+                        "Línea Estratégica": st.column_config.TextColumn(
+                            "Línea Estratégica",
+                            width="large",
+                        ),
+                        "Indicadores": st.column_config.NumberColumn(
+                            "Indicadores",
+                            width="small",
+                        ),
+                        "% Cumplimiento": st.column_config.TextColumn(
+                            "% Cumplimiento",
+                            width="medium",
+                        ),
+                        "Estado": st.column_config.TextColumn(
+                            "Estado",
+                            width="medium",
+                        ),
+                    }
+                )
             else:
                 st.info("No hay datos disponibles.")
 
