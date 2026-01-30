@@ -281,13 +281,17 @@ def mostrar_pagina():
                 analisis_pdf = ""
 
             try:
+                # Generar cascada completa para el PDF (todos los niveles)
+                df_cascada_pdf = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=4)
+
                 pdf_bytes = exportar_informe_pdf(
                     metricas=metricas,
                     df_lineas=df_lineas,
                     df_indicadores=df_año_pdf,
                     analisis_texto=analisis_pdf,
                     figuras=None,  # Sin gráficos por ahora (requiere kaleido)
-                    año=año_actual
+                    año=año_actual,
+                    df_cascada=df_cascada_pdf
                 )
 
                 st.download_button(

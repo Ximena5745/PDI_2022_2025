@@ -124,54 +124,69 @@ def obtener_css_corporativo() -> str:
     }}
 
     /* ============================================
-       PORTADA
+       PORTADA MEJORADA
     ============================================ */
     .portada {{
         text-align: center;
         padding: 60px 40px;
-        background-color: {COLORES_PDF['primary']};
+        /* Gradiente de azul oscuro a azul claro */
+        background: linear-gradient(180deg, {COLORES_PDF['primary']} 0%, {COLORES_PDF['secondary']} 50%, {COLORES_PDF['accent']} 100%);
         color: white;
         margin: -2cm -1.5cm 0 -1.5cm;
-        padding-top: 120px;
-        padding-bottom: 120px;
+        padding-top: 100px;
+        padding-bottom: 100px;
+        position: relative;
+        min-height: 27cm;
     }}
 
     .portada-logo {{
-        font-size: 60pt;
-        margin-bottom: 30px;
+        font-size: 72pt;
+        font-weight: bold;
+        margin-bottom: 10px;
+        letter-spacing: 8px;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
     }}
 
     .portada-titulo {{
-        font-size: 26pt;
+        font-size: 32pt;
         font-weight: bold;
         margin-bottom: 15px;
+        margin-top: 50px;
         text-transform: uppercase;
-        letter-spacing: 2px;
+        letter-spacing: 4px;
+        line-height: 1.2;
     }}
 
     .portada-subtitulo {{
-        font-size: 14pt;
-        margin-bottom: 30px;
+        font-size: 16pt;
+        margin-bottom: 35px;
+        font-weight: 300;
+        opacity: 0.95;
     }}
 
     .portada-linea {{
-        width: 100px;
-        height: 3px;
+        width: 120px;
+        height: 4px;
         background-color: white;
-        margin: 20px auto;
+        margin: 25px auto;
+        opacity: 0.7;
     }}
 
     .portada-fecha {{
-        font-size: 11pt;
-        margin-top: 30px;
+        font-size: 12pt;
+        margin-top: 35px;
+        font-weight: 300;
     }}
 
     .portada-periodo {{
-        background-color: {COLORES_PDF['secondary']};
-        padding: 12px 30px;
-        font-size: 12pt;
-        margin-top: 15px;
+        background-color: rgba(255, 255, 255, 0.15);
+        border: 2px solid white;
+        padding: 15px 40px;
+        font-size: 14pt;
+        font-weight: bold;
+        margin-top: 20px;
         display: inline-block;
+        letter-spacing: 2px;
     }}
 
     /* ============================================
@@ -439,15 +454,22 @@ def obtener_css_corporativo() -> str:
 
 
 def generar_portada(titulo: str, subtitulo: str, periodo: str, fecha: str) -> str:
-    """Genera el HTML de la portada del informe."""
+    """Genera el HTML de la portada del informe con diseño mejorado."""
     return f"""
     <div class="portada">
+        <!-- Logo Poli (Nota: Reemplazar con <img> real si se tiene el archivo) -->
         <div class="portada-logo">POLI</div>
+        <div style="font-size: 10pt; margin-bottom: 5px;">POLITECNICO GRANCOLOMBIANO</div>
+        <div style="font-size: 8pt; margin-bottom: 40px; opacity: 0.9;">INSTITUCION UNIVERSITARIA</div>
+
         <div class="portada-titulo">{titulo}</div>
         <div class="portada-subtitulo">{subtitulo}</div>
         <div class="portada-linea">&nbsp;</div>
         <div class="portada-periodo">{periodo}</div>
         <div class="portada-fecha">Generado el {fecha}</div>
+        <div style="position: absolute; bottom: 30px; left: 0; right: 0; text-align: center; font-size: 9pt; opacity: 0.8;">
+            Dashboard Estrategico - Sistema de Monitoreo PDI
+        </div>
     </div>
     <div class="page-break"></div>
     """
@@ -576,7 +598,7 @@ def generar_tabla_indicadores(df_indicadores: pd.DataFrame, titulo: str = "Detal
             badge = '<span class="badge badge-info">N/D</span>'
             cumpl_str = "N/D"
         elif cumpl >= 100:
-            badge = '<span class="badge badge-success">OK</span>'
+            badge = '<span class="badge badge-success">Cumple</span>'
             cumpl_str = f"{cumpl:.1f}%"
         elif cumpl >= 80:
             badge = '<span class="badge badge-warning">!</span>'
@@ -781,10 +803,110 @@ def generar_informe_html(
     return html
 
 
+def generar_seccion_jerarquica_fpdf(pdf, df_cascada: pd.DataFrame) -> None:
+    """
+    Genera sección jerárquica en PDF con estructura:
+    Línea -> Objetivo -> Meta -> Indicadores
+
+    Args:
+        pdf: Instancia de PDFInforme
+        df_cascada: DataFrame con estructura jerárquica de cumplimiento
+    """
+    if df_cascada is None or df_cascada.empty:
+        return
+
+    pdf.add_page()
+    pdf.set_text_color(0, 61, 130)
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.cell(0, 10, 'Estructura Jerarquica del PDI', 0, 1, 'L')
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(10)
+
+    linea_actual = None
+    objetivo_actual = None
+    meta_actual = None
+
+    for _, row in df_cascada.iterrows():
+        nivel = int(row['Nivel'])
+        cumpl = row.get('Cumplimiento', 0)
+
+        # Determinar color según cumplimiento
+        if cumpl >= 100:
+            color = (40, 167, 69)  # Verde
+        elif cumpl >= 80:
+            color = (255, 193, 7)  # Amarillo
+        else:
+            color = (220, 53, 69)  # Rojo
+
+        # Nivel 1: Línea Estratégica
+        if nivel == 1:
+            linea_actual = limpiar_texto_pdf(str(row['Linea']))
+            # Agregar separador si no es la primera línea
+            if pdf.get_y() > 30:
+                pdf.ln(5)
+                pdf.set_draw_color(200, 200, 200)
+                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                pdf.ln(5)
+
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.set_text_color(0, 61, 130)
+            pdf.cell(150, 8, linea_actual[:70], 0, 0, 'L')
+            pdf.set_text_color(*color)
+            pdf.cell(40, 8, f'{cumpl:.1f}%', 0, 1, 'R')
+
+        # Nivel 2: Objetivo
+        elif nivel == 2:
+            objetivo_actual = limpiar_texto_pdf(str(row['Objetivo']))
+            pdf.ln(3)
+            pdf.set_font('Helvetica', 'B', 11)
+            pdf.set_text_color(0, 86, 179)
+            pdf.set_x(15)
+            pdf.cell(5, 6, '-', 0, 0, 'L')
+            pdf.cell(140, 6, objetivo_actual[:65], 0, 0, 'L')
+            pdf.set_text_color(*color)
+            pdf.cell(40, 6, f'{cumpl:.1f}%', 0, 1, 'R')
+
+        # Nivel 3: Meta PDI
+        elif nivel == 3:
+            meta_actual = limpiar_texto_pdf(str(row['Meta_PDI']))
+            if meta_actual and meta_actual != 'N/D':
+                pdf.set_font('Helvetica', 'I', 9)
+                pdf.set_text_color(100, 100, 100)
+                pdf.set_x(25)
+                pdf.cell(5, 5, '*', 0, 0, 'L')
+                pdf.cell(130, 5, f'Meta: {meta_actual[:60]}', 0, 0, 'L')
+                pdf.set_text_color(*color)
+                pdf.cell(40, 5, f'{cumpl:.1f}%', 0, 1, 'R')
+
+        # Nivel 4: Indicador
+        elif nivel == 4:
+            indicador = limpiar_texto_pdf(str(row['Indicador']))
+            pdf.set_font('Helvetica', '', 8)
+            pdf.set_text_color(80, 80, 80)
+            pdf.set_x(35)
+            pdf.cell(5, 5, '>', 0, 0, 'L')
+            pdf.cell(120, 5, indicador[:58], 0, 0, 'L')
+            pdf.set_text_color(*color)
+            pdf.cell(40, 5, f'{cumpl:.1f}%', 0, 1, 'R')
+
+        # Verificar si necesita nueva página
+        if pdf.get_y() > 270:
+            pdf.add_page()
+
+
 def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
-                     df_indicadores: pd.DataFrame, analisis_texto: str = "", año: int = 2025) -> bytes:
+                     df_indicadores: pd.DataFrame, analisis_texto: str = "", año: int = 2025,
+                     df_cascada: pd.DataFrame = None) -> bytes:
     """
     Genera PDF usando fpdf2 (ligero y compatible con Streamlit Cloud).
+
+    Args:
+        metricas: Métricas generales del PDI
+        df_lineas: DataFrame con cumplimiento por línea
+        df_indicadores: DataFrame con detalle de indicadores
+        analisis_texto: Análisis IA (opcional)
+        año: Año del informe
+        df_cascada: DataFrame con estructura jerárquica (opcional)
     """
     from fpdf import FPDF
 
@@ -808,32 +930,66 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
 
     pdf = PDFInforme()
 
-    # ===== PORTADA =====
+    # ===== PORTADA MEJORADA =====
     pdf.add_page()
-    pdf.set_fill_color(0, 61, 130)  # Azul institucional
-    pdf.rect(0, 0, 210, 297, 'F')
 
+    # Fondo con gradiente simulado (múltiples rectángulos)
+    # Azul oscuro arriba, azul medio abajo
+    pdf.set_fill_color(0, 61, 130)  # Azul institucional oscuro
+    pdf.rect(0, 0, 210, 100, 'F')
+    pdf.set_fill_color(0, 86, 179)  # Azul institucional medio
+    pdf.rect(0, 100, 210, 100, 'F')
+    pdf.set_fill_color(25, 118, 210)  # Azul institucional claro
+    pdf.rect(0, 200, 210, 97, 'F')
+
+    # Barra decorativa diagonal (opcional, agrega dinamismo)
+    pdf.set_fill_color(255, 255, 255, 30)  # Blanco semi-transparente
+
+    # Logo del Poli (texto estilizado)
+    # NOTA: Reemplazar con imagen real del logo usando: pdf.image('logo_poli.png', x, y, w)
     pdf.set_text_color(255, 255, 255)
-    pdf.set_font('Helvetica', 'B', 48)
-    pdf.set_y(80)
-    pdf.cell(0, 20, 'POLI', 0, 1, 'C')
+    pdf.set_font('Helvetica', 'B', 60)
+    pdf.set_y(50)
+    pdf.cell(0, 25, 'POLI', 0, 1, 'C')
 
-    pdf.set_font('Helvetica', 'B', 24)
-    pdf.cell(0, 15, 'INFORME ESTRATEGICO', 0, 1, 'C')
+    pdf.set_font('Helvetica', '', 10)
+    pdf.cell(0, 5, 'POLITECNICO GRANCOLOMBIANO', 0, 1, 'C')
+    pdf.set_font('Helvetica', '', 8)
+    pdf.cell(0, 5, 'INSTITUCION UNIVERSITARIA', 0, 1, 'C')
 
-    pdf.set_font('Helvetica', '', 16)
-    pdf.cell(0, 10, 'Plan de Desarrollo Institucional', 0, 1, 'C')
+    # Título principal
+    pdf.set_y(120)
+    pdf.set_font('Helvetica', 'B', 28)
+    pdf.cell(0, 15, 'INFORME', 0, 1, 'C')
+    pdf.cell(0, 15, 'ESTRATEGICO', 0, 1, 'C')
 
-    pdf.set_y(160)
-    pdf.set_fill_color(0, 86, 179)
-    pdf.rect(60, 155, 90, 15, 'F')
-    pdf.set_font('Helvetica', 'B', 12)
-    pdf.cell(0, 10, f'Periodo 2021-{año}', 0, 1, 'C')
+    # Subtítulo
+    pdf.set_y(165)
+    pdf.set_font('Helvetica', '', 14)
+    pdf.cell(0, 8, 'Plan de Desarrollo Institucional', 0, 1, 'C')
 
-    pdf.set_y(200)
-    pdf.set_font('Helvetica', '', 11)
-    fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
-    pdf.cell(0, 10, f'Generado el {fecha}', 0, 1, 'C')
+    # Periodo destacado con recuadro
+    pdf.set_y(185)
+    pdf.set_fill_color(255, 255, 255, 25)  # Fondo semi-transparente
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.cell(0, 12, f'Periodo 2021-{año}', 0, 1, 'C')
+
+    # Fecha de generación
+    pdf.set_y(230)
+    pdf.set_font('Helvetica', '', 10)
+    fecha = datetime.now().strftime("%d de %B de %Y")
+    pdf.cell(0, 8, 'Generado el', 0, 1, 'C')
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.cell(0, 6, fecha, 0, 1, 'C')
+
+    # Barra inferior decorativa
+    pdf.set_y(270)
+    pdf.set_fill_color(0, 0, 0, 40)  # Negro semi-transparente
+    pdf.rect(0, 270, 210, 27, 'F')
+    pdf.set_font('Helvetica', 'I', 8)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_y(280)
+    pdf.cell(0, 5, 'Dashboard Estrategico - Sistema de Monitoreo PDI', 0, 1, 'C')
 
     # ===== RESUMEN EJECUTIVO =====
     pdf.add_page()
@@ -966,6 +1122,11 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
                 pdf.set_text_color(220, 53, 69)
             pdf.cell(30, 7, estado, 1, 1, 'C', True)
 
+    # ===== ESTRUCTURA JERARQUICA =====
+    # Generar sección con jerarquía Línea > Objetivo > Meta > Indicadores
+    if df_cascada is not None and not df_cascada.empty:
+        generar_seccion_jerarquica_fpdf(pdf, df_cascada)
+
     # ===== INDICADORES =====
     pdf.add_page()
     pdf.set_text_color(0, 61, 130)
@@ -1005,7 +1166,7 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
                 estado = "N/D"
             else:
                 cumpl_str = f"{cumpl:.1f}%"
-                estado = "OK" if cumpl >= 100 else "!" if cumpl >= 80 else "X"
+                estado = "Cumple" if cumpl >= 100 else "!" if cumpl >= 80 else "X"
 
             pdf.set_text_color(33, 37, 41)
             pdf.cell(80, 6, indicador, 1, 0, 'L', True)
@@ -1088,7 +1249,8 @@ def exportar_informe_pdf(
     df_indicadores: pd.DataFrame,
     analisis_texto: str = "",
     figuras: List[tuple] = None,
-    año: int = 2025
+    año: int = 2025,
+    df_cascada: pd.DataFrame = None
 ) -> bytes:
     """
     Función principal para exportar el informe completo a PDF.
@@ -1101,6 +1263,7 @@ def exportar_informe_pdf(
         analisis_texto: Texto del análisis IA (opcional)
         figuras: Lista de tuplas (titulo, figura_plotly, descripcion) (opcional)
         año: Año del informe
+        df_cascada: DataFrame con estructura jerárquica del PDI (opcional)
 
     Returns:
         Bytes del archivo PDF
@@ -1112,7 +1275,8 @@ def exportar_informe_pdf(
             df_lineas=df_lineas,
             df_indicadores=df_indicadores,
             analisis_texto=analisis_texto,
-            año=año
+            año=año,
+            df_cascada=df_cascada
         )
     except ImportError:
         # Fallback a xhtml2pdf

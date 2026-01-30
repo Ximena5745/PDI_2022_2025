@@ -19,7 +19,7 @@ COLORS = {
     'danger': '#dc3545',
     'white': '#ffffff',
     'standby': '#6c757d',  # Gris para objetivos en Stand by
-    'unclassified': '#9b9fa8'  # Gris más oscuro para sin clasificar
+    'unclassified': '#A0522D'  # Marrón siena para sin clasificar (más distinguible)
 }
 
 # Objetivo en estado Stand by (0% de avance)
@@ -283,34 +283,42 @@ def calcular_metricas_generales(df_unificado, año=None):
         # Excluir stand by para el cálculo de cumplimiento
         df_año = df_año[df_año['Ejecución s'].astype(str).str.strip().str.lower() != 'stand by']
 
-    # Omitir registros con cumplimiento vacío
-    if 'Cumplimiento' in df_año.columns:
-        df_año = df_año[df_año['Cumplimiento'].notna()]
+    # NO omitir registros con cumplimiento vacío - incluir como 0%
+    # Guardar DataFrame completo para cálculo jerárquico
+    df_año_completo = df_año.copy()
+
+    # Rellenar cumplimiento NaN con 0 para incluir objetivos sin datos
+    if 'Cumplimiento' in df_año_completo.columns:
+        df_año_completo['Cumplimiento'] = df_año_completo['Cumplimiento'].fillna(0)
 
     # Calcular cumplimiento jerárquico: indicadores -> objetivos -> líneas
+    # IMPORTANTE: Incluye objetivos sin indicadores como 0%
     cumplimiento_promedio = 0
-    if 'Cumplimiento' in df_año.columns and not df_año.empty:
-        if 'Objetivo' in df_año.columns and 'Linea' in df_año.columns:
-            # Paso 1: Promedio de indicadores por objetivo
-            df_por_objetivo = df_año.groupby(['Linea', 'Objetivo'])['Cumplimiento'].mean().reset_index()
+    if 'Cumplimiento' in df_año_completo.columns and not df_año_completo.empty:
+        if 'Objetivo' in df_año_completo.columns and 'Linea' in df_año_completo.columns:
+            # Paso 1: Promedio de indicadores por objetivo (incluye 0% para objetivos sin datos)
+            df_por_objetivo = df_año_completo.groupby(['Linea', 'Objetivo'])['Cumplimiento'].mean().reset_index()
             # Paso 2: Promedio de objetivos por línea
             df_por_linea = df_por_objetivo.groupby('Linea')['Cumplimiento'].mean().reset_index()
             # Paso 3: Promedio de líneas = cumplimiento general
             cumplimiento_promedio = df_por_linea['Cumplimiento'].mean()
         else:
-            cumplimiento_promedio = df_año['Cumplimiento'].mean()
+            cumplimiento_promedio = df_año_completo['Cumplimiento'].mean()
 
-        indicadores_cumplidos = len(df_año[df_año['Cumplimiento'] >= 100])
-        en_progreso = len(df_año[(df_año['Cumplimiento'] >= 80) & (df_año['Cumplimiento'] < 100)])
-        no_cumplidos = len(df_año[df_año['Cumplimiento'] < 80])
+        # Para contadores de semáforo, solo considerar indicadores con cumplimiento válido (no NaN original)
+        df_año_validos = df_año[df_año['Cumplimiento'].notna()] if 'Cumplimiento' in df_año.columns else df_año
+        indicadores_cumplidos = len(df_año_validos[df_año_validos['Cumplimiento'] >= 100])
+        en_progreso = len(df_año_validos[(df_año_validos['Cumplimiento'] >= 80) & (df_año_validos['Cumplimiento'] < 100)])
+        no_cumplidos = len(df_año_validos[df_año_validos['Cumplimiento'] < 80])
     else:
         cumplimiento_promedio = 0
         indicadores_cumplidos = 0
         en_progreso = 0
         no_cumplidos = 0
 
-    # Contar indicadores únicos (excluyendo stand by)
-    total_indicadores = df_año['Indicador'].nunique() if 'Indicador' in df_año.columns else len(df_año)
+    # Contar indicadores únicos con datos válidos (excluyendo stand by y sin datos)
+    df_año_validos = df_año[df_año['Cumplimiento'].notna()] if 'Cumplimiento' in df_año.columns else df_año
+    total_indicadores = df_año_validos['Indicador'].nunique() if 'Indicador' in df_año_validos.columns else len(df_año_validos)
 
     # Contar líneas estratégicas
     total_lineas = df_año['Linea'].nunique() if 'Linea' in df_año.columns else 0
@@ -425,6 +433,7 @@ def obtener_cumplimiento_por_linea(df_unificado, año=None):
     Obtiene el cumplimiento promedio por línea estratégica.
     El cumplimiento se calcula como: promedio de indicadores por objetivo, luego promedio de objetivos.
     Solo considera indicadores (Proyectos = 0).
+    IMPORTANTE: Incluye objetivos sin indicadores como 0% en el cálculo.
     """
     if df_unificado is None or df_unificado.empty:
         return pd.DataFrame()
@@ -446,25 +455,31 @@ def obtener_cumplimiento_por_linea(df_unificado, año=None):
     if 'Ejecución s' in df_año.columns:
         df_año = df_año[df_año['Ejecución s'].astype(str).str.strip().str.lower() != 'stand by']
 
-    # Omitir registros con cumplimiento vacío
-    if 'Cumplimiento' in df_año.columns:
-        df_año = df_año[df_año['Cumplimiento'].notna()]
+    # NO omitir registros con cumplimiento vacío - los incluimos como 0%
+    # Guardar DataFrame completo para obtener todos los objetivos
+    df_año_completo = df_año.copy()
 
-    if 'Linea' in df_año.columns and 'Cumplimiento' in df_año.columns:
-        if 'Objetivo' in df_año.columns:
+    if 'Cumplimiento' in df_año_completo.columns:
+        # Rellenar cumplimiento NaN con 0 para incluir objetivos sin datos
+        df_año_completo['Cumplimiento'] = df_año_completo['Cumplimiento'].fillna(0)
+
+    if 'Linea' in df_año_completo.columns and 'Cumplimiento' in df_año_completo.columns:
+        if 'Objetivo' in df_año_completo.columns:
             # Cálculo jerárquico: indicadores -> objetivos -> línea
-            # Paso 1: Promedio de indicadores por objetivo (por línea)
-            df_por_objetivo = df_año.groupby(['Linea', 'Objetivo'])['Cumplimiento'].mean().reset_index()
+            # Paso 1: Promedio de indicadores por objetivo (por línea) - incluye 0% para objetivos sin datos
+            df_por_objetivo = df_año_completo.groupby(['Linea', 'Objetivo'])['Cumplimiento'].mean().reset_index()
             # Paso 2: Promedio de objetivos por línea
             resumen = df_por_objetivo.groupby('Linea').agg({
                 'Cumplimiento': 'mean'
             }).reset_index()
-            # Agregar conteo de indicadores únicos
-            indicadores_por_linea = df_año.groupby('Linea')['Indicador'].nunique().reset_index()
+            # Agregar conteo de indicadores únicos (solo los que tienen datos)
+            df_año_con_datos = df_año[df_año['Cumplimiento'].notna()] if 'Cumplimiento' in df_año.columns else df_año
+            indicadores_por_linea = df_año_con_datos.groupby('Linea')['Indicador'].nunique().reset_index()
             indicadores_por_linea.columns = ['Linea', 'Total_Indicadores']
             resumen = resumen.merge(indicadores_por_linea, on='Linea', how='left')
+            resumen['Total_Indicadores'] = resumen['Total_Indicadores'].fillna(0).astype(int)
         else:
-            resumen = df_año.groupby('Linea').agg({
+            resumen = df_año_completo.groupby('Linea').agg({
                 'Cumplimiento': 'mean',
                 'Indicador': 'nunique'
             }).reset_index()
@@ -686,9 +701,11 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None, max_niveles=4
             df_año = df_año[df_año['Proyectos'] == 1]
         # Si es 'todos', no filtrar
 
-    # Omitir registros con cumplimiento vacío
+    # NO omitir registros con cumplimiento vacío - incluirlos como 0%
+    # Rellenar cumplimiento NaN con 0
     if 'Cumplimiento' in df_año.columns:
-        df_año = df_año[df_año['Cumplimiento'].notna()]
+        df_año = df_año.copy()
+        df_año['Cumplimiento'] = df_año['Cumplimiento'].fillna(0)
 
     if df_año.empty:
         return pd.DataFrame()
@@ -696,8 +713,10 @@ def obtener_cumplimiento_cascada(df_unificado, df_base, año=None, max_niveles=4
     # Agregar Meta_PDI al DataFrame
     if df_base is not None and 'Meta_PDI' in df_base.columns:
         meta_pdi_dict = df_base.set_index('Indicador')['Meta_PDI'].to_dict()
-        df_año = df_año.copy()
-        df_año['Meta_PDI'] = df_año['Indicador'].map(meta_pdi_dict)
+        if not isinstance(df_año, pd.DataFrame) or 'Indicador' not in df_año.columns:
+            pass
+        else:
+            df_año['Meta_PDI'] = df_año['Indicador'].map(meta_pdi_dict)
 
     # Crear estructura jerárquica
     cascada = []

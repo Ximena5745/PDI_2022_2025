@@ -107,8 +107,8 @@ def mostrar_pagina():
         en_progreso = len(df_linea_año[(df_linea_año['Cumplimiento'] >= 80) & (df_linea_año['Cumplimiento'] < 100)])
         no_cumplidos = len(df_linea_año[df_linea_año['Cumplimiento'] < 80])
 
-    # Obtener datos de cascada
-    df_cascada_completa = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=3)
+    # Obtener datos de cascada con todos los niveles (hasta indicadores)
+    df_cascada_completa = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=4)
     df_cascada_linea = df_cascada_completa[df_cascada_completa['Linea'] == linea_seleccionada] if not df_cascada_completa.empty else pd.DataFrame()
 
     # Calcular estado de proyectos para la línea seleccionada
@@ -294,7 +294,8 @@ def mostrar_pagina():
                     df_linea_hist = df_linea_hist[df_linea_hist['Proyectos'] == 0]
 
                 df_linea_hist = df_linea_hist[df_linea_hist['Año'].isin([2022, 2023, 2024, 2025])]
-                df_linea_hist = df_linea_hist[df_linea_hist['Cumplimiento'].notna()]
+                # NO filtrar NaN - rellenar con 0 para mostrar años sin datos
+                df_linea_hist['Cumplimiento'] = df_linea_hist['Cumplimiento'].fillna(0)
 
                 # Calcular cumplimiento jerárquico: indicadores -> objetivos -> línea
                 if 'Objetivo' in df_linea_hist.columns:
@@ -387,6 +388,24 @@ def mostrar_pagina():
 
         if subtab_cascada:
             st.markdown(f"#### Desglose Jerarquico: {linea_seleccionada}")
+
+            # Agregar filtro de tipo (indicadores/proyectos/todos)
+            filtro_cascada_linea = st.radio(
+                "Filtrar por:",
+                ["Indicadores", "Proyectos", "Todos"],
+                horizontal=True,
+                key="filtro_cascada_linea",
+                help="Indicadores: métricas de gestión | Proyectos: iniciativas específicas"
+            )
+
+            # Mapear selección a parámetro y obtener cascada filtrada
+            filtro_map = {"Indicadores": "indicadores", "Proyectos": "proyectos", "Todos": "todos"}
+            df_cascada_completa_filtrada = obtener_cumplimiento_cascada(
+                df_unificado, df_base, año_actual,
+                max_niveles=4,
+                filtro_tipo=filtro_map[filtro_cascada_linea]
+            )
+            df_cascada_linea = df_cascada_completa_filtrada[df_cascada_completa_filtrada['Linea'] == linea_seleccionada] if not df_cascada_completa_filtrada.empty else pd.DataFrame()
 
             if not df_cascada_linea.empty:
                 # Selector de tipo de visualización
