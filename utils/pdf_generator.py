@@ -805,8 +805,11 @@ def generar_informe_html(
 
 def generar_seccion_jerarquica_fpdf(pdf, df_cascada: pd.DataFrame) -> None:
     """
-    Genera sección jerárquica en PDF con estructura:
-    Línea -> Objetivo -> Meta -> Indicadores
+    Genera sección jerárquica en PDF con estructura en bucle:
+    Línea -> Objetivo 1 -> Meta 1 -> Indicadores -> Meta 2 -> Indicadores
+         -> Objetivo 2 -> Meta 3 -> Indicadores -> etc.
+
+    Incluye barras visuales de cumplimiento para cada nivel.
 
     Args:
         pdf: Instancia de PDFInforme
@@ -820,11 +823,30 @@ def generar_seccion_jerarquica_fpdf(pdf, df_cascada: pd.DataFrame) -> None:
     pdf.set_font('Helvetica', 'B', 16)
     pdf.cell(0, 10, 'Estructura Jerarquica del PDI', 0, 1, 'L')
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(10)
+    pdf.ln(8)
 
     linea_actual = None
     objetivo_actual = None
-    meta_actual = None
+
+    def dibujar_barra_progreso(x, y, ancho, cumplimiento):
+        """Dibuja una barra de progreso visual"""
+        # Borde de la barra
+        pdf.set_draw_color(200, 200, 200)
+        pdf.rect(x, y, ancho, 3, 'D')
+
+        # Relleno según cumplimiento
+        if cumplimiento > 0:
+            ancho_relleno = (cumplimiento / 100) * ancho
+            ancho_relleno = min(ancho_relleno, ancho)  # No exceder el ancho total
+
+            if cumplimiento >= 100:
+                pdf.set_fill_color(40, 167, 69)  # Verde
+            elif cumplimiento >= 80:
+                pdf.set_fill_color(255, 193, 7)  # Amarillo
+            else:
+                pdf.set_fill_color(220, 53, 69)  # Rojo
+
+            pdf.rect(x, y, ancho_relleno, 3, 'F')
 
     for _, row in df_cascada.iterrows():
         nivel = int(row['Nivel'])
@@ -841,57 +863,91 @@ def generar_seccion_jerarquica_fpdf(pdf, df_cascada: pd.DataFrame) -> None:
         # Nivel 1: Línea Estratégica
         if nivel == 1:
             linea_actual = limpiar_texto_pdf(str(row['Linea']))
-            # Agregar separador si no es la primera línea
-            if pdf.get_y() > 30:
-                pdf.ln(5)
-                pdf.set_draw_color(200, 200, 200)
-                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-                pdf.ln(5)
 
-            pdf.set_font('Helvetica', 'B', 14)
-            pdf.set_text_color(0, 61, 130)
-            pdf.cell(150, 8, linea_actual[:70], 0, 0, 'L')
+            # Nueva página para cada línea (excepto la primera)
+            if pdf.get_y() > 50 and linea_actual:
+                pdf.add_page()
+
+            # Título de la línea con fondo
+            pdf.set_fill_color(0, 61, 130)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font('Helvetica', 'B', 13)
+            pdf.cell(0, 10, f' {linea_actual[:75]}', 0, 1, 'L', True)
+
+            # Barra de progreso de la línea
+            y_pos = pdf.get_y() + 1
+            dibujar_barra_progreso(10, y_pos, 150, cumpl)
+
             pdf.set_text_color(*color)
-            pdf.cell(40, 8, f'{cumpl:.1f}%', 0, 1, 'R')
+            pdf.set_font('Helvetica', 'B', 11)
+            pdf.set_xy(165, y_pos - 1)
+            pdf.cell(35, 5, f'{cumpl:.1f}%', 0, 1, 'R')
+            pdf.ln(5)
 
         # Nivel 2: Objetivo
         elif nivel == 2:
             objetivo_actual = limpiar_texto_pdf(str(row['Objetivo']))
-            pdf.ln(3)
-            pdf.set_font('Helvetica', 'B', 11)
+
+            pdf.set_font('Helvetica', 'B', 10)
             pdf.set_text_color(0, 86, 179)
             pdf.set_x(15)
-            pdf.cell(5, 6, '-', 0, 0, 'L')
-            pdf.cell(140, 6, objetivo_actual[:65], 0, 0, 'L')
+            pdf.cell(5, 6, 'O', 0, 0, 'L')
+            pdf.cell(135, 6, objetivo_actual[:70], 0, 0, 'L')
+
+            # Barra de progreso del objetivo
+            y_pos = pdf.get_y() + 1
+            pdf.ln(6)
+            dibujar_barra_progreso(20, y_pos + 5, 130, cumpl)
+
             pdf.set_text_color(*color)
-            pdf.cell(40, 6, f'{cumpl:.1f}%', 0, 1, 'R')
+            pdf.set_font('Helvetica', 'B', 9)
+            pdf.set_xy(155, y_pos)
+            pdf.cell(35, 6, f'{cumpl:.1f}%', 0, 1, 'R')
+            pdf.ln(2)
 
         # Nivel 3: Meta PDI
         elif nivel == 3:
             meta_actual = limpiar_texto_pdf(str(row['Meta_PDI']))
             if meta_actual and meta_actual != 'N/D':
-                pdf.set_font('Helvetica', 'I', 9)
-                pdf.set_text_color(100, 100, 100)
+                pdf.set_font('Helvetica', 'I', 8)
+                pdf.set_text_color(80, 80, 80)
                 pdf.set_x(25)
-                pdf.cell(5, 5, '*', 0, 0, 'L')
-                pdf.cell(130, 5, f'Meta: {meta_actual[:60]}', 0, 0, 'L')
+                pdf.cell(3, 5, '-', 0, 0, 'L')
+                pdf.cell(125, 5, f'Meta PDI: {meta_actual[:65]}', 0, 0, 'L')
+
                 pdf.set_text_color(*color)
-                pdf.cell(40, 5, f'{cumpl:.1f}%', 0, 1, 'R')
+                pdf.set_font('Helvetica', 'B', 8)
+                pdf.cell(30, 5, f'{cumpl:.1f}%', 0, 1, 'R')
+                pdf.ln(1)
 
         # Nivel 4: Indicador
         elif nivel == 4:
             indicador = limpiar_texto_pdf(str(row['Indicador']))
-            pdf.set_font('Helvetica', '', 8)
-            pdf.set_text_color(80, 80, 80)
+
+            pdf.set_font('Helvetica', '', 7)
+            pdf.set_text_color(60, 60, 60)
             pdf.set_x(35)
-            pdf.cell(5, 5, '>', 0, 0, 'L')
-            pdf.cell(120, 5, indicador[:58], 0, 0, 'L')
+            pdf.cell(3, 4, '>', 0, 0, 'L')
+            pdf.cell(110, 4, indicador[:62], 0, 0, 'L')
+
+            # Mini barra de progreso para indicador
+            y_pos = pdf.get_y()
+            dibujar_barra_progreso(150, y_pos + 0.5, 30, cumpl)
+
             pdf.set_text_color(*color)
-            pdf.cell(40, 5, f'{cumpl:.1f}%', 0, 1, 'R')
+            pdf.set_font('Helvetica', 'B', 7)
+            pdf.set_xy(183, y_pos)
+            pdf.cell(15, 4, f'{cumpl:.0f}%', 0, 1, 'R')
 
         # Verificar si necesita nueva página
-        if pdf.get_y() > 270:
+        if pdf.get_y() > 275:
             pdf.add_page()
+            # Re-imprimir encabezado de línea si estamos en medio de una
+            if linea_actual:
+                pdf.set_font('Helvetica', 'I', 9)
+                pdf.set_text_color(100, 100, 100)
+                pdf.cell(0, 5, f'(continuacion: {linea_actual[:70]})', 0, 1, 'L')
+                pdf.ln(3)
 
 
 def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
