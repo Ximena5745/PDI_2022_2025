@@ -19,7 +19,7 @@ from utils.data_loader import (
     obtener_cumplimiento_cascada, calcular_estado_proyectos
 )
 from utils.visualizations import (
-    crear_objetivo_card_html, crear_tabla_cascada_html,
+    crear_tabla_cascada_html,
     crear_grafico_cascada_icicle, crear_grafico_proyectos,
     crear_grafico_barras_objetivos
 )
@@ -173,68 +173,137 @@ def mostrar_pagina():
 
         st.markdown("---")
 
-        # Dos columnas: Gráfico por objetivo + Lista de objetivos
-        col_graf, col_obj = st.columns([1, 1])
+        # Gráfico de cumplimiento por objetivo - ancho completo
+        st.markdown("#### 📊 Cumplimiento por Objetivo")
 
-        with col_graf:
-            st.markdown("#### 📊 Cumplimiento por Objetivo")
+        if 'Objetivo' in df_linea_año.columns and 'Cumplimiento' in df_linea_año.columns:
+            df_objetivos = df_linea_año.groupby('Objetivo').agg({
+                'Cumplimiento': 'mean',
+                'Indicador': 'nunique'
+            }).reset_index()
+            df_objetivos.columns = ['Objetivo', 'Cumplimiento', 'Indicadores']
+            df_objetivos['Cumplimiento'] = df_objetivos['Cumplimiento'].round(1)
+            df_objetivos = df_objetivos.sort_values('Cumplimiento', ascending=True)
 
-            if 'Objetivo' in df_linea_año.columns and 'Cumplimiento' in df_linea_año.columns:
-                df_objetivos = df_linea_año.groupby('Objetivo').agg({
-                    'Cumplimiento': 'mean',
-                    'Indicador': 'nunique'
-                }).reset_index()
-                df_objetivos.columns = ['Objetivo', 'Cumplimiento', 'Indicadores']
-                df_objetivos['Cumplimiento'] = df_objetivos['Cumplimiento'].round(1)
-                df_objetivos = df_objetivos.sort_values('Cumplimiento', ascending=True)
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                y=df_objetivos['Objetivo'],
+                x=df_objetivos['Cumplimiento'],
+                orientation='h',
+                marker_color=color_linea,
+                text=[f"{c:.1f}%" for c in df_objetivos['Cumplimiento']],
+                textposition='outside',
+                textfont=dict(size=11, color='#E91E63', weight='bold'),
+                hovertemplate='<b>%{y}</b><br>Cumplimiento: %{x:.1f}%<extra></extra>'
+            ))
 
-                fig = go.Figure()
-                fig.add_trace(go.Bar(
-                    y=df_objetivos['Objetivo'],
-                    x=df_objetivos['Cumplimiento'],
-                    orientation='h',
-                    marker_color=color_linea,
-                    text=[f"{c:.1f}%" for c in df_objetivos['Cumplimiento']],
-                    textposition='outside',
-                    textfont=dict(size=11, color='#E91E63', weight='bold'),
-                    hovertemplate='<b>%{y}</b><br>Cumplimiento: %{x:.1f}%<extra></extra>'
-                ))
+            fig.update_layout(
+                xaxis=dict(title="% Cumplimiento", range=[0, 120]),
+                yaxis=dict(title=""),
+                height=max(250, len(df_objetivos) * 45),
+                margin=dict(l=20, r=50, t=10, b=40),
+                plot_bgcolor='white',
+                paper_bgcolor='white'
+            )
+            fig.add_vline(x=100, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
+            fig.add_vline(x=80, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
 
-                fig.update_layout(
-                    xaxis=dict(title="% Cumplimiento", range=[0, 120]),
-                    yaxis=dict(title=""),
-                    height=max(250, len(df_objetivos) * 45),
-                    margin=dict(l=20, r=50, t=10, b=40),
-                    plot_bgcolor='white',
-                    paper_bgcolor='white'
-                )
-                fig.add_vline(x=100, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
-                fig.add_vline(x=80, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
+            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.info("No hay datos de cumplimiento por objetivo.")
 
-                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-            else:
-                st.info("No hay datos de cumplimiento por objetivo.")
+        # Desglose expandible: Objetivos → Metas PDI → Indicadores
+        st.markdown("#### 🔍 Desglose: Metas e Indicadores")
+        if not df_cascada_linea.empty:
+            objetivos_cascada = df_cascada_linea[df_cascada_linea['Nivel'] == 2].sort_values('Cumplimiento', ascending=False)
 
-        with col_obj:
-            st.markdown("#### 🎯 Lista de Objetivos")
+            for _, obj_row in objetivos_cascada.iterrows():
+                objetivo_nombre = obj_row['Objetivo']
+                cumpl_obj = obj_row['Cumplimiento']
+                icono = "✅" if cumpl_obj >= 100 else ("⚠️" if cumpl_obj >= 80 else "❌")
 
-            if 'Objetivo' in df_linea_año.columns:
-                objetivos_unicos = df_linea_año.groupby('Objetivo').agg({
-                    'Cumplimiento': 'mean',
-                    'Indicador': 'nunique'
-                }).reset_index()
-                objetivos_unicos = objetivos_unicos.sort_values('Cumplimiento', ascending=False)
+                with st.expander(f"{icono} {objetivo_nombre} — {cumpl_obj:.1f}%", expanded=False):
+                    # Metas dentro de este objetivo
+                    df_metas = df_cascada_linea[
+                        (df_cascada_linea['Nivel'] == 3) &
+                        (df_cascada_linea['Objetivo'] == objetivo_nombre)
+                    ]
 
-                for _, row in objetivos_unicos.iterrows():
-                    cumpl = row['Cumplimiento'] if pd.notna(row['Cumplimiento']) else 0
-                    st.markdown(
-                        crear_objetivo_card_html(
-                            objetivo=row['Objetivo'],
-                            indicadores=row['Indicador'],
-                            cumplimiento=cumpl
-                        ),
-                        unsafe_allow_html=True
-                    )
+                    html_parts = []
+
+                    if not df_metas.empty:
+                        for _, meta_row in df_metas.iterrows():
+                            meta_nombre = meta_row['Meta_PDI']
+                            cumpl_meta = meta_row['Cumplimiento']
+                            color_meta = obtener_color_semaforo(cumpl_meta)
+
+                            # Header de Meta PDI
+                            html_parts.append(
+                                f'<div style="margin:8px 0 2px 0;padding:6px 12px;background:#f0f4f8;border-left:4px solid {color_meta};border-radius:0 4px 4px 0;">'
+                                f'<strong style="color:#333;">Meta PDI:</strong> {meta_nombre}'
+                                f'<span style="float:right;color:{color_meta};font-weight:bold;">{cumpl_meta:.1f}%</span></div>'
+                            )
+
+                            # Indicadores dentro de esta meta
+                            df_ind_meta = df_cascada_linea[
+                                (df_cascada_linea['Nivel'] == 4) &
+                                (df_cascada_linea['Objetivo'] == objetivo_nombre) &
+                                (df_cascada_linea['Meta_PDI'] == meta_nombre)
+                            ]
+                            for _, ind_row in df_ind_meta.iterrows():
+                                cumpl_ind = ind_row['Cumplimiento']
+                                color_ind = obtener_color_semaforo(cumpl_ind)
+                                badge = "✅" if cumpl_ind >= 100 else ("⚠️" if cumpl_ind >= 80 else "❌")
+                                html_parts.append(
+                                    f'<div style="margin:2px 0;padding:3px 12px 3px 32px;font-size:13px;color:#444;">'
+                                    f'{badge} {ind_row["Indicador"]}'
+                                    f'<span style="float:right;color:{color_ind};font-weight:bold;">{cumpl_ind:.1f}%</span></div>'
+                                )
+
+                    # Indicadores sin Meta PDI asignada
+                    df_ind_sin_meta = df_cascada_linea[
+                        (df_cascada_linea['Nivel'] == 4) &
+                        (df_cascada_linea['Objetivo'] == objetivo_nombre) &
+                        (df_cascada_linea['Meta_PDI'] == 'N/D')
+                    ]
+                    if not df_ind_sin_meta.empty:
+                        html_parts.append(
+                            '<div style="margin:8px 0 2px 0;padding:6px 12px;background:#f5f5f5;'
+                            'border-left:4px solid #aaa;border-radius:0 4px 4px 0;">'
+                            '<em style="color:#666;">Sin Meta PDI asignada</em></div>'
+                        )
+                        for _, ind_row in df_ind_sin_meta.iterrows():
+                            cumpl_ind = ind_row['Cumplimiento']
+                            color_ind = obtener_color_semaforo(cumpl_ind)
+                            badge = "✅" if cumpl_ind >= 100 else ("⚠️" if cumpl_ind >= 80 else "❌")
+                            html_parts.append(
+                                f'<div style="margin:2px 0;padding:3px 12px 3px 32px;font-size:13px;color:#444;">'
+                                f'{badge} {ind_row["Indicador"]}'
+                                f'<span style="float:right;color:{color_ind};font-weight:bold;">{cumpl_ind:.1f}%</span></div>'
+                            )
+
+                    # Si no hay metas ni indicadores sin meta, mostrar indicadores directamente
+                    if df_metas.empty and df_ind_sin_meta.empty:
+                        df_ind_obj = df_cascada_linea[
+                            (df_cascada_linea['Nivel'] == 4) &
+                            (df_cascada_linea['Objetivo'] == objetivo_nombre)
+                        ]
+                        for _, ind_row in df_ind_obj.iterrows():
+                            cumpl_ind = ind_row['Cumplimiento']
+                            color_ind = obtener_color_semaforo(cumpl_ind)
+                            badge = "✅" if cumpl_ind >= 100 else ("⚠️" if cumpl_ind >= 80 else "❌")
+                            html_parts.append(
+                                f'<div style="margin:2px 0;padding:3px 12px;font-size:13px;color:#444;">'
+                                f'{badge} {ind_row["Indicador"]}'
+                                f'<span style="float:right;color:{color_ind};font-weight:bold;">{cumpl_ind:.1f}%</span></div>'
+                            )
+
+                    if html_parts:
+                        st.markdown('\n'.join(html_parts), unsafe_allow_html=True)
+                    else:
+                        st.info("No hay datos detallados para este objetivo.")
+        else:
+            st.info("No hay datos de desglose disponibles.")
 
         # Gráfico de proyectos para la línea
         if estado_proyectos_linea['total_proyectos'] > 0:
@@ -291,7 +360,7 @@ def mostrar_pagina():
                 if 'Fuente' in df_linea_hist.columns:
                     df_linea_hist = df_linea_hist[df_linea_hist['Fuente'] == 'Avance']
                 if 'Proyectos' in df_linea_hist.columns:
-                    df_linea_hist = df_linea_hist[df_linea_hist['Proyectos'] == 0]
+                    df_linea_hist = df_linea_hist[df_linea_hist['Proyectos'].fillna(0) == 0]
 
                 df_linea_hist = df_linea_hist[df_linea_hist['Año'].isin([2022, 2023, 2024, 2025])]
                 # NO filtrar NaN - rellenar con 0 para mostrar años sin datos
