@@ -228,35 +228,18 @@ def mostrar_pagina():
             df_tabla = df_tabla[['Linea', 'Total_Indicadores', 'Cumplimiento_Display', 'Estado']]
             df_tabla.columns = ['Línea Estratégica', 'Indicadores', '% Cumplimiento', 'Estado']
 
-            tabla_html = df_tabla.to_html(index=False, escape=False, classes='dataframe')
-            tabla_html = f"""
-            <style>
-                .dataframe {{
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-family: 'Arial', sans-serif;
-                    font-size: 14px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }}
-                .dataframe th {{
-                    background-color: {COLORS['primary']};
-                    color: white;
-                    padding: 12px;
-                    text-align: left;
-                    font-weight: bold;
-                    border: 1px solid #dee2e6;
-                }}
-                .dataframe td {{
-                    padding: 10px;
-                    border: 1px solid #dee2e6;
-                    background-color: white;
-                }}
-                .dataframe tr:hover {{
-                    background-color: #f5f5f5;
-                }}
-            </style>
-            {tabla_html}
-            """
+            # Construir tabla con estilos inline (evita problemas de indentación en markdown)
+            hdr_style = f'background-color:{COLORS["primary"]};color:white;padding:12px;text-align:left;font-weight:bold;border:1px solid #dee2e6;font-size:14px;'
+            cel_style = 'padding:10px;border:1px solid #dee2e6;background-color:white;font-size:14px;font-family:Arial,sans-serif;'
+            cols = df_tabla.columns.tolist()
+
+            header_row = '<tr>' + ''.join(f'<th style="{hdr_style}">{c}</th>' for c in cols) + '</tr>'
+            data_rows = ''.join(
+                '<tr>' + ''.join(f'<td style="{cel_style}">{row[c]}</td>' for c in cols) + '</tr>'
+                for _, row in df_tabla.iterrows()
+            )
+
+            tabla_html = f'<table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;box-shadow:0 2px 4px rgba(0,0,0,0.1);">{header_row}{data_rows}</table>'
             st.markdown(tabla_html, unsafe_allow_html=True)
 
         # Análisis IA - ancho completo con max-width para legibilidad
