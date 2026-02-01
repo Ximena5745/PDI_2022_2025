@@ -278,54 +278,57 @@ def crear_grafico_lineas(df_resumen, titulo="Cumplimiento por Línea Estratégic
         lineas_list = df['Linea'].tolist()
         cumpl_list = [float(c) for c in df['Cumplimiento'].tolist()]
 
-        # Color distintivo para los labels de cumplimiento
-        color_label_cumplimiento = '#E91E63'  # Color distintivo para destacar
-
         fig.add_trace(go.Bar(
             y=lineas_list,
             x=cumpl_list,
             orientation='h',
-            marker_color=colores,
-            text=[f"{c:.1f}%" for c in cumpl_list],
+            marker=dict(
+                color=colores,
+                line=dict(color='rgba(0,0,0,0.3)', width=1.5)  # Borde para mejor definición
+            ),
+            text=[f"<b>{c:.1f}%</b>" for c in cumpl_list],
             textposition='outside',
-            textfont=dict(size=12, color=color_label_cumplimiento, weight='bold'),
+            textfont=dict(size=14, color='#000000', family='Arial Black'),  # Negro sólido, más grande y bold
             hovertemplate='<b>%{y}</b><br>Cumplimiento: %{x:.1f}%<extra></extra>'
         ))
 
-        altura = max(300, len(df) * 50)
+        altura = max(400, len(df) * 60)  # Aumentar altura para mejor visibilidad
 
         fig.update_layout(
             title=dict(
                 text=f"<b>{titulo}</b>",
-                font=dict(size=16, color=COLORS['primary']),
+                font=dict(size=18, color=COLORS['primary'], family='Arial Black'),
                 x=0.5,
                 xanchor='center'
             ),
             xaxis=dict(
                 title=dict(
                     text="% Cumplimiento",
-                    font=dict(size=12, color=COLORS['gray'])
+                    font=dict(size=14, color='#000000', family='Arial Black')
                 ),
                 range=[0, 120],
-                ticksuffix='%'
+                ticksuffix='%',
+                tickfont=dict(size=12, color='#000000'),
+                gridcolor='rgba(0,0,0,0.1)',  # Grid más visible
+                showgrid=True
             ),
             yaxis=dict(
                 title="",
-                tickfont=dict(size=10),
+                tickfont=dict(size=12, color='#000000', family='Arial'),
                 automargin=True,
                 tickmode='linear'
             ),
             height=altura,
-            plot_bgcolor='white',
+            plot_bgcolor='rgba(250,250,250,1)',  # Fondo gris muy claro para contraste
             paper_bgcolor='white',
-            margin=dict(l=300, r=100, t=60, b=40),  # Aumentado margen izquierdo para labels completos
+            margin=dict(l=300, r=120, t=70, b=50),
             showlegend=False,
             autosize=True
         )
 
-        # Líneas de referencia
-        fig.add_vline(x=100, line_dash="dash", line_color=COLORS['success'], opacity=0.5)
-        fig.add_vline(x=80, line_dash="dash", line_color=COLORS['warning'], opacity=0.5)
+        # Líneas de referencia más visibles
+        fig.add_vline(x=100, line_dash="dash", line_color=COLORS['success'], opacity=0.7, line_width=2)
+        fig.add_vline(x=80, line_dash="dash", line_color=COLORS['warning'], opacity=0.7, line_width=2)
 
         return fig
     except Exception as e:

@@ -200,80 +200,79 @@ def mostrar_pagina():
     # TAB 2: ANÁLISIS DETALLADO (Simplificado)
     # ============================================================
     with tab_analisis:
-        # Dos columnas: Gráfico de líneas + Análisis IA
-        col_graf, col_analisis = st.columns([1, 1])
+        # Gráfico de líneas - ancho completo arriba
+        st.markdown("#### Cumplimiento por Linea Estrategica")
+        if not df_lineas.empty:
+            fig_lineas = crear_grafico_lineas(df_lineas)
+            config = {'displayModeBar': True, 'responsive': True}
+            st.plotly_chart(fig_lineas, use_container_width=True, config=config)
+        else:
+            st.info("No hay datos disponibles.")
 
-        with col_graf:
-            st.markdown("#### Cumplimiento por Linea Estrategica")
-            if not df_lineas.empty:
-                fig_lineas = crear_grafico_lineas(df_lineas)
-                config = {'displayModeBar': True, 'responsive': True}
-                st.plotly_chart(fig_lineas, use_container_width=True, config=config)
+        # Tabla de cumplimiento - ancho completo
+        if not df_lineas.empty:
+            st.markdown("##### 📋 Tabla de Cumplimiento")
+            df_tabla = df_lineas.copy()
 
-                # Tabla compacta debajo con mejor visualización
-                df_tabla = df_lineas.copy()
+            def get_estado_badge(cumpl):
+                if cumpl >= 100:
+                    return '✅ Cumple'
+                elif cumpl >= 80:
+                    return '⚠️ Alerta'
+                else:
+                    return '❌ Crítico'
 
-                # Agregar columna de estado con mejor formato
-                def get_estado_badge(cumpl):
-                    if cumpl >= 100:
-                        return '✅ Cumple'
-                    elif cumpl >= 80:
-                        return '⚠️ Alerta'
-                    else:
-                        return '❌ Crítico'
+            df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(get_estado_badge)
+            df_tabla['Cumplimiento_Display'] = df_tabla['Cumplimiento'].apply(lambda x: f"{x:.1f}%")
 
-                df_tabla['Estado'] = df_tabla['Cumplimiento'].apply(get_estado_badge)
+            df_tabla = df_tabla[['Linea', 'Total_Indicadores', 'Cumplimiento_Display', 'Estado']]
+            df_tabla.columns = ['Línea Estratégica', 'Indicadores', '% Cumplimiento', 'Estado']
 
-                # Formatear cumplimiento
-                cumpl_valores = df_tabla['Cumplimiento'].copy()
-                df_tabla['Cumplimiento'] = df_tabla['Cumplimiento'].apply(lambda x: f"{x:.1f}%")
+            tabla_html = df_tabla.to_html(index=False, escape=False, classes='dataframe')
+            tabla_html = f"""
+            <style>
+                .dataframe {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-family: 'Arial', sans-serif;
+                    font-size: 14px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                .dataframe th {{
+                    background-color: {COLORS['primary']};
+                    color: white;
+                    padding: 12px;
+                    text-align: left;
+                    font-weight: bold;
+                    border: 1px solid #dee2e6;
+                }}
+                .dataframe td {{
+                    padding: 10px;
+                    border: 1px solid #dee2e6;
+                    background-color: white;
+                }}
+                .dataframe tr:hover {{
+                    background-color: #f5f5f5;
+                }}
+            </style>
+            {tabla_html}
+            """
+            st.markdown(tabla_html, unsafe_allow_html=True)
 
-                # Seleccionar y renombrar columnas
-                df_tabla = df_tabla[['Linea', 'Total_Indicadores', 'Cumplimiento', 'Estado']]
-                df_tabla.columns = ['Línea Estratégica', 'Indicadores', '% Cumplimiento', 'Estado']
+        # Análisis IA - ancho completo con max-width para legibilidad
+        st.markdown("#### Analisis Inteligente - Resumen Ejecutivo")
+        with st.spinner("Generando analisis..."):
+            lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
+            analisis = generar_analisis_general(metricas, lineas_data)
 
-                # Mostrar con configuración mejorada
-                st.dataframe(
-                    df_tabla,
-                    use_container_width=True,
-                    hide_index=True,
-                    height=250,
-                    column_config={
-                        "Línea Estratégica": st.column_config.TextColumn(
-                            "Línea Estratégica",
-                            width="large",
-                        ),
-                        "Indicadores": st.column_config.NumberColumn(
-                            "Indicadores",
-                            width="small",
-                        ),
-                        "% Cumplimiento": st.column_config.TextColumn(
-                            "% Cumplimiento",
-                            width="medium",
-                        ),
-                        "Estado": st.column_config.TextColumn(
-                            "Estado",
-                            width="medium",
-                        ),
-                    }
-                )
-            else:
-                st.info("No hay datos disponibles.")
+            analisis_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', analisis)
+            analisis_html = analisis_html.replace('\n', '<br>')
 
-        with col_analisis:
-            st.markdown("#### Analisis Inteligente - Resumen Ejecutivo")
-            with st.spinner("Generando analisis..."):
-                lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
-                analisis = generar_analisis_general(metricas, lineas_data)
-
-                analisis_html = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', analisis)
-                analisis_html = analisis_html.replace('\n', '<br>')
-
-                st.markdown(f"""
-                <div class="ai-analysis">
-                    {analisis_html}
-                </div>
-                """, unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="ai-analysis" style="max-width: 750px;">
+                {analisis_html}
+            </div>
+            """, unsafe_allow_html=True)
 
         # Vista de cascada en expander (opcional)
         with st.expander("Ver desglose jerarquico completo", expanded=False):
