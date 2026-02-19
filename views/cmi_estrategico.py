@@ -91,8 +91,8 @@ def _build_fila(k, row):
 
     bg = '#f5f5f5' if k % 2 == 0 else 'white'
     td_base = (
-        f'padding:7px 10px;border:1px solid #e0e0e0;'
-        f'font-size:14px;background:{bg};text-align:center;'
+        f'padding:8px 10px;border:1px solid #e0e0e0;'
+        f'font-size:15px;background:{bg};text-align:center;'
     )
     td_ind = td_base + 'text-align:left;'
 
@@ -127,16 +127,14 @@ def _build_fila(k, row):
 
 def _build_card(objetivo, df_obj, color_linea):
     """Construye el HTML de una card completa de objetivo."""
-    th_ind = (
-        f'background:{color_linea};color:white;padding:7px 10px;font-size:13px;'
-        f'font-weight:bold;border:1px solid rgba(255,255,255,0.3);'
-        f'text-align:left;white-space:nowrap;'
-    )
-    th_col = (
-        f'background:{color_linea};color:white;padding:7px 10px;font-size:13px;'
-        f'font-weight:bold;border:1px solid rgba(255,255,255,0.3);'
+    # Encabezados: fondo claro, texto del color de la línea, centrados
+    th_style = (
+        f'background:#f0f0f0;color:{color_linea};padding:8px 10px;font-size:14px;'
+        f'font-weight:bold;border:1px solid {color_linea};'
         f'text-align:center;white-space:nowrap;'
     )
+    th_ind = th_style
+    th_col = th_style
 
     filas = ''
     for k, (_, row) in enumerate(df_obj.iterrows()):
@@ -191,22 +189,29 @@ def mostrar_pagina():
     st.markdown("#### 🔍 Filtros")
     col_f1, col_f2, col_f3 = st.columns([2, 2, 2])
 
+    # Mapa año numérico → etiqueta visible (2026 = "Avance")
+    AÑO_MAP = {2022: "2022", 2023: "2023", 2024: "2024", 2025: "2025", 2026: "Avance"}
+    AÑO_MAP_INV = {v: k for k, v in AÑO_MAP.items()}
+
     with col_f1:
-        años_permitidos = [2022, 2023, 2024, 2025]
+        años_permitidos = [2022, 2023, 2024, 2025, 2026]
         if 'Año' in df_unificado.columns:
-            años_disp = sorted([
+            años_disp_num = sorted([
                 int(a) for a in df_unificado['Año'].dropna().unique()
                 if int(a) in años_permitidos
             ])
         else:
-            años_disp = años_permitidos
+            años_disp_num = años_permitidos
 
-        año_sel = st.selectbox(
+        años_labels = [AÑO_MAP.get(a, str(a)) for a in años_disp_num]
+
+        label_sel = st.selectbox(
             "Seleccione Año:",
-            años_disp,
-            index=len(años_disp) - 1 if años_disp else 0,
+            años_labels,
+            index=len(años_labels) - 1 if años_labels else 0,
             key="filtro_año_cmi"
         )
+        año_sel = AÑO_MAP_INV.get(label_sel, int(label_sel))
 
     with col_f2:
         tipo_sel = st.selectbox(
@@ -242,7 +247,8 @@ def mostrar_pagina():
     df = df_unificado[df_unificado['Año'] == año_sel].copy()
 
     if df.empty:
-        st.warning(f"No hay datos para el año {int(año_sel)}.")
+        label_display = AÑO_MAP.get(año_sel, str(año_sel))
+        st.warning(f"No hay datos para {label_display}.")
         return
 
     # Tipo de indicador (fix NaN)
@@ -342,16 +348,14 @@ def _mostrar_expansion(df, color_linea):
     Layout especial para Expansión: dos paneles planos con indicadores fijos.
     Izquierda: poblacional | Derecha: posicionamiento.
     """
-    th_ind = (
-        f'background:{color_linea};color:white;padding:7px 10px;font-size:13px;'
-        f'font-weight:bold;border:1px solid rgba(255,255,255,0.3);'
-        f'text-align:left;white-space:nowrap;'
-    )
-    th_col = (
-        f'background:{color_linea};color:white;padding:7px 10px;font-size:13px;'
-        f'font-weight:bold;border:1px solid rgba(255,255,255,0.3);'
+    # Encabezados: fondo claro, texto del color de la línea, centrados
+    th_style = (
+        f'background:#f0f0f0;color:{color_linea};padding:8px 10px;font-size:14px;'
+        f'font-weight:bold;border:1px solid {color_linea};'
         f'text-align:center;white-space:nowrap;'
     )
+    th_ind = th_style
+    th_col = th_style
 
     def build_panel(indicadores_lista):
         """Construye una tabla plana para una lista de indicadores."""
