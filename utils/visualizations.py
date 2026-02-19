@@ -503,7 +503,7 @@ def crear_grafico_tendencia(df_indicador, nombre_indicador):
         df_indicador: DataFrame con datos del indicador
         nombre_indicador: Nombre del indicador
 
-    Returns:
+    Returns :
         Figura de Plotly
     """
     if df_indicador.empty:
