@@ -57,8 +57,17 @@ def mostrar_pagina():
     col1, col2, col3 = st.columns([2, 2, 2])
     
     with col1:
-        # Filtro por año
-        años_disponibles = sorted(df_unificado[df_unificado['Año'].notna()]['Año'].astype(int).unique())
+        # Filtro por año - solo mostrar 2022-2025 y 2026
+        años_permitidos = [2022, 2023, 2024, 2025, 2026]
+        if 'Año' in df_unificado.columns:
+            df_unificado['Año'] = pd.to_numeric(df_unificado['Año'], errors='coerce')
+            años_disponibles = [int(x) for x in df_unificado[df_unificado['Año'].notna()]['Año'].unique()]
+            años_disponibles = [a for a in años_permitidos if a in años_disponibles]
+        else:
+            años_disponibles = años_permitidos
+        
+        años_disponibles = sorted(años_disponibles)
+        
         año_seleccionado = st.selectbox(
             "Seleccione Año:",
             años_disponibles,
@@ -89,8 +98,8 @@ def mostrar_pagina():
     # FILTRAR DATOS
     # ============================================================
     
-    # Filtrar por año
-    df_filtrado = df_unificado[df_unificado['Año'] == año_seleccionado].copy()
+    # Filtrar por año - comparación segura
+    df_filtrado = df_unificado[df_unificado['Año'].astype(int) == año_seleccionado].copy()
     
     if df_filtrado.empty:
         st.warning(f"No hay datos para el año {int(año_seleccionado)}")
@@ -183,38 +192,40 @@ def mostrar_pagina():
                 ejecucion = row.get('Ejecución', 0)
                 cumplimiento = row.get('Cumplimiento', 0)
                 
+                # Determinar emoji según cumplimiento
+                if pd.isna(cumplimiento) or cumplimiento == 0:
+                    emoji = '⚪'
+                elif cumplimiento >= 100:
+                    emoji = '🟢'
+                elif cumplimiento >= 80:
+                    emoji = '🟡'
+                else:
+                    emoji = '🔴'
+                
+                cumpl_texto = f"{emoji} {cumplimiento:.1f}%" if pd.notna(cumplimiento) and cumplimiento != 0 else '⚪ -'
+                
                 tabla_data.append({
                     'Indicador': indicador,
                     'Meta': meta if pd.notna(meta) else '-',
                     'Ejecución': ejecucion if pd.notna(ejecucion) else '-',
-                    'Cumplimiento (%)': cumplimiento if pd.notna(cumplimiento) else 0
+                    'Cumplimiento': cumpl_texto
                 })
             
             if tabla_data:
                 df_tabla = pd.DataFrame(tabla_data)
                 
-                # Aplicar formato a la tabla
-                def colorear_cumplimiento(val):
-                    if val == 0 or val == '-':
-                        return ''
-                    elif val >= 100:
-                        return f'background-color: {COLORS["success"]}; color: white; text-align: center; border-radius: 3px;'
-                    elif val >= 80:
-                        return f'background-color: {COLORS["warning"]}; color: #333; text-align: center; border-radius: 3px;'
-                    else:
-                        return f'background-color: {COLORS["danger"]}; color: white; text-align: center; border-radius: 3px;'
-                
-                # Mostrar tabla
+                # Mostrar tabla sin colores de fondo, más condensada
                 st.dataframe(
                     df_tabla.style
-                    .map(colorear_cumplimiento, subset=['Cumplimiento (%)'])
                     .format({
-                        'Meta': '{:,.2f}' if df_tabla['Meta'].dtype != 'object' else '{}',
-                        'Ejecución': '{:,.2f}' if df_tabla['Ejecución'].dtype != 'object' else '{}',
-                        'Cumplimiento (%)': '{:.1f}%' if df_tabla['Cumplimiento (%)'].dtype != 'object' else '{}'
-                    }),
+                        'Meta': lambda x: f'{x:,.2f}' if isinstance(x, (int, float)) else x,
+                        'Ejecución': lambda x: f'{x:,.2f}' if isinstance(x, (int, float)) else x,
+                    }, na_rep='-')
+                    .set_properties(**{'text-align': 'center', 'font-size': '13px'})
+                    .set_properties(**{'text-align': 'left'}, subset=['Indicador']),
                     use_container_width=True,
-                    hide_index=True
+                    hide_index=True,
+                    height=len(tabla_data) * 25 + 50
                 )
             else:
                 st.info("No hay indicadores para este objetivo")
