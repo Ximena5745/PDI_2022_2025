@@ -306,21 +306,37 @@ def mostrar_pagina():
             objetivos = sorted(df['Objetivo'].dropna().unique().tolist())
 
         for i in range(0, len(objetivos), 2):
-            cols = st.columns(2)
-            for j in range(2):
-                if i + j >= len(objetivos):
-                    break
+            restantes = len(objetivos) - i
 
-                objetivo = objetivos[i + j]
+            if restantes == 1:
+                # Objetivo impar: centrado sin estirar (columna central de 3)
+                objetivo = objetivos[i]
                 df_obj = df[df['Objetivo'] == objetivo]
                 if 'Indicador' in df_obj.columns:
                     df_obj = df_obj.drop_duplicates(subset=['Indicador'])
-
-                with cols[j]:
+                _, col_center, _ = st.columns([1, 2, 1])
+                with col_center:
                     st.markdown(
                         _build_card(objetivo, df_obj, color_linea),
                         unsafe_allow_html=True
                     )
+            else:
+                # Par de objetivos: 2 columnas iguales
+                cols = st.columns(2)
+                for j in range(2):
+                    if i + j >= len(objetivos):
+                        break
+
+                    objetivo = objetivos[i + j]
+                    df_obj = df[df['Objetivo'] == objetivo]
+                    if 'Indicador' in df_obj.columns:
+                        df_obj = df_obj.drop_duplicates(subset=['Indicador'])
+
+                    with cols[j]:
+                        st.markdown(
+                            _build_card(objetivo, df_obj, color_linea),
+                            unsafe_allow_html=True
+                        )
 
     # ============================================================
     # RESUMEN ESTADÍSTICO
