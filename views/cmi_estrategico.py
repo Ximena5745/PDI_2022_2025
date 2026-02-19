@@ -28,12 +28,18 @@ INDICADORES_EXPANSION_DER = [
 ]
 
 
+def _eu(num_str):
+    """Convierte separadores US (1,234.56) → formato europeo (1.234,56)."""
+    return num_str.replace(',', 'X').replace('.', ',').replace('X', '.')
+
+
 def fmt_valor(v, signo, decimales):
     """
     Formatea un valor numérico según el tipo de signo (DAX logic).
+    Separadores europeos: punto para miles, coma para decimales.
     ENT  → entero con separador de miles
     %    → número con decimales + '%'
-    kWh  → entero + 'kWh'
+    kWh  → entero + ' kWh'
     $    → '$' + entero con miles
     DEC  → número con decimales especificados
     """
@@ -47,27 +53,27 @@ def fmt_valor(v, signo, decimales):
         d = int(decimales) if decimales and not (isinstance(decimales, float) and pd.isna(decimales)) else 0
 
         if s == 'ENT':
-            return f"{int(round(f)):,}"
+            return _eu(f"{int(round(f)):,}")
         elif s == '%':
             if d > 0:
-                return f"{round(f, d):,.{d}f}%"
+                return _eu(f"{round(f, d):,.{d}f}") + '%'
             else:
-                return f"{int(round(f)):,}%"
+                return _eu(f"{int(round(f)):,}") + '%'
         elif s == 'kWh':
-            return f"{int(round(f)):,} kWh"
+            return _eu(f"{int(round(f)):,}") + ' kWh'
         elif s == '$':
-            return f"${int(round(f)):,}"
+            return '$' + _eu(f"{int(round(f)):,}")
         elif s == 'DEC':
             if d > 0:
-                return f"{round(f, d):,.{d}f}"
+                return _eu(f"{round(f, d):,.{d}f}")
             else:
-                return str(int(f)) if f == int(f) else f"{f:.1f}"
+                return _eu(str(int(f))) if f == int(f) else _eu(f"{f:.1f}")
         else:
             # Sin signo o tipo no reconocido
             if d > 0:
-                return f"{round(f, d):,.{d}f}"
+                return _eu(f"{round(f, d):,.{d}f}")
             else:
-                return str(int(f)) if f == int(f) else f"{f:.1f}"
+                return _eu(str(int(f))) if f == int(f) else _eu(f"{f:.1f}")
     except Exception:
         return str(v) if str(v) not in ('nan', 'None', '') else ''
 
