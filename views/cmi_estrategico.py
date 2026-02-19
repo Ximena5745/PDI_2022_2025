@@ -245,6 +245,40 @@ def mostrar_pagina():
             help="Seleccione una línea estratégica para visualizar su CMI"
         )
 
+    # ============================================================
+    # MULTISELECT DE INDICADORES/PROYECTOS
+    # Filtro preliminar para obtener las opciones disponibles
+    # ============================================================
+    df_prev = df_unificado.copy()
+    if 'Año' in df_prev.columns:
+        df_prev['Año'] = pd.to_numeric(df_prev['Año'], errors='coerce')
+    df_prev = df_prev[df_prev['Año'] == anio_sel]
+    if 'Proyectos' in df_prev.columns:
+        if tipo_sel == "Indicadores":
+            df_prev = df_prev[df_prev['Proyectos'].fillna(0) == 0]
+        elif tipo_sel == "Proyectos":
+            df_prev = df_prev[df_prev['Proyectos'].fillna(0) == 1]
+    if 'Fuente' in df_prev.columns:
+        df_prev = df_prev[df_prev['Fuente'].isin(['Cierre', 'Avance'])]
+    if 'Linea' in df_prev.columns:
+        df_prev = df_prev[df_prev['Linea'] == linea_sel]
+
+    indicadores_disp = (
+        sorted(df_prev['Indicador'].dropna().unique().tolist())
+        if 'Indicador' in df_prev.columns else []
+    )
+
+    # La key incluye los 3 filtros principales: al cambiar línea/año/tipo se resetea la selección
+    ms_key = f"filtro_ind_cmi_{linea_sel}_{label_sel}_{tipo_sel}"
+
+    indicadores_sel = st.multiselect(
+        "Indicadores / Proyectos a mostrar:",
+        options=indicadores_disp,
+        default=indicadores_disp,
+        key=ms_key,
+        placeholder="Seleccione uno o más indicadores…"
+    )
+
     st.markdown("---")
 
     # ============================================================
@@ -270,6 +304,10 @@ def mostrar_pagina():
     # Línea obligatoria
     if 'Linea' in df.columns:
         df = df[df['Linea'] == linea_sel]
+
+    # Filtro de indicadores seleccionados en el multiselect
+    if indicadores_sel and 'Indicador' in df.columns:
+        df = df[df['Indicador'].isin(indicadores_sel)]
 
     if df.empty:
         st.warning("No hay datos con los filtros seleccionados.")
