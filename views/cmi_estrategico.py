@@ -211,7 +211,7 @@ def mostrar_pagina():
             index=len(años_labels) - 1 if años_labels else 0,
             key="filtro_año_cmi"
         )
-        año_sel = AÑO_MAP_INV.get(label_sel, int(label_sel))
+        año_sel = AÑO_MAP_INV[label_sel] if label_sel in AÑO_MAP_INV else int(label_sel)
 
     with col_f2:
         tipo_sel = st.selectbox(
