@@ -247,7 +247,7 @@ with st.sidebar:
     # Navegación
     pagina = st.radio(
         "📍 Navegación",
-        ["📊 Dashboard General", "📈 Análisis por Línea", "🔍 Detalle de Indicadores"],
+        ["📊 Dashboard General", "🎯 CMI Estratégico", "📈 Análisis por Línea", "🔍 Detalle de Indicadores"],
         label_visibility="visible"
     )
 
@@ -305,6 +305,10 @@ st.session_state['pagina_actual'] = pagina
 if pagina == "📊 Dashboard General":
     from views import dashboard
     dashboard.mostrar_pagina()
+
+elif pagina == "🎯 CMI Estratégico":
+    from views import cmi_estrategico
+    cmi_estrategico.mostrar_pagina()
 
 elif pagina == "📈 Análisis por Línea":
     from views import analisis_linea
