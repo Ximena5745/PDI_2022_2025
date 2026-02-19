@@ -356,35 +356,32 @@ def _mostrar_expansion(df, color_linea):
     th_ind = th_style
     th_col = th_style
 
+    def get_objetivo(indicadores_lista):
+        """Obtiene el nombre del objetivo del primer indicador encontrado."""
+        for nombre in indicadores_lista:
+            df_ind = df[df['Indicador'] == nombre]
+            if not df_ind.empty and 'Objetivo' in df_ind.columns:
+                val = df_ind.iloc[0].get('Objetivo', '')
+                if val and str(val) not in ('', 'nan', 'None'):
+                    return str(val)
+        return ''
+
     def build_panel(indicadores_lista):
-        """Construye una tabla plana para una lista de indicadores con header de objetivo."""
+        """Construye una tabla plana para una lista de indicadores (sin header de objetivo)."""
         filas = ''
-        objetivo_nombre = ''
         for k, nombre in enumerate(indicadores_lista):
             df_ind = df[df['Indicador'] == nombre]
             if df_ind.empty:
                 continue
             row = df_ind.drop_duplicates(subset=['Indicador']).iloc[0]
-            # Tomar el nombre del objetivo del primer indicador encontrado
-            if not objetivo_nombre and 'Objetivo' in row.index:
-                objetivo_nombre = str(row.get('Objetivo', ''))
             filas += _build_fila(k, row)
 
         if not filas:
             return ''
 
-        # Header de objetivo (igual que en las otras líneas)
-        header_obj = (
-            f'<div style="background:{color_linea};color:white;padding:10px 14px;'
-            f'font-weight:bold;font-size:15px;text-transform:uppercase;'
-            f'text-align:center;line-height:1.4;">{objetivo_nombre}</div>'
-            if objetivo_nombre else ''
-        )
-
         return (
             f'<div style="border:2px solid {color_linea};border-radius:8px;'
             f'overflow:hidden;margin-bottom:14px;">'
-            f'{header_obj}'
             f'<table style="width:100%;border-collapse:collapse;">'
             f'<tr>'
             f'<th style="{th_ind}">Indicador</th>'
@@ -395,6 +392,17 @@ def _mostrar_expansion(df, color_linea):
             f'{filas}'
             f'</table>'
             f'</div>'
+        )
+
+    # Header de objetivo — ancho completo, una sola vez
+    objetivo_nombre = get_objetivo(INDICADORES_EXPANSION_IZQ) or get_objetivo(INDICADORES_EXPANSION_DER)
+    if objetivo_nombre:
+        st.markdown(
+            f'<div style="background:{color_linea};color:white;padding:10px 14px;'
+            f'font-weight:bold;font-size:15px;text-transform:uppercase;'
+            f'text-align:center;line-height:1.4;border-radius:6px;margin-bottom:10px;">'
+            f'{objetivo_nombre}</div>',
+            unsafe_allow_html=True
         )
 
     col_izq, col_der = st.columns(2)
