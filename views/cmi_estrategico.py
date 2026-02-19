@@ -119,6 +119,10 @@ def mostrar_pagina():
         elif tipo_seleccionado == "Proyectos":
             df_filtrado = df_filtrado[df_filtrado['Proyectos'] == 1]
     
+    # Filtrar por fuente (Cierre y Avance)
+    if 'Fuente' in df_filtrado.columns:
+        df_filtrado = df_filtrado[df_filtrado['Fuente'].isin(['Cierre', 'Avance'])]
+    
     # Filtrar por línea estratégica
     if 'Linea' in df_filtrado.columns and linea_seleccionada != "Todas":
         df_filtrado = df_filtrado[df_filtrado['Linea'] == linea_seleccionada]
