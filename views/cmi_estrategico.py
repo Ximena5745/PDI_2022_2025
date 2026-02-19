@@ -190,28 +190,28 @@ def mostrar_pagina():
     col_f1, col_f2, col_f3 = st.columns([2, 2, 2])
 
     # Mapa año numérico → etiqueta visible (2026 = "Avance")
-    AÑO_MAP = {2022: "2022", 2023: "2023", 2024: "2024", 2025: "2025", 2026: "Avance"}
-    AÑO_MAP_INV = {v: k for k, v in AÑO_MAP.items()}
+    YEAR_MAP = {2022: "2022", 2023: "2023", 2024: "2024", 2025: "2025", 2026: "Avance"}
+    YEAR_MAP_INV = {"2022": 2022, "2023": 2023, "2024": 2024, "2025": 2025, "Avance": 2026}
 
     with col_f1:
-        años_permitidos = [2022, 2023, 2024, 2025, 2026]
+        anios_permitidos = [2022, 2023, 2024, 2025, 2026]
         if 'Año' in df_unificado.columns:
-            años_disp_num = sorted([
+            anios_disp_num = sorted([
                 int(a) for a in df_unificado['Año'].dropna().unique()
-                if int(a) in años_permitidos
+                if int(a) in anios_permitidos
             ])
         else:
-            años_disp_num = años_permitidos
+            anios_disp_num = anios_permitidos
 
-        años_labels = [AÑO_MAP.get(a, str(a)) for a in años_disp_num]
+        anios_labels = [YEAR_MAP.get(a, str(a)) for a in anios_disp_num]
 
         label_sel = st.selectbox(
             "Seleccione Año:",
-            años_labels,
-            index=len(años_labels) - 1 if años_labels else 0,
-            key="filtro_año_cmi"
+            anios_labels,
+            index=len(anios_labels) - 1 if anios_labels else 0,
+            key="filtro_anio_cmi"
         )
-        año_sel = AÑO_MAP_INV[label_sel] if label_sel in AÑO_MAP_INV else int(label_sel)
+        anio_sel = YEAR_MAP_INV.get(label_sel, 2025)
 
     with col_f2:
         tipo_sel = st.selectbox(
@@ -244,11 +244,10 @@ def mostrar_pagina():
     # ============================================================
     # FILTRAR DATOS
     # ============================================================
-    df = df_unificado[df_unificado['Año'] == año_sel].copy()
+    df = df_unificado[df_unificado['Año'] == anio_sel].copy()
 
     if df.empty:
-        label_display = AÑO_MAP.get(año_sel, str(año_sel))
-        st.warning(f"No hay datos para {label_display}.")
+        st.warning(f"No hay datos para {label_sel}.")
         return
 
     # Tipo de indicador (fix NaN)
