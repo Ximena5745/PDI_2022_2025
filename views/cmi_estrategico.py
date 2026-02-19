@@ -281,19 +281,24 @@ def mostrar_pagina():
     color_linea = COLORES_LINEAS.get(linea_sel, COLORS['primary'])
     titulo_linea = linea_sel.replace('_', ' ')
 
-    # Header de línea — sin icono, centrado, sin guiones bajos
-    st.markdown(
-        f'<div style="background:{color_linea};color:white;padding:12px 20px;'
-        f'border-radius:6px;font-size:18px;font-weight:bold;margin-bottom:14px;'
-        f'text-align:center;">'
-        f'{titulo_linea}</div>',
-        unsafe_allow_html=True
-    )
+    def _render_titulo(container=None):
+        """Renderiza el header de línea en el contenedor dado (o en la página si None)."""
+        html = (
+            f'<div style="background:{color_linea};color:white;padding:12px 20px;'
+            f'border-radius:6px;font-size:18px;font-weight:bold;margin-bottom:14px;'
+            f'text-align:center;">'
+            f'{titulo_linea}</div>'
+        )
+        if container:
+            container.markdown(html, unsafe_allow_html=True)
+        else:
+            st.markdown(html, unsafe_allow_html=True)
 
     # ============================================================
     # LAYOUT ESPECIAL PARA EXPANSIÓN
     # ============================================================
     if linea_sel == 'Expansión':
+        _render_titulo()
         _mostrar_expansion(df, color_linea)
 
     # ============================================================
@@ -305,17 +310,24 @@ def mostrar_pagina():
         if 'Objetivo' in df.columns:
             objetivos = sorted(df['Objetivo'].dropna().unique().tolist())
 
+        # Título a ancho completo solo cuando hay más de un objetivo
+        if len(objetivos) != 1:
+            _render_titulo()
+
         for i in range(0, len(objetivos), 2):
             restantes = len(objetivos) - i
 
             if restantes == 1:
-                # Objetivo impar: centrado sin estirar (columna central de 3)
+                # Objetivo impar: título + card centrados en columna central
                 objetivo = objetivos[i]
                 df_obj = df[df['Objetivo'] == objetivo]
                 if 'Indicador' in df_obj.columns:
                     df_obj = df_obj.drop_duplicates(subset=['Indicador'])
                 _, col_center, _ = st.columns([1, 2, 1])
                 with col_center:
+                    # Título dentro de la columna solo si es el único objetivo de la línea
+                    if len(objetivos) == 1:
+                        _render_titulo(col_center)
                     st.markdown(
                         _build_card(objetivo, df_obj, color_linea),
                         unsafe_allow_html=True
