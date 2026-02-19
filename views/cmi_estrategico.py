@@ -92,7 +92,7 @@ def _build_fila(k, row):
     bg = '#f5f5f5' if k % 2 == 0 else 'white'
     td_base = (
         f'padding:8px 10px;border:1px solid #e0e0e0;'
-        f'font-size:15px;background:{bg};text-align:center;'
+        f'font-size:17px;background:{bg};text-align:center;'
     )
     td_ind = td_base + 'text-align:left;'
 
@@ -129,7 +129,7 @@ def _build_card(objetivo, df_obj, color_linea):
     """Construye el HTML de una card completa de objetivo."""
     # Encabezados: fondo claro, texto del color de la línea, centrados
     th_style = (
-        f'background:#f0f0f0;color:{color_linea};padding:8px 10px;font-size:14px;'
+        f'background:#f0f0f0;color:{color_linea};padding:9px 10px;font-size:16px;'
         f'font-weight:bold;border:1px solid {color_linea};'
         f'text-align:center;white-space:nowrap;'
     )
@@ -144,7 +144,7 @@ def _build_card(objetivo, df_obj, color_linea):
         f'<div style="border:2px solid {color_linea};border-radius:8px;'
         f'overflow:hidden;margin-bottom:14px;">'
         f'<div style="background:{color_linea};color:white;padding:10px 14px;'
-        f'font-weight:bold;font-size:13px;text-transform:uppercase;'
+        f'font-weight:bold;font-size:15px;text-transform:uppercase;'
         f'text-align:center;line-height:1.4;">{objetivo}</div>'
         f'<table style="width:100%;border-collapse:collapse;">'
         f'<tr>'
@@ -278,7 +278,7 @@ def mostrar_pagina():
     # Header de línea — sin icono, centrado, sin guiones bajos
     st.markdown(
         f'<div style="background:{color_linea};color:white;padding:12px 20px;'
-        f'border-radius:6px;font-size:16px;font-weight:bold;margin-bottom:14px;'
+        f'border-radius:6px;font-size:18px;font-weight:bold;margin-bottom:14px;'
         f'text-align:center;">'
         f'{titulo_linea}</div>',
         unsafe_allow_html=True
@@ -349,7 +349,7 @@ def _mostrar_expansion(df, color_linea):
     """
     # Encabezados: fondo claro, texto del color de la línea, centrados
     th_style = (
-        f'background:#f0f0f0;color:{color_linea};padding:8px 10px;font-size:14px;'
+        f'background:#f0f0f0;color:{color_linea};padding:9px 10px;font-size:16px;'
         f'font-weight:bold;border:1px solid {color_linea};'
         f'text-align:center;white-space:nowrap;'
     )
