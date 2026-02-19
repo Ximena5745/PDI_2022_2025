@@ -15,18 +15,150 @@ from utils.data_loader import (
     COLORS, obtener_color_semaforo, COLORES_LINEAS
 )
 
+# Indicadores de Expansión a mostrar (orden fijo: 3 izq, 3 der)
+INDICADORES_EXPANSION_IZQ = [
+    "Total Población",
+    "Total estudiantes nuevos",
+    "Total Matriculados antiguos",
+]
+INDICADORES_EXPANSION_DER = [
+    "Brand equity",
+    "Conocimiento espontaneo",
+    "Lanzamiento de nuevos programas virtual",
+]
 
-def fmt_num(v):
-    """Formatea valor numérico de forma compacta: entero si es entero, 1 decimal si no."""
+
+def fmt_valor(v, signo, decimales):
+    """
+    Formatea un valor numérico según el tipo de signo (DAX logic).
+    ENT  → entero con separador de miles
+    %    → número con decimales + '%'
+    kWh  → entero + 'kWh'
+    $    → '$' + entero con miles
+    DEC  → número con decimales especificados
+    """
     if v is None:
         return ''
     try:
         if pd.isna(v):
             return ''
         f = float(v)
-        return str(int(f)) if f == int(f) else f"{f:.1f}"
+        s = str(signo).strip() if signo and not (isinstance(signo, float) and pd.isna(signo)) else ''
+        d = int(decimales) if decimales and not (isinstance(decimales, float) and pd.isna(decimales)) else 0
+
+        if s == 'ENT':
+            return f"{int(round(f)):,}"
+        elif s == '%':
+            if d > 0:
+                return f"{round(f, d):,.{d}f}%"
+            else:
+                return f"{int(round(f)):,}%"
+        elif s == 'kWh':
+            return f"{int(round(f)):,} kWh"
+        elif s == '$':
+            return f"${int(round(f)):,}"
+        elif s == 'DEC':
+            if d > 0:
+                return f"{round(f, d):,.{d}f}"
+            else:
+                return str(int(f)) if f == int(f) else f"{f:.1f}"
+        else:
+            # Sin signo o tipo no reconocido
+            if d > 0:
+                return f"{round(f, d):,.{d}f}"
+            else:
+                return str(int(f)) if f == int(f) else f"{f:.1f}"
     except Exception:
         return str(v) if str(v) not in ('nan', 'None', '') else ''
+
+
+def _build_fila(k, row):
+    """Construye el HTML de una fila de indicador."""
+    ind_nombre = row.get('Indicador', '')
+
+    # Valores con formato
+    meta_v = fmt_valor(
+        row.get('Meta', ''),
+        row.get('Meta s', ''),
+        row.get('Decimales_Meta', 0)
+    )
+    ejec_v = fmt_valor(
+        row.get('Ejecución', ''),
+        row.get('Ejecución s', ''),
+        row.get('Decimales_Ejecucion', 0)
+    )
+    cumpl = row.get('Cumplimiento', None)
+
+    bg = '#f5f5f5' if k % 2 == 0 else 'white'
+    td_base = (
+        f'padding:7px 10px;border:1px solid #e0e0e0;'
+        f'font-size:14px;background:{bg};text-align:center;'
+    )
+    td_ind = td_base + 'text-align:left;'
+
+    if cumpl is not None and pd.notna(cumpl):
+        cf = float(cumpl)
+        ccolor = (
+            COLORS['success'] if cf >= 100
+            else COLORS['warning'] if cf >= 80
+            else COLORS['danger']
+        )
+        dot = (
+            f'<span style="display:inline-block;width:11px;height:11px;'
+            f'border-radius:50%;background:{ccolor};vertical-align:middle;'
+            f'margin-left:5px;"></span>'
+        )
+        cumpl_cell = (
+            f'<span style="color:{ccolor};font-weight:bold;">'
+            f'{cf:.1f}%</span>{dot}'
+        )
+    else:
+        cumpl_cell = '<span style="color:#aaa;">N/D</span>'
+
+    return (
+        f'<tr>'
+        f'<td style="{td_ind}">{ind_nombre}</td>'
+        f'<td style="{td_base}">{meta_v}</td>'
+        f'<td style="{td_base}">{ejec_v}</td>'
+        f'<td style="{td_base}">{cumpl_cell}</td>'
+        f'</tr>'
+    )
+
+
+def _build_card(objetivo, df_obj, color_linea):
+    """Construye el HTML de una card completa de objetivo."""
+    th_ind = (
+        f'background:{color_linea};color:white;padding:7px 10px;font-size:13px;'
+        f'font-weight:bold;border:1px solid rgba(255,255,255,0.3);'
+        f'text-align:left;white-space:nowrap;'
+    )
+    th_col = (
+        f'background:{color_linea};color:white;padding:7px 10px;font-size:13px;'
+        f'font-weight:bold;border:1px solid rgba(255,255,255,0.3);'
+        f'text-align:center;white-space:nowrap;'
+    )
+
+    filas = ''
+    for k, (_, row) in enumerate(df_obj.iterrows()):
+        filas += _build_fila(k, row)
+
+    return (
+        f'<div style="border:2px solid {color_linea};border-radius:8px;'
+        f'overflow:hidden;margin-bottom:14px;">'
+        f'<div style="background:{color_linea};color:white;padding:10px 14px;'
+        f'font-weight:bold;font-size:13px;text-transform:uppercase;'
+        f'text-align:center;line-height:1.4;">{objetivo}</div>'
+        f'<table style="width:100%;border-collapse:collapse;">'
+        f'<tr>'
+        f'<th style="{th_ind}">Indicador</th>'
+        f'<th style="{th_col}">Meta</th>'
+        f'<th style="{th_col}">Ejecución</th>'
+        f'<th style="{th_col}">Cumplimiento</th>'
+        f'</tr>'
+        f'{filas}'
+        f'</table>'
+        f'</div>'
+    )
 
 
 def mostrar_pagina():
@@ -35,7 +167,7 @@ def mostrar_pagina():
     # Header
     st.markdown(
         '<div class="header-container" style="padding:15px;margin-bottom:10px;">'
-        '<div class="header-title" style="font-size:26px;">🎯 CMI Estratégico</div>'
+        '<div class="header-title" style="font-size:26px;">CMI Estratégico</div>'
         '<div class="header-subtitle" style="font-size:13px;">'
         'Cuadro de Mando Integral | Indicadores por Objetivo Estratégico</div>'
         '</div>',
@@ -133,116 +265,51 @@ def mostrar_pagina():
         return
 
     # ============================================================
-    # COLOR DE LÍNEA
+    # COLOR Y TÍTULO DE LÍNEA
     # ============================================================
     color_linea = COLORES_LINEAS.get(linea_sel, COLORS['primary'])
+    titulo_linea = linea_sel.replace('_', ' ')
 
-    # Header de línea — ancho completo
+    # Header de línea — sin icono, centrado, sin guiones bajos
     st.markdown(
         f'<div style="background:{color_linea};color:white;padding:12px 20px;'
-        f'border-radius:6px;font-size:16px;font-weight:bold;margin-bottom:14px;">'
-        f'📋 {linea_sel}</div>',
+        f'border-radius:6px;font-size:16px;font-weight:bold;margin-bottom:14px;'
+        f'text-align:center;">'
+        f'{titulo_linea}</div>',
         unsafe_allow_html=True
     )
 
     # ============================================================
-    # CUADRÍCULA 2 COLUMNAS POR OBJETIVO
+    # LAYOUT ESPECIAL PARA EXPANSIÓN
     # ============================================================
-    df = df.sort_values(['Objetivo', 'Indicador'])
-    objetivos = []
-    if 'Objetivo' in df.columns:
-        objetivos = sorted(df['Objetivo'].dropna().unique().tolist())
+    if linea_sel == 'Expansión':
+        _mostrar_expansion(df, color_linea)
 
-    # Estilos de encabezados de tabla (reutilizables)
-    th_ind = (
-        f'background:{color_linea};color:white;padding:7px 10px;font-size:11px;'
-        f'font-weight:bold;border:1px solid rgba(255,255,255,0.3);'
-        f'text-align:left;white-space:nowrap;'
-    )
-    th_col = (
-        f'background:{color_linea};color:white;padding:7px 10px;font-size:11px;'
-        f'font-weight:bold;border:1px solid rgba(255,255,255,0.3);'
-        f'text-align:center;white-space:nowrap;'
-    )
+    # ============================================================
+    # CUADRÍCULA 2 COLUMNAS POR OBJETIVO (otras líneas)
+    # ============================================================
+    else:
+        df = df.sort_values(['Objetivo', 'Indicador'])
+        objetivos = []
+        if 'Objetivo' in df.columns:
+            objetivos = sorted(df['Objetivo'].dropna().unique().tolist())
 
-    for i in range(0, len(objetivos), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j >= len(objetivos):
-                break
+        for i in range(0, len(objetivos), 2):
+            cols = st.columns(2)
+            for j in range(2):
+                if i + j >= len(objetivos):
+                    break
 
-            objetivo = objetivos[i + j]
-            df_obj = df[df['Objetivo'] == objetivo]
-            if 'Indicador' in df_obj.columns:
-                df_obj = df_obj.drop_duplicates(subset=['Indicador'])
+                objetivo = objetivos[i + j]
+                df_obj = df[df['Objetivo'] == objetivo]
+                if 'Indicador' in df_obj.columns:
+                    df_obj = df_obj.drop_duplicates(subset=['Indicador'])
 
-            # Construir filas de indicadores
-            filas = ''
-            for k, (_, row) in enumerate(df_obj.iterrows()):
-                ind_nombre = row.get('Indicador', '')
-                meta_v = fmt_num(row.get('Meta', ''))
-                ejec_v = fmt_num(row.get('Ejecución', ''))
-                cumpl = row.get('Cumplimiento', None)
-
-                bg = '#f5f5f5' if k % 2 == 0 else 'white'
-                td_base = (
-                    f'padding:6px 10px;border:1px solid #e0e0e0;'
-                    f'font-size:12px;background:{bg};text-align:center;'
-                )
-                td_ind = td_base + 'text-align:left;'
-
-                # Celda de cumplimiento con círculo de color
-                if cumpl is not None and pd.notna(cumpl):
-                    cf = float(cumpl)
-                    ccolor = (
-                        COLORS['success'] if cf >= 100
-                        else COLORS['warning'] if cf >= 80
-                        else COLORS['danger']
+                with cols[j]:
+                    st.markdown(
+                        _build_card(objetivo, df_obj, color_linea),
+                        unsafe_allow_html=True
                     )
-                    dot = (
-                        f'<span style="display:inline-block;width:11px;height:11px;'
-                        f'border-radius:50%;background:{ccolor};vertical-align:middle;'
-                        f'margin-left:5px;"></span>'
-                    )
-                    cumpl_cell = (
-                        f'<span style="color:{ccolor};font-weight:bold;">'
-                        f'{cf:.1f}%</span>{dot}'
-                    )
-                else:
-                    cumpl_cell = '<span style="color:#aaa;">N/D</span>'
-
-                filas += (
-                    f'<tr>'
-                    f'<td style="{td_ind}">{ind_nombre}</td>'
-                    f'<td style="{td_base}">{meta_v}</td>'
-                    f'<td style="{td_base}">{ejec_v}</td>'
-                    f'<td style="{td_base}">{cumpl_cell}</td>'
-                    f'</tr>'
-                )
-
-            # Card completa del objetivo
-            card = (
-                f'<div style="border:2px solid {color_linea};border-radius:8px;'
-                f'overflow:hidden;margin-bottom:14px;">'
-                # Encabezado del objetivo — mismo color que la línea
-                f'<div style="background:{color_linea};color:white;padding:10px 14px;'
-                f'font-weight:bold;font-size:11px;text-transform:uppercase;'
-                f'text-align:center;line-height:1.4;">{objetivo}</div>'
-                # Tabla de indicadores
-                f'<table style="width:100%;border-collapse:collapse;">'
-                f'<tr>'
-                f'<th style="{th_ind}">Indicador</th>'
-                f'<th style="{th_col}">Meta</th>'
-                f'<th style="{th_col}">Ejecución</th>'
-                f'<th style="{th_col}">Cumplimiento</th>'
-                f'</tr>'
-                f'{filas}'
-                f'</table>'
-                f'</div>'
-            )
-
-            with cols[j]:
-                st.markdown(card, unsafe_allow_html=True)
 
     # ============================================================
     # RESUMEN ESTADÍSTICO
@@ -268,3 +335,64 @@ def mostrar_pagina():
         st.metric("🟡 Alerta", alerta)
     with col_s5:
         st.metric("🔴 Peligro", peligro)
+
+
+def _mostrar_expansion(df, color_linea):
+    """
+    Layout especial para Expansión: dos paneles planos con indicadores fijos.
+    Izquierda: poblacional | Derecha: posicionamiento.
+    """
+    th_ind = (
+        f'background:{color_linea};color:white;padding:7px 10px;font-size:13px;'
+        f'font-weight:bold;border:1px solid rgba(255,255,255,0.3);'
+        f'text-align:left;white-space:nowrap;'
+    )
+    th_col = (
+        f'background:{color_linea};color:white;padding:7px 10px;font-size:13px;'
+        f'font-weight:bold;border:1px solid rgba(255,255,255,0.3);'
+        f'text-align:center;white-space:nowrap;'
+    )
+
+    def build_panel(indicadores_lista):
+        """Construye una tabla plana para una lista de indicadores."""
+        filas = ''
+        for k, nombre in enumerate(indicadores_lista):
+            df_ind = df[df['Indicador'] == nombre]
+            if df_ind.empty:
+                continue
+            row = df_ind.drop_duplicates(subset=['Indicador']).iloc[0]
+            filas += _build_fila(k, row)
+
+        if not filas:
+            return ''
+
+        return (
+            f'<div style="border:2px solid {color_linea};border-radius:8px;'
+            f'overflow:hidden;margin-bottom:14px;">'
+            f'<table style="width:100%;border-collapse:collapse;">'
+            f'<tr>'
+            f'<th style="{th_ind}">Indicador</th>'
+            f'<th style="{th_col}">Meta</th>'
+            f'<th style="{th_col}">Ejecución</th>'
+            f'<th style="{th_col}">Cumplimiento</th>'
+            f'</tr>'
+            f'{filas}'
+            f'</table>'
+            f'</div>'
+        )
+
+    col_izq, col_der = st.columns(2)
+    html_izq = build_panel(INDICADORES_EXPANSION_IZQ)
+    html_der = build_panel(INDICADORES_EXPANSION_DER)
+
+    with col_izq:
+        if html_izq:
+            st.markdown(html_izq, unsafe_allow_html=True)
+        else:
+            st.info("Sin datos para el panel izquierdo.")
+
+    with col_der:
+        if html_der:
+            st.markdown(html_der, unsafe_allow_html=True)
+        else:
+            st.info("Sin datos para el panel derecho.")
