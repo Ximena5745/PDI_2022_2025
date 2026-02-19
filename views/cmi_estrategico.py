@@ -48,6 +48,11 @@ def mostrar_pagina():
     if df_unificado is None or df_unificado.empty:
         st.error("⚠️ No se pudieron cargar los datos.")
         return
+    
+    # Asegurar que la columna Año es numérica
+    if 'Año' in df_unificado.columns:
+        df_unificado = df_unificado.copy()
+        df_unificado['Año'] = pd.to_numeric(df_unificado['Año'], errors='coerce')
 
     # ============================================================
     # CONTROLES DE FILTRO
@@ -60,13 +65,10 @@ def mostrar_pagina():
         # Filtro por año - solo mostrar 2022-2025 y 2026
         años_permitidos = [2022, 2023, 2024, 2025, 2026]
         if 'Año' in df_unificado.columns:
-            df_unificado['Año'] = pd.to_numeric(df_unificado['Año'], errors='coerce')
-            años_disponibles = [int(x) for x in df_unificado[df_unificado['Año'].notna()]['Año'].unique()]
-            años_disponibles = [a for a in años_permitidos if a in años_disponibles]
+            años_disponibles = [int(a) for a in df_unificado['Año'].dropna().unique()]
+            años_disponibles = sorted([a for a in años_permitidos if a in años_disponibles])
         else:
             años_disponibles = años_permitidos
-        
-        años_disponibles = sorted(años_disponibles)
         
         año_seleccionado = st.selectbox(
             "Seleccione Año:",
@@ -85,7 +87,11 @@ def mostrar_pagina():
     
     with col3:
         # Filtro por línea estratégica
-        lineas = sorted(df_unificado['Linea'].dropna().unique())
+        if 'Linea' in df_unificado.columns:
+            lineas = sorted(df_unificado['Linea'].dropna().unique())
+        else:
+            lineas = []
+        
         linea_seleccionada = st.selectbox(
             "Línea Estratégica:",
             ["Todas"] + lineas,
@@ -99,28 +105,26 @@ def mostrar_pagina():
     # ============================================================
     
     # Filtrar por año - comparación segura
-    df_filtrado = df_unificado[df_unificado['Año'].astype(int) == año_seleccionado].copy()
+    df_filtrado = df_unificado[df_unificado['Año'] == año_seleccionado].copy()
     
     if df_filtrado.empty:
-        st.warning(f"No hay datos para el año {int(año_seleccionado)}")
+        st.warning(f"⚠️ No hay datos para el año {int(año_seleccionado)}")
+        st.write(f"Años disponibles en BD: {sorted(df_unificado['Año'].dropna().unique().astype(int))}")
         return
     
     # Filtrar por tipo
-    if tipo_seleccionado == "Indicadores":
-        df_filtrado = df_filtrado[df_filtrado['Proyectos'] == 0]
-    elif tipo_seleccionado == "Proyectos":
-        df_filtrado = df_filtrado[df_filtrado['Proyectos'] == 1]
-    
-    # Filtrar por fuente (solo Avance, no Proyección)
-    if 'Fuente' in df_filtrado.columns:
-        df_filtrado = df_filtrado[df_filtrado['Fuente'] == 'Avance']
+    if 'Proyectos' in df_filtrado.columns:
+        if tipo_seleccionado == "Indicadores":
+            df_filtrado = df_filtrado[df_filtrado['Proyectos'] == 0]
+        elif tipo_seleccionado == "Proyectos":
+            df_filtrado = df_filtrado[df_filtrado['Proyectos'] == 1]
     
     # Filtrar por línea estratégica
-    if linea_seleccionada != "Todas":
+    if 'Linea' in df_filtrado.columns and linea_seleccionada != "Todas":
         df_filtrado = df_filtrado[df_filtrado['Linea'] == linea_seleccionada]
     
     if df_filtrado.empty:
-        st.warning("No hay datos con los filtros seleccionados")
+        st.warning("⚠️ No hay datos con los filtros seleccionados")
         return
     
     # ============================================================
