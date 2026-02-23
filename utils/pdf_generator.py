@@ -1002,84 +1002,220 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
         pdf.set_y(120)
         pdf.cell(0, 15, 'INFORME ESTRATEGICO', 0, 1, 'C')
 
-    # ===== RESUMEN EJECUTIVO =====
+    # ===== RESUMEN EJECUTIVO - DISEÑO LIGHT =====
     pdf.add_page()
-    pdf.set_text_color(0, 61, 130)
-    pdf.set_font('Helvetica', 'B', 16)
-    pdf.cell(0, 10, 'Resumen Ejecutivo', 0, 1, 'L')
-    pdf.set_draw_color(0, 61, 130)
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(10)
 
-    # KPIs
-    pdf.set_font('Helvetica', 'B', 12)
-    pdf.set_text_color(0, 61, 130)
-    pdf.cell(0, 8, 'Indicadores Clave de Desempeno', 0, 1, 'L')
-    pdf.ln(5)
+    # Paleta light
+    C_BG       = (255, 255, 255)
+    C_CARD     = (243, 246, 252)
+    C_PRIMARY  = (0, 61, 130)
+    C_ACCENT   = (0, 86, 179)
+    C_DARK     = (33, 37, 41)
+    C_GRAY     = (108, 117, 125)
+    C_LINE     = (220, 225, 235)
+    C_PROG_BG  = (220, 225, 235)
+    C_GREEN    = (40, 167, 69)
+    C_ORANGE   = (255, 152, 0)
+    C_RED      = (220, 53, 69)
 
-    cumplimiento = metricas.get('cumplimiento_promedio', 0)
-    kpis = [
-        ('Cumplimiento', f"{cumplimiento:.1f}%", (0, 61, 130)),
-        ('Cumplidos', str(metricas.get('indicadores_cumplidos', 0)), (40, 167, 69)),
-        ('En Progreso', str(metricas.get('en_progreso', 0)), (255, 193, 7)),
-        ('No Cumplidos', str(metricas.get('no_cumplidos', 0)), (220, 53, 69)),
-        ('Total', str(metricas.get('total_indicadores', 0)), (108, 117, 125)),
+    # Fondo blanco de página (cubre el header automático)
+    pdf.set_fill_color(*C_BG)
+    pdf.rect(0, 0, 210, 297, 'F')
+    pdf.set_line_width(0.2)
+
+    # ---- HEADER ----
+    pdf.set_xy(10, 12)
+    pdf.set_font('Helvetica', 'B', 22)
+    pdf.set_text_color(*C_PRIMARY)
+    pdf.cell(100, 10, 'Resumen Ejecutivo', 0, 0)
+
+    pdf.set_xy(110, 12)
+    pdf.set_font('Helvetica', '', 7)
+    pdf.set_text_color(*C_GRAY)
+    pdf.cell(90, 5, 'PLAN DE DESARROLLO INSTITUCIONAL', 0, 1, 'R')
+
+    pdf.set_xy(110, 18)
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.set_text_color(*C_PRIMARY)
+    pdf.cell(90, 5, f'Periodo de Evaluacion {año}', 0, 1, 'R')
+
+    pdf.set_xy(10, 24)
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.set_text_color(*C_ACCENT)
+    pdf.cell(100, 5, 'INFORME ESTRATEGICO POLI', 0, 1)
+
+    # Separador
+    pdf.set_draw_color(*C_LINE)
+    pdf.set_line_width(0.4)
+    pdf.line(10, 32, 200, 32)
+    pdf.set_line_width(0.2)
+
+    # ---- SECCIÓN KPIs ----
+    pdf.set_xy(10, 37)
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.set_text_color(*C_PRIMARY)
+    pdf.cell(0, 5, 'INDICADORES CLAVE DE DESEMPENO', 0, 1)
+
+    pdf.set_draw_color(*C_ACCENT)
+    pdf.set_line_width(0.6)
+    pdf.line(10, 43, 200, 43)
+    pdf.set_line_width(0.2)
+
+    cumplimiento   = metricas.get('cumplimiento_promedio', 0)
+    total_ind      = metricas.get('total_indicadores', 0)
+    cumplidos_ind  = metricas.get('indicadores_cumplidos', 0)
+    en_progreso_ind = metricas.get('en_progreso', 0)
+    no_cumplidos_ind = metricas.get('no_cumplidos', 0)
+
+    kpis_data = [
+        ('Cumplimiento',  f'{cumplimiento:.1f}%',    C_ACCENT,  'C'),
+        ('Cumplidos',     str(cumplidos_ind),          C_GREEN,   'OK'),
+        ('En Progreso',   str(en_progreso_ind),        C_ORANGE,  '~'),
+        ('No Cumplidos',  str(no_cumplidos_ind),       C_RED,     'X'),
+        ('Total',         str(total_ind),              C_PRIMARY, '='),
     ]
 
-    x_start = 15
-    box_width = 35
-    for i, (label, valor, color) in enumerate(kpis):
-        x = x_start + i * (box_width + 3)
+    y_cards  = 47
+    card_w   = 36
+    card_h   = 40
+    card_gap = 2
+    x0       = 10
+
+    for i, (label, valor, color, icon) in enumerate(kpis_data):
+        x = x0 + i * (card_w + card_gap)
+
+        # Fondo de tarjeta
+        pdf.set_fill_color(*C_CARD)
+        pdf.rect(x, y_cards, card_w, card_h, 'F')
+
+        # Borde superior de color
         pdf.set_fill_color(*color)
-        pdf.rect(x, pdf.get_y(), box_width, 4, 'F')
-        pdf.rect(x, pdf.get_y(), box_width, 25, 'D')
+        pdf.rect(x, y_cards, card_w, 2, 'F')
 
-        pdf.set_xy(x, pdf.get_y() + 6)
-        pdf.set_font('Helvetica', 'B', 14)
-        pdf.set_text_color(*color)
-        pdf.cell(box_width, 8, valor, 0, 0, 'C')
-
-        pdf.set_xy(x, pdf.get_y() + 10)
+        # Icono pequeño
+        pdf.set_xy(x, y_cards + 4)
         pdf.set_font('Helvetica', '', 7)
-        pdf.set_text_color(100, 100, 100)
-        pdf.cell(box_width, 5, label, 0, 0, 'C')
+        pdf.set_text_color(*C_GRAY)
+        pdf.cell(card_w, 4, icon, 0, 0, 'C')
 
-    pdf.ln(35)
+        # Valor principal
+        font_size = 17 if len(valor) <= 5 else 13
+        pdf.set_xy(x, y_cards + 11)
+        pdf.set_font('Helvetica', 'B', font_size)
+        pdf.set_text_color(*color)
+        pdf.cell(card_w, 10, valor, 0, 0, 'C')
 
-    # Semaforo
-    pdf.set_fill_color(248, 249, 250)
-    pdf.rect(10, pdf.get_y(), 190, 12, 'F')
-    pdf.set_font('Helvetica', '', 8)
-    pdf.set_text_color(40, 167, 69)
-    pdf.cell(60, 12, '  >= 100% Meta Cumplida', 0, 0, 'C')
-    pdf.set_text_color(255, 193, 7)
-    pdf.cell(60, 12, '  80-99% En Progreso', 0, 0, 'C')
-    pdf.set_text_color(220, 53, 69)
-    pdf.cell(60, 12, '  < 80% Requiere Atencion', 0, 1, 'C')
-    pdf.ln(10)
+        # Etiqueta
+        pdf.set_xy(x, y_cards + 26)
+        pdf.set_font('Helvetica', 'B', 5.5)
+        pdf.set_text_color(*C_GRAY)
+        pdf.cell(card_w, 4, label.upper(), 0, 0, 'C')
 
-    # Analisis
+    # ---- PROGRESO GLOBAL ----
+    y_prog = y_cards + card_h + 8
+
+    pdf.set_xy(10, y_prog)
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.set_text_color(*C_PRIMARY)
+    pdf.cell(0, 5, 'PROGRESO GLOBAL DEL PLAN', 0, 1)
+
+    pdf.set_draw_color(*C_ACCENT)
+    pdf.set_line_width(0.4)
+    pdf.line(10, y_prog + 6, 200, y_prog + 6)
+    pdf.set_line_width(0.2)
+
+    y_bar  = y_prog + 12
+    bar_x  = 10
+    bar_w  = 155
+    bar_h  = 7
+
+    # Fondo barra
+    pdf.set_fill_color(*C_PROG_BG)
+    pdf.rect(bar_x, y_bar, bar_w, bar_h, 'F')
+
+    # Segmentos
+    if total_ind > 0:
+        w_cum  = (cumplidos_ind / total_ind) * bar_w
+        w_prog = (en_progreso_ind / total_ind) * bar_w
+        if w_cum > 0:
+            pdf.set_fill_color(*C_GREEN)
+            pdf.rect(bar_x, y_bar, w_cum, bar_h, 'F')
+        if w_prog > 0:
+            pdf.set_fill_color(*C_ORANGE)
+            pdf.rect(bar_x + w_cum, y_bar, w_prog, bar_h, 'F')
+
+    # Porcentaje a la derecha
+    pct_comp = (cumplidos_ind / total_ind * 100) if total_ind > 0 else 0
+    pdf.set_xy(bar_x + bar_w + 3, y_bar - 3)
+    pdf.set_font('Helvetica', 'B', 13)
+    pdf.set_text_color(*C_PRIMARY)
+    pdf.cell(32, 7, f'{pct_comp:.1f}%', 0, 1, 'R')
+
+    pdf.set_xy(bar_x + bar_w + 3, y_bar + 5)
+    pdf.set_font('Helvetica', '', 6)
+    pdf.set_text_color(*C_GRAY)
+    pdf.cell(32, 4, 'Indicadores completados', 0, 0, 'R')
+
+    # Leyenda de la barra
+    y_leg = y_bar + bar_h + 5
+
+    pdf.set_fill_color(*C_GREEN)
+    pdf.rect(10, y_leg + 1.5, 3, 3, 'F')
+    pdf.set_xy(15, y_leg)
+    pdf.set_font('Helvetica', '', 7)
+    pdf.set_text_color(*C_GRAY)
+    pdf.cell(45, 5, f'Cumplidos  {cumplidos_ind}', 0, 0)
+
+    pdf.set_fill_color(*C_ORANGE)
+    pdf.rect(65, y_leg + 1.5, 3, 3, 'F')
+    pdf.set_xy(70, y_leg)
+    pdf.cell(45, 5, f'En Progreso  {en_progreso_ind}', 0, 0)
+
+    pdf.set_fill_color(*C_RED)
+    pdf.rect(120, y_leg + 1.5, 3, 3, 'F')
+    pdf.set_xy(125, y_leg)
+    pdf.cell(50, 5, f'No Cumplidos  {no_cumplidos_ind}', 0, 0)
+
+    # ---- ANÁLISIS EJECUTIVO ----
     if analisis_texto:
+        y_ana = y_leg + 12
         pdf.set_fill_color(227, 242, 253)
-        pdf.set_draw_color(0, 61, 130)
-        y_start = pdf.get_y()
-        pdf.rect(10, y_start, 190, 40, 'F')
-        pdf.line(10, y_start, 10, y_start + 40)
-        pdf.set_line_width(1)
-        pdf.line(10, y_start, 10, y_start + 40)
-        pdf.set_line_width(0.2)
+        pdf.rect(10, y_ana, 190, 50, 'F')
+        pdf.set_fill_color(*C_ACCENT)
+        pdf.rect(10, y_ana, 2.5, 50, 'F')
 
-        pdf.set_xy(15, y_start + 5)
-        pdf.set_font('Helvetica', 'B', 10)
-        pdf.set_text_color(0, 61, 130)
+        pdf.set_xy(15, y_ana + 5)
+        pdf.set_font('Helvetica', 'B', 9)
+        pdf.set_text_color(*C_PRIMARY)
         pdf.cell(0, 5, 'Analisis Ejecutivo', 0, 1)
+
         pdf.set_x(15)
-        pdf.set_font('Helvetica', '', 9)
-        pdf.set_text_color(33, 37, 41)
-        # Limpiar texto de caracteres especiales
-        texto_limpio = limpiar_texto_pdf(analisis_texto.replace('**', '').replace('*', ''))[:400]
-        pdf.multi_cell(180, 5, texto_limpio)
-        pdf.ln(10)
+        pdf.set_font('Helvetica', '', 8)
+        pdf.set_text_color(*C_DARK)
+        texto_limpio = limpiar_texto_pdf(analisis_texto.replace('**', '').replace('*', ''))[:350]
+        pdf.multi_cell(182, 5, texto_limpio)
+
+    # ---- LEYENDA SEMÁFORO (pie de página) ----
+    y_sem = 272
+    pdf.set_fill_color(*C_CARD)
+    pdf.rect(10, y_sem, 190, 12, 'F')
+
+    pdf.set_fill_color(*C_GREEN)
+    pdf.rect(13, y_sem + 4.5, 3, 3, 'F')
+    pdf.set_xy(18, y_sem + 3)
+    pdf.set_font('Helvetica', '', 6.5)
+    pdf.set_text_color(*C_GRAY)
+    pdf.cell(55, 6, '>= 100% Meta Cumplida', 0, 0)
+
+    pdf.set_fill_color(*C_ORANGE)
+    pdf.rect(78, y_sem + 4.5, 3, 3, 'F')
+    pdf.set_xy(83, y_sem + 3)
+    pdf.cell(55, 6, '80-99% En Progreso', 0, 0)
+
+    pdf.set_fill_color(*C_RED)
+    pdf.rect(143, y_sem + 4.5, 3, 3, 'F')
+    pdf.set_xy(148, y_sem + 3)
+    pdf.cell(52, 6, '< 80% Requiere Atencion', 0, 0)
 
     # ===== LINEAS ESTRATEGICAS =====
     pdf.add_page()
