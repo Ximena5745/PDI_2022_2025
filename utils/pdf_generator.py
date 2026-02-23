@@ -952,170 +952,250 @@ def generar_seccion_jerarquica_fpdf(pdf, df_cascada: pd.DataFrame) -> None:
 
 
 def generar_html_resumen_ejecutivo(metricas: Dict[str, Any], año: int, analisis_texto: str = "") -> str:
-    """Genera HTML/CSS profesional para la página de Resumen Ejecutivo."""
-    cumplimiento    = metricas.get('cumplimiento_promedio', 0)
-    total           = metricas.get('total_indicadores', 0)
-    cumplidos       = metricas.get('indicadores_cumplidos', 0)
-    en_progreso     = metricas.get('en_progreso', 0)
-    no_cumplidos    = metricas.get('no_cumplidos', 0)
-    pct_cumplidos   = (cumplidos / total * 100) if total > 0 else 0
-    pct_progreso    = (en_progreso / total * 100) if total > 0 else 0
-    pct_comp        = pct_cumplidos
+    """Genera HTML/CSS con diseño 3D (sombras, gradientes, profundidad) para el Resumen Ejecutivo."""
+    cumplimiento  = metricas.get('cumplimiento_promedio', 0)
+    total         = metricas.get('total_indicadores', 0)
+    cumplidos     = metricas.get('indicadores_cumplidos', 0)
+    en_progreso   = metricas.get('en_progreso', 0)
+    no_cumplidos  = metricas.get('no_cumplidos', 0)
+    pct_cumplidos = (cumplidos / total * 100) if total > 0 else 0
+    pct_progreso  = (en_progreso / total * 100) if total > 0 else 0
+    pct_comp      = pct_cumplidos
 
     analysis_html = ""
     if analisis_texto:
         texto = analisis_texto.replace('**', '').replace('*', '')
         texto = texto.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        texto = texto[:600]
+        texto = texto[:550]
         analysis_html = f"""
-        <div class="analysis-box">
-          <div class="analysis-title">&#9654; Análisis Ejecutivo</div>
-          <div class="analysis-text">{texto}</div>
-        </div>"""
+  <div class="analysis-card">
+    <div class="analysis-stripe"></div>
+    <div class="analysis-body">
+      <div class="analysis-title">Análisis Ejecutivo</div>
+      <div class="analysis-text">{texto}</div>
+    </div>
+  </div>"""
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><style>
-  * {{ margin:0; padding:0; box-sizing:border-box; }}
-  body {{
-    font-family: 'Segoe UI', Arial, sans-serif;
-    background: #ffffff;
-    width: 794px; height: 1123px;
-    overflow: hidden;
-    padding: 38px 44px;
-    color: #212529;
-    position: relative;
-  }}
-  /* ---- HEADER ---- */
-  .header {{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }}
-  .header-left h1 {{ font-size:32px; font-weight:800; color:#003d82; line-height:1; margin-bottom:5px; }}
-  .header-left .sub {{ font-size:9.5px; font-weight:700; color:#0056b3; letter-spacing:1.5px; text-transform:uppercase; }}
-  .header-right {{ text-align:right; }}
-  .header-right .plan {{ font-size:8.5px; color:#6c757d; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:3px; }}
-  .header-right .period {{ font-size:13px; font-weight:700; color:#003d82; }}
-  .divider {{ height:1px; background:#dee2e6; margin-bottom:20px; }}
-  /* ---- SECTION LABEL ---- */
-  .section-label {{
-    font-size:9.5px; font-weight:700; color:#003d82;
-    letter-spacing:2px; text-transform:uppercase;
-    margin-bottom:12px; padding-bottom:6px;
-    border-bottom:2px solid #0056b3;
-  }}
-  /* ---- KPI CARDS ---- */
-  .kpi-grid {{ display:flex; gap:10px; margin-bottom:24px; }}
-  .kpi-card {{
-    flex:1; background:#f3f6fc; border-radius:10px;
-    padding:16px 8px 14px; text-align:center;
-    position:relative; overflow:hidden;
-    box-shadow: 0 2px 10px rgba(0,61,130,0.10), 0 1px 3px rgba(0,0,0,0.06);
-  }}
-  .kpi-card::before {{
-    content:''; position:absolute; top:0; left:0; right:0;
-    height:4px; background:var(--c);
-    border-radius:10px 10px 0 0;
-  }}
-  .kpi-icon {{ font-size:14px; color:#adb5bd; margin-bottom:7px; height:19px; line-height:19px; }}
-  .kpi-value {{ font-size:28px; font-weight:800; color:var(--c); line-height:1; margin-bottom:9px; }}
-  .kpi-label {{ font-size:7.5px; font-weight:700; color:#6c757d; letter-spacing:0.8px; text-transform:uppercase; }}
-  /* ---- PROGRESS ---- */
-  .prog-wrap {{ display:flex; align-items:center; gap:16px; margin:10px 0 9px; }}
-  .bar-bg {{
-    flex:1; background:#e9ecef; border-radius:6px; height:14px; overflow:hidden;
-    box-shadow:inset 0 1px 3px rgba(0,0,0,0.08);
-  }}
-  .bar-inner {{ height:100%; display:flex; }}
-  .bar-green  {{ background:linear-gradient(90deg,#28a745,#34ce57); }}
-  .bar-orange {{ background:linear-gradient(90deg,#fd7e14,#ffa94d); }}
-  .prog-stat {{ text-align:right; min-width:90px; }}
-  .prog-pct {{ font-size:22px; font-weight:800; color:#003d82; line-height:1; }}
-  .prog-lbl {{ font-size:7.5px; color:#6c757d; margin-top:3px; }}
-  .legend {{ display:flex; gap:20px; font-size:9px; color:#6c757d; margin-top:2px; }}
-  .dot {{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:middle; }}
-  /* ---- ANALYSIS ---- */
-  .analysis-box {{
-    background:#e8f0fe;
-    border-left:4px solid #0056b3;
-    border-radius:0 8px 8px 0;
-    padding:14px 18px;
-    margin-top:22px;
-  }}
-  .analysis-title {{ font-size:10.5px; font-weight:700; color:#003d82; margin-bottom:7px; }}
-  .analysis-text {{ font-size:9px; line-height:1.65; color:#343a40; }}
-  /* ---- SEMÁFORO ---- */
-  .semaforo {{
-    display:flex; background:#f3f6fc; border-radius:6px;
-    padding:10px 20px; justify-content:space-around;
-    position:absolute; bottom:32px; left:44px; right:44px;
-    box-shadow:0 1px 4px rgba(0,61,130,0.08);
-  }}
-  .sem-item {{ display:flex; align-items:center; gap:7px; font-size:8.5px; color:#6c757d; }}
+* {{ margin:0; padding:0; box-sizing:border-box; }}
+
+body {{
+  font-family: Arial, 'Helvetica Neue', sans-serif;
+  background: linear-gradient(160deg, #edf2fb 0%, #e2eafc 100%);
+  width: 794px; height: 1123px;
+  overflow: hidden;
+  color: #1a2b4a;
+  position: relative;
+}}
+
+/* ======= HEADER BAND 3D ======= */
+.header-band {{
+  background: linear-gradient(135deg, #002966 0%, #003d82 45%, #0056b3 100%);
+  padding: 24px 38px 22px;
+  display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 6px 20px rgba(0,41,102,0.45), 0 2px 6px rgba(0,0,0,0.2);
+  position: relative;
+}}
+.header-band::after {{
+  content: '';
+  position: absolute; bottom: -4px; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, #ffd700 0%, #ffaa00 50%, #ffd700 100%);
+}}
+.hdr-title {{ color: #fff; font-size: 26px; font-weight: 900; letter-spacing: -0.5px; line-height: 1; margin-bottom: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }}
+.hdr-sub   {{ color: rgba(255,255,255,0.75); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }}
+.hdr-right {{ text-align: right; }}
+.hdr-plan  {{ color: rgba(255,255,255,0.6); font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 5px; }}
+.hdr-period {{ color: #fff; font-size: 14px; font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.3); }}
+
+/* ======= CONTENT AREA ======= */
+.content {{ padding: 26px 36px 90px; }}
+
+/* ======= SECTION LABEL ======= */
+.s-label {{
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 14px; margin-top: 22px;
+}}
+.s-label:first-child {{ margin-top: 0; }}
+.s-text {{
+  font-size: 8.5px; font-weight: 800; color: #003d82;
+  letter-spacing: 2.5px; text-transform: uppercase; white-space: nowrap;
+}}
+.s-line {{ flex: 1; height: 1.5px; background: linear-gradient(90deg, #0056b3 0%, #dee2e6 100%); }}
+
+/* ======= KPI CARDS 3D ======= */
+.kpi-row {{ display: flex; gap: 12px; }}
+.kpi-card {{
+  flex: 1; background: linear-gradient(170deg, #ffffff 0%, #f0f5ff 100%);
+  border-radius: 12px; border: 1px solid rgba(0,86,179,0.12);
+  padding: 18px 8px 16px; text-align: center;
+  position: relative; overflow: hidden;
+  box-shadow:
+    0 8px 20px rgba(0,61,130,0.14),
+    0 3px 6px rgba(0,0,0,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+}}
+/* Borde superior de color con brillo 3D */
+.kpi-card::before {{
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
+  background: linear-gradient(90deg, var(--c) 0%, color-mix(in srgb, var(--c) 70%, white) 100%);
+  border-radius: 12px 12px 0 0;
+}}
+/* Reflejo de luz superior */
+.kpi-card::after {{
+  content: ''; position: absolute; top: 5px; left: 10%; right: 10%; height: 30px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 100%);
+  border-radius: 0 0 50% 50%;
+}}
+.kpi-val {{
+  font-size: 30px; font-weight: 900; color: var(--c); line-height: 1;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.12);
+}}
+.kpi-lbl {{
+  font-size: 7px; font-weight: 700; color: #6c757d;
+  letter-spacing: 1.2px; text-transform: uppercase;
+}}
+
+/* ======= PROGRESS SECTION ======= */
+.prog-container {{
+  background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+  border-radius: 12px; border: 1px solid rgba(0,86,179,0.10);
+  padding: 16px 18px;
+  box-shadow: 0 6px 18px rgba(0,61,130,0.10), 0 2px 4px rgba(0,0,0,0.06),
+              inset 0 1px 0 rgba(255,255,255,0.9);
+  margin-top: 4px;
+}}
+.prog-row {{ display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }}
+.prog-track {{
+  flex: 1; height: 14px; border-radius: 7px; overflow: hidden;
+  background: #e2e8f0;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.12), inset 0 1px 2px rgba(0,0,0,0.08);
+}}
+.prog-fill {{ height: 100%; display: flex; }}
+.pg {{
+  background: linear-gradient(90deg, #1e8c3a 0%, #28a745 60%, #34ce57 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+}}
+.po {{
+  background: linear-gradient(90deg, #c96a00 0%, #fd7e14 60%, #ffa94d 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+}}
+.prog-stat {{ min-width: 90px; text-align: right; }}
+.prog-pct {{
+  font-size: 24px; font-weight: 900; color: #003d82; line-height: 1;
+  text-shadow: 0 2px 4px rgba(0,61,130,0.15);
+}}
+.prog-sub {{ font-size: 7.5px; color: #6c757d; margin-top: 3px; }}
+.legend-row {{ display: flex; gap: 22px; font-size: 8.5px; color: #495057; }}
+.ldot {{ display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: middle; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }}
+
+/* ======= ANALYSIS CARD ======= */
+.analysis-card {{
+  display: flex; margin-top: 18px; border-radius: 12px; overflow: hidden;
+  background: linear-gradient(135deg, #ffffff 0%, #f0f6ff 100%);
+  border: 1px solid rgba(0,86,179,0.12);
+  box-shadow: 0 6px 18px rgba(0,61,130,0.12), 0 2px 4px rgba(0,0,0,0.06),
+              inset 0 1px 0 rgba(255,255,255,0.9);
+}}
+.analysis-stripe {{
+  width: 6px; flex-shrink: 0;
+  background: linear-gradient(180deg, #003d82 0%, #0056b3 50%, #1976d2 100%);
+}}
+.analysis-body {{ padding: 14px 16px; }}
+.analysis-title {{ font-size: 10px; font-weight: 800; color: #003d82; margin-bottom: 7px; letter-spacing: 0.3px; text-transform: uppercase; }}
+.analysis-text {{ font-size: 8.5px; line-height: 1.65; color: #343a40; }}
+
+/* ======= FOOTER SEMÁFORO 3D ======= */
+.sem-footer {{
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(135deg, #002966 0%, #003d82 60%, #0056b3 100%);
+  padding: 12px 38px;
+  display: flex; justify-content: space-around; align-items: center;
+  box-shadow: 0 -4px 14px rgba(0,41,102,0.3);
+}}
+.sem-item {{ display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.92); font-size: 8.5px; }}
+.sdot {{
+  width: 11px; height: 11px; border-radius: 50%;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.4);
+  border: 1.5px solid rgba(255,255,255,0.25);
+}}
 </style></head><body>
 
-<div class="header">
-  <div class="header-left">
-    <h1>Resumen Ejecutivo</h1>
-    <div class="sub">Informe Estratégico POLI</div>
+<div class="header-band">
+  <div>
+    <div class="hdr-title">Resumen Ejecutivo</div>
+    <div class="hdr-sub">Informe Estratégico · POLI</div>
   </div>
-  <div class="header-right">
-    <div class="plan">Plan de Desarrollo Institucional</div>
-    <div class="period">Período de Evaluación {año}</div>
-  </div>
-</div>
-<div class="divider"></div>
-
-<div class="section-label">Indicadores Clave de Desempeño</div>
-<div class="kpi-grid">
-  <div class="kpi-card" style="--c:#0056b3">
-    <div class="kpi-icon">&#8776;</div>
-    <div class="kpi-value">{cumplimiento:.1f}%</div>
-    <div class="kpi-label">Cumplimiento</div>
-  </div>
-  <div class="kpi-card" style="--c:#28a745">
-    <div class="kpi-icon">&#10003;</div>
-    <div class="kpi-value">{cumplidos}</div>
-    <div class="kpi-label">Cumplidos</div>
-  </div>
-  <div class="kpi-card" style="--c:#fd7e14">
-    <div class="kpi-icon">&#9684;</div>
-    <div class="kpi-value">{en_progreso}</div>
-    <div class="kpi-label">En Progreso</div>
-  </div>
-  <div class="kpi-card" style="--c:#dc3545">
-    <div class="kpi-icon">&#10007;</div>
-    <div class="kpi-value">{no_cumplidos}</div>
-    <div class="kpi-label">No Cumplidos</div>
-  </div>
-  <div class="kpi-card" style="--c:#6c757d">
-    <div class="kpi-icon">&#8801;</div>
-    <div class="kpi-value">{total}</div>
-    <div class="kpi-label">Total</div>
+  <div class="hdr-right">
+    <div class="hdr-plan">Plan de Desarrollo Institucional</div>
+    <div class="hdr-period">Período de Evaluación {año}</div>
   </div>
 </div>
 
-<div class="section-label">Progreso Global del Plan</div>
-<div class="prog-wrap">
-  <div class="bar-bg">
-    <div class="bar-inner">
-      <div class="bar-green"  style="width:{pct_cumplidos:.1f}%"></div>
-      <div class="bar-orange" style="width:{pct_progreso:.1f}%"></div>
+<div class="content">
+
+  <div class="s-label">
+    <span class="s-text">Indicadores Clave de Desempeño</span>
+    <div class="s-line"></div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card" style="--c:#0056b3">
+      <div class="kpi-val">{cumplimiento:.1f}%</div>
+      <div class="kpi-lbl">Cumplimiento</div>
+    </div>
+    <div class="kpi-card" style="--c:#1e8c3a">
+      <div class="kpi-val">{cumplidos}</div>
+      <div class="kpi-lbl">Cumplidos</div>
+    </div>
+    <div class="kpi-card" style="--c:#c96a00">
+      <div class="kpi-val">{en_progreso}</div>
+      <div class="kpi-lbl">En Progreso</div>
+    </div>
+    <div class="kpi-card" style="--c:#b91c1c">
+      <div class="kpi-val">{no_cumplidos}</div>
+      <div class="kpi-lbl">No Cumplidos</div>
+    </div>
+    <div class="kpi-card" style="--c:#475569">
+      <div class="kpi-val">{total}</div>
+      <div class="kpi-lbl">Total</div>
     </div>
   </div>
-  <div class="prog-stat">
-    <div class="prog-pct">{pct_comp:.1f}%</div>
-    <div class="prog-lbl">Indicadores completados</div>
+
+  <div class="s-label">
+    <span class="s-text">Progreso Global del Plan</span>
+    <div class="s-line"></div>
   </div>
-</div>
-<div class="legend">
-  <span><span class="dot" style="background:#28a745"></span>Cumplidos {cumplidos}</span>
-  <span><span class="dot" style="background:#fd7e14"></span>En Progreso {en_progreso}</span>
-  <span><span class="dot" style="background:#dc3545"></span>No Cumplidos {no_cumplidos}</span>
-</div>
+
+  <div class="prog-container">
+    <div class="prog-row">
+      <div class="prog-track">
+        <div class="prog-fill">
+          <div class="pg" style="width:{pct_cumplidos:.1f}%"></div>
+          <div class="po" style="width:{pct_progreso:.1f}%"></div>
+        </div>
+      </div>
+      <div class="prog-stat">
+        <div class="prog-pct">{pct_comp:.1f}%</div>
+        <div class="prog-sub">Indicadores completados</div>
+      </div>
+    </div>
+    <div class="legend-row">
+      <span><span class="ldot" style="background:#28a745"></span>Cumplidos {cumplidos}</span>
+      <span><span class="ldot" style="background:#fd7e14"></span>En Progreso {en_progreso}</span>
+      <span><span class="ldot" style="background:#dc3545"></span>No Cumplidos {no_cumplidos}</span>
+    </div>
+  </div>
 
 {analysis_html}
 
-<div class="semaforo">
-  <div class="sem-item"><span class="dot" style="background:#28a745"></span>&#8805; 100% Meta Cumplida</div>
-  <div class="sem-item"><span class="dot" style="background:#fd7e14"></span>80&#8211;99% En Progreso</div>
-  <div class="sem-item"><span class="dot" style="background:#dc3545"></span>&lt; 80% Requiere Atención</div>
+</div>
+
+<div class="sem-footer">
+  <div class="sem-item"><div class="sdot" style="background:#28a745"></div>&#8805; 100% Meta Cumplida</div>
+  <div class="sem-item"><div class="sdot" style="background:#fd7e14"></div>80&#8211;99% En Progreso</div>
+  <div class="sem-item"><div class="sdot" style="background:#dc3545"></div>&lt; 80% Requiere Atención</div>
 </div>
 
 </body></html>"""
