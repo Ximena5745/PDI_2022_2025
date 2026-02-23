@@ -1829,18 +1829,8 @@ def exportar_informe_pdf(
     Returns:
         Bytes del archivo PDF
     """
-    # Intentar con fpdf2 primero (más ligero y compatible)
+    # Preferir la ruta HTML->PDF (xhtml2pdf) para consistencia visual en Streamlit Cloud.
     try:
-        return generar_pdf_fpdf(
-            metricas=metricas,
-            df_lineas=df_lineas,
-            df_indicadores=df_indicadores,
-            analisis_texto=analisis_texto,
-            año=año,
-            df_cascada=df_cascada
-        )
-    except ImportError:
-        # Fallback a xhtml2pdf
         html = generar_informe_html(
             metricas=metricas,
             df_lineas=df_lineas,
@@ -1850,6 +1840,16 @@ def exportar_informe_pdf(
             año=año
         )
         return generar_pdf(html)
+    except Exception:
+        # Fallback a fpdf2 si xhtml2pdf no está disponible o falla
+        return generar_pdf_fpdf(
+            metricas=metricas,
+            df_lineas=df_lineas,
+            df_indicadores=df_indicadores,
+            analisis_texto=analisis_texto,
+            año=año,
+            df_cascada=df_cascada
+        )
 
 
 # Función auxiliar para previsualizar HTML (útil para debugging)
