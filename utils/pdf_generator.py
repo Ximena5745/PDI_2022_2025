@@ -1207,6 +1207,109 @@ def _generar_paginas_lineas(pdf, df_cascada: pd.DataFrame, año: int) -> None:
     pdf.set_auto_page_break(auto=True, margin=20)
 
 
+def _generar_hoja_lineas_fpdf(pdf, df_lineas: pd.DataFrame, metricas: Dict[str, Any], año: int) -> None:
+    """Dibuja una hoja resumen tipo 'tarjetas' con cumplimiento por línea usando fpdf2."""
+    if df_lineas is None or df_lineas.empty:
+        return
+
+    pdf.add_page()
+    pdf.set_fill_color(246, 248, 252)
+    pdf.rect(0, 0, 210, 297, 'F')
+
+    # Título
+    pdf.set_xy(10, 10)
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.set_text_color(0, 61, 130)
+    pdf.cell(0, 10, 'Cumplimiento por Línea Estratégica', 0, 1)
+
+    # Layout 3 columnas
+    left = 10
+    top = 28
+    gap = 4
+    card_w = (190 - 2*gap) / 3  # 190 usable width
+    card_h = 48
+
+    # Color conversion helper
+    def _hexrgb(hx):
+        try:
+            return _hex_to_rgb(hx)
+        except Exception:
+            return (0, 61, 130)
+
+    # Iterar y dibujar tarjetas
+    x = left
+    y = top
+    col = 0
+    for idx, (_, row) in enumerate(df_lineas.iterrows()):
+        linea = limpiar_texto_pdf(str(row.get('Linea', 'N/D')))
+        total_ind = int(row.get('Total_Indicadores', 0) or 0)
+        cumpl = float(row.get('Cumplimiento', 0) or 0)
+
+        # Estado color
+        if cumpl >= 100:
+            st_color = _hexrgb(COLORES_PDF['success'])
+            badge_txt = 'CUMPLIDO'
+            badge_bg = _hexrgb(COLORES_PDF['success'])
+            badge_tc = (255,255,255)
+        elif cumpl >= 80:
+            st_color = _hexrgb(COLORES_PDF['warning'])
+            badge_txt = 'EN PROGRESO'
+            badge_bg = _hexrgb(COLORES_PDF['warning'])
+            badge_tc = _hexrgb(COLORES_PDF['dark'])
+        else:
+            st_color = _hexrgb(COLORES_PDF['danger'])
+            badge_txt = 'EN ATENCIÓN'
+            badge_bg = _hexrgb(COLORES_PDF['danger'])
+            badge_tc = (255,255,255)
+
+        # Card background
+        pdf.set_fill_color(255,255,255)
+        pdf.set_draw_color(*_hexrgb(COLORES_PDF['light_blue']))
+        pdf.rounded_rect(x, y, card_w, card_h, 3, 'DF')
+
+        # Left text
+        pdf.set_xy(x + 6, y + 6)
+        pdf.set_font('Helvetica', 'B', 9)
+        pdf.set_text_color(0, 61, 130)
+        pdf.cell(card_w - 60, 6, linea[:30], 0, 2)
+        pdf.set_font('Helvetica', '', 8)
+        pdf.set_text_color(100,100,100)
+        pdf.cell(card_w - 60, 5, f'{total_ind} indicadores', 0, 2)
+
+        # Circle percentage on right
+        circ_x = x + card_w - 34
+        circ_y = y + 6
+        pdf.set_fill_color(*st_color)
+        pdf.ellipse(circ_x, circ_y, 28, 28, 'F')
+        pdf.set_xy(circ_x, circ_y + 6)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.set_text_color(255,255,255)
+        pdf.cell(28, 10, f'{cumpl:.0f}%', 0, 0, 'C')
+
+        # Badge bottom-right
+        bw = 36; bh = 8
+        bx = x + card_w - bw - 6; by = y + card_h - bh - 6
+        pdf.set_fill_color(*badge_bg)
+        pdf.rounded_rect(bx, by, bw, bh, 2, 'F')
+        pdf.set_xy(bx, by + 1)
+        pdf.set_font('Helvetica', 'B', 7)
+        pdf.set_text_color(*badge_tc)
+        pdf.cell(bw, bh, badge_txt, 0, 0, 'C')
+
+        # Avanzar columna/fila
+        col += 1
+        x += card_w + gap
+        if col == 3:
+            col = 0
+            x = left
+            y += card_h + 8
+            # Si nos acercamos al footer, nueva página
+            if y + card_h + 20 > 270:
+                pdf.add_page()
+                y = top
+
+
+
 def _resumen_ejecutivo_fpdf2(pdf, metricas: Dict[str, Any], año: int, analisis_texto: str) -> None:
     """Resumen Ejecutivo profesional - layout con header navy, tarjetas 3D y footer."""
     # ── Paleta ─────────────────────────────────────────────────────────────
@@ -1574,6 +1677,13 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
     _resumen_ejecutivo_fpdf2(pdf, metricas, año, analisis_texto)
 
     # ===== LINEAS ESTRATEGICAS (una página visual por línea) =====
+    # Generar hoja resumen tipo tarjetas si hay `df_lineas`
+    try:
+        if df_lineas is not None and not df_lineas.empty:
+            _generar_hoja_lineas_fpdf(pdf, df_lineas, metricas, año)
+    except Exception:
+        pass
+
     if df_cascada is not None and not df_cascada.empty:
         _generar_paginas_lineas(pdf, df_cascada, año)
 
