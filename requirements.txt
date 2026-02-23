@@ -22,5 +22,3 @@ python-dotenv>=1.0.0
 
 # Generación de PDF (ligero y compatible con Streamlit Cloud)
 fpdf2>=2.7.0
-# Soporte alternativo HTML->PDF
-xhtml2pdf>=0.2.8
