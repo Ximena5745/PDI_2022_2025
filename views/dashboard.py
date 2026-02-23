@@ -26,7 +26,9 @@ from utils.visualizations import (
 from utils.ai_analysis import (
     generar_analisis_general, preparar_lineas_para_analisis, generar_analisis_linea
 )
-from utils.pdf_generator import exportar_informe_pdf, previsualizar_html
+from utils.pdf_generator import exportar_informe_pdf as exportar_informe_pdf_original, previsualizar_html
+from utils.pdf_generator_mejorado import exportar_informe_pdf_mejorado
+from utils.pdf_generator_reportlab import exportar_informe_pdf_reportlab
 
 
 def mostrar_pagina():
@@ -285,21 +287,56 @@ def mostrar_pagina():
         </div>
         """, unsafe_allow_html=True)
 
+        # Selector de versión de PDF
+        col_selector, col_info = st.columns([2, 1])
+
+        with col_selector:
+            version_pdf = st.radio(
+                "Selecciona la versión del PDF:",
+                ["🎯 PDF Ejecutivo 3D (NUEVO)", "✨ PDF Mejorado", "📄 PDF Clásico"],
+                horizontal=True,
+                help="PDF Ejecutivo 3D: Gráficos circulares, enlaces internos, diseño moderno profesional"
+            )
+
+        with col_info:
+            if version_pdf == "🎯 PDF Ejecutivo 3D (NUEVO)":
+                st.markdown("""
+                <div style="background: #E3F2FD; padding: 10px; border-radius: 5px; font-size: 11px;">
+                    <strong>🎯 TECNOLOGÍA REPORTLAB</strong><br>
+                    Gráficos 3D + Enlaces internos
+                </div>
+                """, unsafe_allow_html=True)
+            elif version_pdf == "✨ PDF Mejorado":
+                st.markdown("""
+                <div style="background: #E8F5E9; padding: 10px; border-radius: 5px; font-size: 11px;">
+                    <strong>✨ FPDF2</strong><br>
+                    Diseño redondeado y visual
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="background: #E3F2FD; padding: 10px; border-radius: 5px; font-size: 11px;">
+                    <strong>📄 Clásico</strong><br>
+                    Versión tradicional
+                </div>
+                """, unsafe_allow_html=True)
+
+        # Preparar datos para el PDF
+        df_año_pdf = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
+        if 'Fuente' in df_año_pdf.columns:
+            df_año_pdf = df_año_pdf[df_año_pdf['Fuente'] == 'Avance']
+
+        # Obtener análisis para incluir en PDF
+        try:
+            lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
+            analisis_pdf = generar_analisis_general(metricas, lineas_data)
+        except Exception:
+            analisis_pdf = ""
+
+        # Botones de descarga
         col_pdf1, col_pdf2 = st.columns([2, 1])
 
         with col_pdf1:
-            # Preparar datos para el PDF
-            df_año_pdf = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
-            if 'Fuente' in df_año_pdf.columns:
-                df_año_pdf = df_año_pdf[df_año_pdf['Fuente'] == 'Avance']
-
-            # Obtener análisis para incluir en PDF
-            try:
-                lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
-                analisis_pdf = generar_analisis_general(metricas, lineas_data)
-            except Exception:
-                analisis_pdf = ""
-
             try:
                 # Generar cascada completa para el PDF (todos los niveles)
                 df_cascada_pdf = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=4)
@@ -327,41 +364,119 @@ def mostrar_pagina():
                 except Exception:
                     analisis_lineas_pdf = {}
 
-                pdf_bytes = exportar_informe_pdf(
-                    metricas=metricas,
-                    df_lineas=df_lineas,
-                    df_indicadores=df_año_pdf,
-                    analisis_texto=analisis_pdf,
-                    figuras=None,  # Sin gráficos por ahora (requiere kaleido)
-                    año=año_actual,
-                    df_cascada=df_cascada_pdf,
-                    analisis_lineas=analisis_lineas_pdf
-                )
+                # Generar PDF según la versión seleccionada
+                if version_pdf == "🎯 PDF Ejecutivo 3D (NUEVO)":
+                    with st.spinner('🎯 Generando PDF Ejecutivo 3D con ReportLab...'):
+                        pdf_bytes = exportar_informe_pdf_reportlab(
+                            metricas=metricas,
+                            df_lineas=df_lineas,
+                            df_indicadores=df_año_pdf,
+                            analisis_texto=analisis_pdf,
+                            año=año_actual,
+                            df_cascada=df_cascada_pdf,
+                            analisis_lineas=analisis_lineas_pdf
+                        )
+
+                    boton_label = "🎯 Descargar PDF Ejecutivo 3D"
+                    boton_type = "primary"
+                    nombre_archivo = f"Informe_Ejecutivo_3D_POLI_{año_actual}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+                elif version_pdf == "✨ PDF Mejorado":
+                    with st.spinner('🎨 Generando PDF mejorado con visualizaciones avanzadas...'):
+                        pdf_bytes = exportar_informe_pdf_mejorado(
+                            metricas=metricas,
+                            df_lineas=df_lineas,
+                            df_indicadores=df_año_pdf,
+                            analisis_texto=analisis_pdf,
+                            año=año_actual,
+                            df_cascada=df_cascada_pdf,
+                            analisis_lineas=analisis_lineas_pdf
+                        )
+
+                    boton_label = "✨ Descargar PDF Mejorado"
+                    boton_type = "primary"
+                    nombre_archivo = f"Informe_Estrategico_POLI_Mejorado_{año_actual}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+                else:
+                    with st.spinner('📄 Generando PDF clásico...'):
+                        pdf_bytes = exportar_informe_pdf_original(
+                            metricas=metricas,
+                            df_lineas=df_lineas,
+                            df_indicadores=df_año_pdf,
+                            analisis_texto=analisis_pdf,
+                            figuras=None,
+                            año=año_actual,
+                            df_cascada=df_cascada_pdf,
+                            analisis_lineas=analisis_lineas_pdf
+                        )
+
+                    boton_label = "📄 Descargar PDF Clásico"
+                    boton_type = "secondary"
+                    nombre_archivo = f"Informe_Estrategico_POLI_{año_actual}_{datetime.now().strftime('%Y%m%d')}.pdf"
 
                 st.download_button(
-                    label="📄 Descargar Informe PDF Corporativo",
+                    label=boton_label,
                     data=pdf_bytes,
-                    file_name=f"Informe_Estrategico_POLI_{año_actual}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    file_name=nombre_archivo,
                     mime="application/pdf",
                     use_container_width=True,
-                    type="primary"
+                    type=boton_type
                 )
+
+                # Mostrar información del PDF generado
+                tamaño_kb = len(pdf_bytes) / 1024
+                st.success(f"✅ PDF generado exitosamente ({tamaño_kb:.1f} KB)")
+
             except ImportError as e:
                 st.warning(f"⚠️ Para generar PDFs, instale: `pip install fpdf2`")
             except Exception as e:
-                st.error(f"Error al generar PDF: {str(e)}")
+                st.error(f"❌ Error al generar PDF: {str(e)}")
+                import traceback
+                with st.expander("Ver detalles del error"):
+                    st.code(traceback.format_exc())
 
         with col_pdf2:
-            st.markdown("""
-            <div style="background: #E3F2FD; padding: 15px; border-radius: 8px; font-size: 12px;">
-                <strong>📋 Contenido del PDF:</strong><br>
-                • Portada corporativa<br>
-                • KPIs principales<br>
-                • Análisis por línea<br>
-                • Detalle de indicadores<br>
-                • Análisis ejecutivo IA
-            </div>
-            """, unsafe_allow_html=True)
+            if version_pdf == "🎯 PDF Ejecutivo 3D (NUEVO)":
+                st.markdown("""
+                <div style="background: #E3F2FD; padding: 15px; border-radius: 8px; font-size: 12px;">
+                    <strong>🎯 Tecnología ReportLab - Diseño Ejecutivo:</strong><br>
+                    🎯 Gráficos circulares donut 3D<br>
+                    🎯 Tabla de contenidos con enlaces clicables<br>
+                    🎯 Barras de progreso 3D cilíndricas<br>
+                    🎯 Fondos con gradientes profesionales<br>
+                    🎯 Análisis detallado por línea estratégica<br>
+                    🎯 Glosario de siglas interactivo<br>
+                    🎯 Conclusiones y recomendaciones<br>
+                    🎯 Diseño moderno ejecutivo<br>
+                    🎯 Sin páginas en blanco
+                </div>
+                """, unsafe_allow_html=True)
+            elif version_pdf == "✨ PDF Mejorado":
+                st.markdown("""
+                <div style="background: #E8F5E9; padding: 15px; border-radius: 8px; font-size: 12px;">
+                    <strong>📋 Contenido Mejorado (FPDF2):</strong><br>
+                    ✨ Tarjetas visuales con colores<br>
+                    ✨ Barras de progreso<br>
+                    ✨ Heatmap de líneas<br>
+                    ✨ Análisis IA por línea<br>
+                    ✨ Tabla agrupada mejorada<br>
+                    ✨ Glosario de siglas<br>
+                    ✨ Conclusiones ejecutivas<br>
+                    • Portada corporativa<br>
+                    • Detalle de indicadores
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style="background: #E3F2FD; padding: 15px; border-radius: 8px; font-size: 12px;">
+                    <strong>📋 Contenido Clásico:</strong><br>
+                    • Portada corporativa<br>
+                    • KPIs principales<br>
+                    • Análisis por línea<br>
+                    • Detalle de indicadores<br>
+                    • Análisis ejecutivo IA
+                </div>
+                """, unsafe_allow_html=True)
 
         st.markdown("---")
         st.markdown("#### 📊 Exportar a Excel")
