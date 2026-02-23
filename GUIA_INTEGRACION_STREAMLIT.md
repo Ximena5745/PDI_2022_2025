@@ -1,14 +1,14 @@
 # 🚀 Guía de Integración - PDF Mejorado en Streamlit
 
-## ✅ Integración Completada R
+## ✅ Integración Completada R 
 
 La integración del generador de PDF mejorado ya está **lista y funcionando** en tu aplicación Streamlit.
 
 ---
 
-## 📍 Cambios Realizados
+##  Cambios Realizados
 
-### Archivo Modificado: [`views/dashboard.py`](views/dashboard.py)
+### Archivo Modificado : [`views/dashboard.py`](views/dashboard.py)
 
 #### 1. **Importaciones actualizadas** (Línea 29)
 ```python
