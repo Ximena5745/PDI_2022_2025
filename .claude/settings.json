@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(pip index versions google-genai)",
+      "Bash(pip index:*)",
+      "Bash(git checkout:*)",
+      "Bash(pip --version:*)",
+      "Bash(python3.12:*)",
+      "Bash(/c/Users/ximen/AppData/Local/Programs/Python/Python314/python.exe -c \"from fpdf import FPDF; print\\(''fpdf ok''\\)\")",
+      "Bash(PYEXE=\"c:/Users/ximen/OneDrive/Proyectos_DS/PDI_2022_2025/Scripts/python.exe\")",
+      "Bash(\"$PYEXE\" -c \":*)"
     ]
   }
 }
