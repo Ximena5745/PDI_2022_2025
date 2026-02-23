@@ -5,6 +5,7 @@ Utiliza HTML/CSS + weasyprint para conversion a PDF
 """
 
 import io
+import os
 import base64
 import re
 from datetime import datetime
@@ -986,62 +987,20 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
 
     pdf = PDFInforme()
 
-    # ===== PORTADA MEJORADA =====
+    # ===== PORTADA CON IMAGEN =====
     pdf.add_page()
 
-    # Fondo con gradiente simulado (múltiples rectángulos)
-    # Azul oscuro arriba, azul medio abajo
-    pdf.set_fill_color(0, 61, 130)  # Azul institucional oscuro
-    pdf.rect(0, 0, 210, 100, 'F')
-    pdf.set_fill_color(0, 86, 179)  # Azul institucional medio
-    pdf.rect(0, 100, 210, 100, 'F')
-    pdf.set_fill_color(25, 118, 210)  # Azul institucional claro
-    pdf.rect(0, 200, 210, 97, 'F')
-
-    # Logo del Poli (texto estilizado)
-    # NOTA: Reemplazar con imagen real del logo usando: pdf.image('logo_poli.png', x, y, w)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font('Helvetica', 'B', 60)
-    pdf.set_y(50)
-    pdf.cell(0, 25, 'POLI', 0, 1, 'C')
-
-    pdf.set_font('Helvetica', '', 10)
-    pdf.cell(0, 5, 'POLITECNICO GRANCOLOMBIANO', 0, 1, 'C')
-    pdf.set_font('Helvetica', '', 8)
-    pdf.cell(0, 5, 'INSTITUCION UNIVERSITARIA', 0, 1, 'C')
-
-    # Título principal
-    pdf.set_y(120)
-    pdf.set_font('Helvetica', 'B', 28)
-    pdf.cell(0, 15, 'INFORME', 0, 1, 'C')
-    pdf.cell(0, 15, 'ESTRATEGICO', 0, 1, 'C')
-
-    # Subtítulo
-    pdf.set_y(165)
-    pdf.set_font('Helvetica', '', 14)
-    pdf.cell(0, 8, 'Plan de Desarrollo Institucional', 0, 1, 'C')
-
-    # Periodo destacado
-    pdf.set_y(185)
-    pdf.set_font('Helvetica', 'B', 16)
-    pdf.cell(0, 12, f'Periodo 2021-{año}', 0, 1, 'C')
-
-    # Fecha de generación
-    pdf.set_y(230)
-    pdf.set_font('Helvetica', '', 10)
-    fecha = datetime.now().strftime("%d de %B de %Y")
-    pdf.cell(0, 8, 'Generado el', 0, 1, 'C')
-    pdf.set_font('Helvetica', 'B', 11)
-    pdf.cell(0, 6, fecha, 0, 1, 'C')
-
-    # Barra inferior decorativa
-    pdf.set_y(270)
-    pdf.set_fill_color(0, 30, 80)  # Azul oscuro
-    pdf.rect(0, 270, 210, 27, 'F')
-    pdf.set_font('Helvetica', 'I', 8)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_y(280)
-    pdf.cell(0, 5, 'Dashboard Estrategico - Sistema de Monitoreo PDI', 0, 1, 'C')
+    portada_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'Portada.png')
+    if os.path.exists(portada_path):
+        pdf.image(portada_path, x=0, y=0, w=210, h=297)
+    else:
+        # Fallback: fondo azul si no se encuentra la imagen
+        pdf.set_fill_color(0, 61, 130)
+        pdf.rect(0, 0, 210, 297, 'F')
+        pdf.set_text_color(255, 255, 255)
+        pdf.set_font('Helvetica', 'B', 28)
+        pdf.set_y(120)
+        pdf.cell(0, 15, 'INFORME ESTRATEGICO', 0, 1, 'C')
 
     # ===== RESUMEN EJECUTIVO =====
     pdf.add_page()
