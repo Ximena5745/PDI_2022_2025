@@ -1,0 +1,24 @@
+# Dashboard Estratégico POLI - Dependencias
+# Instalar con: pip install -r requirements.txt
+
+# Framework web
+streamlit>=1.30.0
+
+# Procesamiento de datos
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualizaciones
+plotly>=5.18.0
+
+# Lectura de Excel
+openpyxl>=3.1.0
+
+# Integración con IA - Google Gemini (GRATUITO)
+google-genai>=1.0.0
+
+# Variables de entorno
+python-dotenv>=1.0.0
+
+# Generación de PDF (ligero y compatible con Streamlit Cloud)
+fpdf2>=2.7.0
