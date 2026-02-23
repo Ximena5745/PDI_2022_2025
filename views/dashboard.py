@@ -28,6 +28,7 @@ from utils.ai_analysis import (
 )
 from utils.pdf_generator import exportar_informe_pdf as exportar_informe_pdf_original, previsualizar_html
 from utils.pdf_generator_mejorado import exportar_informe_pdf_mejorado
+from utils.pdf_generator_reportlab import exportar_informe_pdf_reportlab
 
 
 def mostrar_pagina():
@@ -292,17 +293,24 @@ def mostrar_pagina():
         with col_selector:
             version_pdf = st.radio(
                 "Selecciona la versión del PDF:",
-                ["✨ PDF Mejorado (Recomendado)", "📄 PDF Clásico"],
+                ["🎯 PDF Ejecutivo 3D (NUEVO)", "✨ PDF Mejorado", "📄 PDF Clásico"],
                 horizontal=True,
-                help="El PDF mejorado incluye tarjetas visuales, barras de progreso, heatmap y más características"
+                help="PDF Ejecutivo 3D: Gráficos circulares, enlaces internos, diseño moderno profesional"
             )
 
         with col_info:
-            if version_pdf == "✨ PDF Mejorado (Recomendado)":
+            if version_pdf == "🎯 PDF Ejecutivo 3D (NUEVO)":
+                st.markdown("""
+                <div style="background: #E3F2FD; padding: 10px; border-radius: 5px; font-size: 11px;">
+                    <strong>🎯 TECNOLOGÍA REPORTLAB</strong><br>
+                    Gráficos 3D + Enlaces internos
+                </div>
+                """, unsafe_allow_html=True)
+            elif version_pdf == "✨ PDF Mejorado":
                 st.markdown("""
                 <div style="background: #E8F5E9; padding: 10px; border-radius: 5px; font-size: 11px;">
-                    <strong>✨ NUEVO</strong><br>
-                    Incluye 22 mejoras visuales
+                    <strong>✨ FPDF2</strong><br>
+                    Diseño redondeado y visual
                 </div>
                 """, unsafe_allow_html=True)
             else:
@@ -357,7 +365,23 @@ def mostrar_pagina():
                     analisis_lineas_pdf = {}
 
                 # Generar PDF según la versión seleccionada
-                if version_pdf == "✨ PDF Mejorado (Recomendado)":
+                if version_pdf == "🎯 PDF Ejecutivo 3D (NUEVO)":
+                    with st.spinner('🎯 Generando PDF Ejecutivo 3D con ReportLab...'):
+                        pdf_bytes = exportar_informe_pdf_reportlab(
+                            metricas=metricas,
+                            df_lineas=df_lineas,
+                            df_indicadores=df_año_pdf,
+                            analisis_texto=analisis_pdf,
+                            año=año_actual,
+                            df_cascada=df_cascada_pdf,
+                            analisis_lineas=analisis_lineas_pdf
+                        )
+
+                    boton_label = "🎯 Descargar PDF Ejecutivo 3D"
+                    boton_type = "primary"
+                    nombre_archivo = f"Informe_Ejecutivo_3D_POLI_{año_actual}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+                elif version_pdf == "✨ PDF Mejorado":
                     with st.spinner('🎨 Generando PDF mejorado con visualizaciones avanzadas...'):
                         pdf_bytes = exportar_informe_pdf_mejorado(
                             metricas=metricas,
@@ -412,12 +436,27 @@ def mostrar_pagina():
                     st.code(traceback.format_exc())
 
         with col_pdf2:
-            if version_pdf == "✨ PDF Mejorado (Recomendado)":
+            if version_pdf == "🎯 PDF Ejecutivo 3D (NUEVO)":
+                st.markdown("""
+                <div style="background: #E3F2FD; padding: 15px; border-radius: 8px; font-size: 12px;">
+                    <strong>🎯 Tecnología ReportLab - Diseño Ejecutivo:</strong><br>
+                    🎯 Gráficos circulares donut 3D<br>
+                    🎯 Tabla de contenidos con enlaces clicables<br>
+                    🎯 Barras de progreso 3D cilíndricas<br>
+                    🎯 Fondos con gradientes profesionales<br>
+                    🎯 Análisis detallado por línea estratégica<br>
+                    🎯 Glosario de siglas interactivo<br>
+                    🎯 Conclusiones y recomendaciones<br>
+                    🎯 Diseño moderno ejecutivo<br>
+                    🎯 Sin páginas en blanco
+                </div>
+                """, unsafe_allow_html=True)
+            elif version_pdf == "✨ PDF Mejorado":
                 st.markdown("""
                 <div style="background: #E8F5E9; padding: 15px; border-radius: 8px; font-size: 12px;">
-                    <strong>📋 Contenido Mejorado:</strong><br>
+                    <strong>📋 Contenido Mejorado (FPDF2):</strong><br>
                     ✨ Tarjetas visuales con colores<br>
-                    ✨ Barras de progreso animadas<br>
+                    ✨ Barras de progreso<br>
                     ✨ Heatmap de líneas<br>
                     ✨ Análisis IA por línea<br>
                     ✨ Tabla agrupada mejorada<br>
