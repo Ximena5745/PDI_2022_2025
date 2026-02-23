@@ -954,10 +954,13 @@ def _pagina_cumplimiento_lineas(pdf, df_lineas, metricas: Dict[str, Any], año: 
     pdf.set_auto_page_break(auto=True, margin=20)
 
 
-def _generar_paginas_lineas(pdf, df_cascada: pd.DataFrame, año: int) -> None:
+def _generar_paginas_lineas(pdf, df_cascada: pd.DataFrame, año: int,
+                            analisis_lineas: Dict[str, str] = None) -> None:
     """
     Una página visual por línea estratégica:
     leyenda → header navy con color de línea → filas objetivo/meta/indicador → footer.
+    Si analisis_lineas contiene texto para la línea, se renderiza un card de análisis
+    al final (inline si hay espacio, en página nueva si no).
     """
     import unicodedata
 
@@ -1158,6 +1161,38 @@ def _generar_paginas_lineas(pdf, df_cascada: pd.DataFrame, año: int) -> None:
                 _mini_bar(173, y0+2, 24, 3, cumpl)
                 pdf.set_y(y0 + 7)
 
+        # ── Análisis IA al final de la línea ────────────────────────────
+        ana_txt = (analisis_lineas or {}).get(linea_nom, '')
+        if ana_txt:
+            ana_txt = limpiar_texto_pdf(ana_txt.replace('**', '').replace('*', ''))
+            ANA_H = 52
+            # Si no cabe en la página actual, continuar en página nueva
+            if pdf.get_y() + ANA_H + 4 > FTR_Y:
+                _cont_header()
+            y_a = pdf.get_y() + 3
+            # Sombra + fondo
+            pdf.set_fill_color(220, 232, 248)
+            pdf.rounded_rect(12, y_a + 2, 186, ANA_H, 3, 'F')
+            pdf.set_fill_color(235, 243, 255)
+            pdf.rounded_rect(10, y_a, 186, ANA_H, 3, 'F')
+            pdf.set_fill_color(*CL)
+            pdf.rect(10, y_a, 3, ANA_H, 'F')
+            # Encabezado
+            pdf.set_xy(16, y_a + 4)
+            pdf.set_font('Helvetica', 'B', 7.5)
+            pdf.set_text_color(0, 38, 97)
+            pdf.cell(80, 5, 'ANALISIS ESTRATEGICO IA', 0, 0)
+            pdf.set_font('Helvetica', 'I', 6)
+            pdf.set_text_color(*C_GRAY)
+            pdf.cell(0, 5, f'Linea: {linea_nom[:55]}', 0, 1)
+            # Texto
+            pdf.set_x(16)
+            pdf.set_font('Helvetica', '', 7)
+            pdf.set_text_color(33, 37, 41)
+            max_c = int((ANA_H - 14) * 29)
+            pdf.multi_cell(181, 4.2, ana_txt[:max_c], 0, 'J')
+            pdf.set_y(y_a + ANA_H + 2)
+
         _draw_footer()
 
     pdf.set_auto_page_break(auto=True, margin=20)
@@ -1166,6 +1201,7 @@ def _generar_paginas_lineas(pdf, df_cascada: pd.DataFrame, año: int) -> None:
 
 def _resumen_ejecutivo_fpdf2(pdf, metricas: Dict[str, Any], año: int, analisis_texto: str) -> None:
     """Resumen Ejecutivo profesional - header navy, tarjetas 3D, footer."""
+    pdf.set_auto_page_break(auto=False)
     C_NAVY    = (  0,  38,  97)
     C_PRIMARY = (  0,  61, 130)
     C_ACCENT  = (  0, 102, 204)
@@ -1337,12 +1373,14 @@ def _resumen_ejecutivo_fpdf2(pdf, metricas: Dict[str, Any], año: int, analisis_
         pdf.set_text_color(*C_GRAY); pdf.cell(55, 5, txt, 0, 0)
     pdf.set_xy(150, Y_FOOT+7); pdf.set_font('Helvetica', 'B', 7)
     pdf.set_text_color(*C_GRAY); pdf.cell(50, 5, f'PDI  .  {año}', 0, 0, 'R')
+    pdf.set_auto_page_break(auto=True, margin=20)
 
 
 
 def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
                      df_indicadores: pd.DataFrame, analisis_texto: str = "", año: int = 2025,
-                     df_cascada: pd.DataFrame = None) -> bytes:
+                     df_cascada: pd.DataFrame = None,
+                     analisis_lineas: Dict[str, str] = None) -> bytes:
     """
     Genera PDF usando fpdf2 (ligero y compatible con Streamlit Cloud).
 
@@ -1417,7 +1455,7 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
 
     # ===== DETALLE POR LÍNEA =====
     if df_cascada is not None and not df_cascada.empty:
-        _generar_paginas_lineas(pdf, df_cascada, año)
+        _generar_paginas_lineas(pdf, df_cascada, año, analisis_lineas)
 
     # ===== INDICADORES =====
     if df_indicadores is not None and not df_indicadores.empty:
@@ -1543,7 +1581,8 @@ def exportar_informe_pdf(
     analisis_texto: str = "",
     figuras: List[tuple] = None,
     año: int = 2025,
-    df_cascada: pd.DataFrame = None
+    df_cascada: pd.DataFrame = None,
+    analisis_lineas: Dict[str, str] = None
 ) -> bytes:
     """
     Función principal para exportar el informe completo a PDF.
@@ -1557,6 +1596,7 @@ def exportar_informe_pdf(
         figuras: Lista de tuplas (titulo, figura_plotly, descripcion) (opcional)
         año: Año del informe
         df_cascada: DataFrame con estructura jerárquica del PDI (opcional)
+        analisis_lineas: Dict {nombre_linea: texto_analisis} para cards por línea (opcional)
 
     Returns:
         Bytes del archivo PDF
@@ -1569,7 +1609,8 @@ def exportar_informe_pdf(
             df_indicadores=df_indicadores,
             analisis_texto=analisis_texto,
             año=año,
-            df_cascada=df_cascada
+            df_cascada=df_cascada,
+            analisis_lineas=analisis_lineas
         )
     except ImportError:
         # Fallback a xhtml2pdf

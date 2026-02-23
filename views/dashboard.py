@@ -24,7 +24,7 @@ from utils.visualizations import (
     crear_grafico_cascada, crear_tabla_cascada_html, crear_grafico_proyectos
 )
 from utils.ai_analysis import (
-    generar_analisis_general, preparar_lineas_para_analisis
+    generar_analisis_general, preparar_lineas_para_analisis, generar_analisis_linea
 )
 from utils.pdf_generator import exportar_informe_pdf, previsualizar_html
 
@@ -304,6 +304,29 @@ def mostrar_pagina():
                 # Generar cascada completa para el PDF (todos los niveles)
                 df_cascada_pdf = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=4)
 
+                # Generar análisis IA por línea estratégica
+                analisis_lineas_pdf = {}
+                try:
+                    with st.spinner('Generando análisis IA por línea...'):
+                        for _, lr in df_lineas.iterrows():
+                            nom = str(lr.get('Linea', lr.get('Línea', '')))
+                            cumpl_l = float(lr.get('Cumplimiento', 0) or 0)
+                            n_ind_l = int(lr.get('Total_Indicadores', 0) or 0)
+                            # Objetivos de esta línea desde la cascada (Nivel 2)
+                            objs_l = []
+                            if df_cascada_pdf is not None and not df_cascada_pdf.empty:
+                                mask = (df_cascada_pdf['Nivel'] == 2) & (df_cascada_pdf['Linea'] == nom)
+                                for _, or_ in df_cascada_pdf[mask].iterrows():
+                                    objs_l.append({
+                                        'objetivo': str(or_.get('Objetivo', '')),
+                                        'cumplimiento': float(or_.get('Cumplimiento', 0) or 0),
+                                        'indicadores': int(or_.get('Total_Indicadores', 0) or 0),
+                                    })
+                            texto_l = generar_analisis_linea(nom, n_ind_l, cumpl_l, objs_l)
+                            analisis_lineas_pdf[nom] = texto_l
+                except Exception:
+                    analisis_lineas_pdf = {}
+
                 pdf_bytes = exportar_informe_pdf(
                     metricas=metricas,
                     df_lineas=df_lineas,
@@ -311,7 +334,8 @@ def mostrar_pagina():
                     analisis_texto=analisis_pdf,
                     figuras=None,  # Sin gráficos por ahora (requiere kaleido)
                     año=año_actual,
-                    df_cascada=df_cascada_pdf
+                    df_cascada=df_cascada_pdf,
+                    analisis_lineas=analisis_lineas_pdf
                 )
 
                 st.download_button(
