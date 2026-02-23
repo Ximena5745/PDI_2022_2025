@@ -1374,6 +1374,21 @@ def generar_pdf_fpdf(metricas: Dict[str, Any], df_lineas: pd.DataFrame,
             self.set_text_color(100, 100, 100)
             self.cell(0, 10, f'Pagina {self.page_no()}', 0, 0, 'C')
 
+        def rounded_rect(self, x, y, w, h, r, style=''):
+            """Polyfill: compatible with fpdf2 2.5-2.8+ and old fpdf 1.x."""
+            try:
+                # fpdf2 2.7+: corners param inserted before style
+                super().rounded_rect(x, y, w, h, r, style=style or 'D')
+            except AttributeError:
+                # Old fpdf 1.x: no rounded_rect → plain rect
+                self.rect(x, y, w, h, style)
+            except TypeError:
+                try:
+                    # fpdf2 2.5-2.6: (x, y, w, h, r, style)
+                    super().rounded_rect(x, y, w, h, r, style)
+                except Exception:
+                    self.rect(x, y, w, h, style)
+
     pdf = PDFInforme()
 
     # ===== PORTADA CON IMAGEN =====
