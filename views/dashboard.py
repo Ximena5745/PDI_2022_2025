@@ -298,6 +298,15 @@ def mostrar_pagina():
                 # Cascada completa para el PDF
                 df_cascada_pdf = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=4)
 
+                # Análisis IA ejecutivo general
+                analisis_ejecutivo_pdf = ''
+                try:
+                    with st.spinner('Generando análisis ejecutivo IA...'):
+                        lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
+                        analisis_ejecutivo_pdf = generar_analisis_general(metricas, lineas_data)
+                except Exception:
+                    analisis_ejecutivo_pdf = ''
+
                 # Análisis IA por línea
                 analisis_lineas_pdf = {}
                 try:
@@ -325,9 +334,11 @@ def mostrar_pagina():
                         metricas=metricas,
                         df_lineas=df_lineas,
                         df_indicadores=df_año_pdf,
+                        analisis_texto=analisis_ejecutivo_pdf,
                         año=año_actual,
                         df_cascada=df_cascada_pdf,
-                        analisis_lineas=analisis_lineas_pdf
+                        analisis_lineas=analisis_lineas_pdf,
+                        df_unificado=df_unificado,
                     )
 
                 nombre_archivo = f"Informe_Ejecutivo_POLI_{año_actual}_{datetime.now().strftime('%Y%m%d')}.pdf"
