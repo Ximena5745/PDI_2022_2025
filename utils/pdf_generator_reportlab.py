@@ -614,93 +614,163 @@ class PDFReportePOLI:
         self.c.setFillColor(C_WHITE)
         self.c.drawCentredString(cx_r, badge_by + bh / 2 - 2, texto_estado(cumplimiento))
 
-        # ── KPI mini-fichas (izquierda) ───────────────────────────────
+        # ── KPI mini-fichas (izquierda) — basadas en indicadores ─────
         left_w  = ring_rx - self.MX - 6 * mm
         kpi_w   = left_w / 3 - 2 * mm
         kpi_h   = 16 * mm
         kpi_y   = cont_top - 6 * mm - kpi_h
-        n_cumpl = sum(1 for o in objetivos if float(o.get('cumplimiento', 0)) >= 100)
-        n_aten  = sum(1 for o in objetivos if float(o.get('cumplimiento', 0)) < 80)
+        # Recolectar todos los indicadores del nivel 4
+        all_inds = [ind
+                    for obj in objetivos
+                    for meta in obj.get('metas', [])
+                    for ind in meta.get('indicadores', [])]
+        n_cumpl_ind = sum(1 for i in all_inds if float(i.get('cumplimiento', 0)) >= 100)
+        n_aten_ind  = sum(1 for i in all_inds if float(i.get('cumplimiento', 0)) < 80)
         for i, (val, lbl, col) in enumerate([
-            (str(len(objetivos)), 'Objetivos',    col_linea),
-            (str(n_cumpl),        'Cumplidos',    C_VERDE),
-            (str(n_aten),         'Con Atención', C_ROJO),
+            (str(total_ind),      'Total Indicadores', col_linea),
+            (str(n_cumpl_ind),    'Cumplidos ≥100%',   C_VERDE),
+            (str(n_aten_ind),     'Con Atención',      C_ROJO),
         ]):
             self._kpi_card(self.MX + i * (kpi_w + 2 * mm), kpi_y, kpi_w, kpi_h, val, lbl, col)
 
         # ── Inicio del contenido bajo anillo ──────────────────────────
         AI_H      = 52 * mm
         AI_BOTTOM = self.H_FOOTER + 3 * mm
-        AI_TOP    = AI_BOTTOM + AI_H                     # top of AI card
-        TABLE_BOTTOM = AI_TOP + 4 * mm                   # table must not enter AI card
+        AI_TOP    = AI_BOTTOM + AI_H
+        TABLE_BOTTOM = AI_TOP + 4 * mm
         y_cur = badge_by - 5 * mm
 
-        # ── Tabla: Línea | Objetivo | Meta | Indicadores ──────────────
+        # ── Cascada: N2 Objetivo → N3 Meta → N4 Indicadores ──────────
+        # Alturas de fila por nivel
+        OBJ_H  = 9 * mm   # Nivel 2: Objetivo estratégico
+        META_H = 7 * mm   # Nivel 3: Meta estratégica
+        HDR_H  = 6 * mm   # Encabezado de columnas (Nivel 4)
+        ROW_H  = 6 * mm   # Fila de indicador (Nivel 4)
+
+        # Columnas de Nivel 4: Indicador | Meta | Ejecución | Cumpl. | Estado
+        IND_COL_W = [84 * mm, 20 * mm, 20 * mm, 25 * mm, 17 * mm]
+        IND_TBL_W = sum(IND_COL_W)   # 166 mm
+
         if objetivos:
             self.c.setFont('Helvetica-Bold', 9)
             self.c.setFillColor(C_NAVY)
-            self.c.drawString(self.MX, y_cur, 'OBJETIVOS ESTRATÉGICOS')
+            self.c.drawString(self.MX, y_cur, 'OBJETIVOS E INDICADORES')
             y_cur -= 5 * mm
 
-            # Columnas: Objetivo (ancho), Meta (texto PDI), Indicadores
-            COL_W = [80 * mm, 56 * mm, 22 * mm]
-            TBL_W = sum(COL_W)
-            ROW_H = 8 * mm
-            HDR_H = 8 * mm
-
-            # Encabezado de tabla
-            self._shadow_card(self.MX, y_cur - HDR_H, TBL_W, HDR_H,
-                              col_linea, radius=2 * mm)
-            self.c.setFont('Helvetica-Bold', 7.5)
-            self.c.setFillColor(C_WHITE)
-            hx = self.MX
-            for hdr, cw in zip(['Objetivo', 'Meta PDI', 'Indicadores'], COL_W):
-                self.c.drawCentredString(hx + cw / 2, y_cur - HDR_H + 3 * mm, hdr)
-                hx += cw
-            y_cur -= HDR_H
-
-            # Filas de objetivos
-            for idx, obj in enumerate(objetivos[:10]):
-                if y_cur - ROW_H < TABLE_BOTTOM:
+            for obj in objetivos:
+                # Necesitamos espacio mínimo para header + 1 meta + 1 fila
+                if y_cur - (OBJ_H + META_H + HDR_H + ROW_H) < TABLE_BOTTOM:
                     break
+
                 obj_pct = float(obj.get('cumplimiento', 0))
-                obj_col = color_semaforo(obj_pct)
-                bg_row  = C_BG if idx % 2 == 0 else C_WHITE
+                obj_sem = color_semaforo(obj_pct)
+                obj_txt = limpiar(str(obj.get('objetivo', '')))
 
-                self.c.setFillColor(bg_row)
-                self.c.rect(self.MX, y_cur - ROW_H, TBL_W, ROW_H, fill=1, stroke=0)
-                # Barra de color semáforo al lado izquierdo
-                self.c.setFillColor(obj_col)
-                self.c.rect(self.MX, y_cur - ROW_H, 1.5 * mm, ROW_H, fill=1, stroke=0)
-                self.c.setStrokeColor(C_LIGHT)
-                self.c.setLineWidth(0.3)
-                self.c.rect(self.MX, y_cur - ROW_H, TBL_W, ROW_H, fill=0, stroke=1)
-
-                # Columna 1: Objetivo
-                obj_raw = limpiar(str(obj.get('objetivo', '')))
-                obj_txt = obj_raw[:52] + ('…' if len(obj_raw) > 52 else '')
-                self.c.setFont('Helvetica', 6.5)
-                self.c.setFillColor(C_DARK)
-                self.c.drawString(self.MX + 3 * mm, y_cur - ROW_H + 2.5 * mm, obj_txt)
-
-                # Columna 2: Meta PDI
-                meta_raw = limpiar(str(obj.get('meta', '')))
-                meta_txt = meta_raw[:38] + ('…' if len(meta_raw) > 38 else '')
-                meta_x   = self.MX + COL_W[0]
-                self.c.setFont('Helvetica', 6)
-                self.c.setFillColor(C_GRAY)
-                self.c.drawString(meta_x + 2 * mm, y_cur - ROW_H + 2.5 * mm, meta_txt)
-
-                # Columna 3: Indicadores (centrado)
-                ind_x = self.MX + COL_W[0] + COL_W[1]
+                # ── Nivel 2: fila de Objetivo (fondo = color de línea) ─
+                self.c.setFillColor(col_linea)
+                self.c.rect(self.MX, y_cur - OBJ_H, IND_TBL_W, OBJ_H, fill=1, stroke=0)
+                # Punto semáforo a la derecha
+                self.c.setFillColor(obj_sem)
+                self.c.circle(self.MX + IND_TBL_W - 5 * mm,
+                              y_cur - OBJ_H / 2, 2.5 * mm, fill=1, stroke=0)
                 self.c.setFont('Helvetica-Bold', 7)
-                self.c.setFillColor(obj_col)
-                self.c.drawCentredString(
-                    ind_x + COL_W[2] / 2,
-                    y_cur - ROW_H + 2.5 * mm,
-                    str(int(obj.get('indicadores', 0)))
-                )
-                y_cur -= ROW_H
+                self.c.setFillColor(C_WHITE)
+                obj_s = obj_txt[:90] + ('…' if len(obj_txt) > 90 else '')
+                self.c.drawString(self.MX + 2.5 * mm,
+                                  y_cur - OBJ_H + 3 * mm, obj_s)
+                y_cur -= OBJ_H
+
+                for meta in obj.get('metas', []):
+                    if y_cur - (META_H + HDR_H + ROW_H) < TABLE_BOTTOM:
+                        break
+
+                    meta_txt = limpiar(str(meta.get('meta_pdi', '')))
+
+                    # ── Nivel 3: fila de Meta (fondo más claro) ────────
+                    meta_bg = _light_color(col_linea, 0.60)
+                    self.c.setFillColor(meta_bg)
+                    self.c.rect(self.MX, y_cur - META_H, IND_TBL_W, META_H,
+                                fill=1, stroke=0)
+                    self.c.setFont('Helvetica-Bold', 6.5)
+                    self.c.setFillColor(C_WHITE)
+                    if meta_txt:
+                        meta_label = 'META: ' + meta_txt[:85] + ('…' if len(meta_txt) > 85 else '')
+                    else:
+                        meta_label = 'META ESTRATÉGICA'
+                    self.c.drawString(self.MX + 3 * mm,
+                                      y_cur - META_H + 2 * mm, meta_label)
+                    y_cur -= META_H
+
+                    inds = meta.get('indicadores', [])
+                    if not inds:
+                        continue
+
+                    # ── Nivel 4: encabezado de columnas ────────────────
+                    if y_cur - HDR_H < TABLE_BOTTOM:
+                        break
+                    self.c.setFillColor(C_DARK)
+                    self.c.rect(self.MX, y_cur - HDR_H, IND_TBL_W, HDR_H,
+                                fill=1, stroke=0)
+                    self.c.setFont('Helvetica-Bold', 6)
+                    self.c.setFillColor(C_WHITE)
+                    hx = self.MX
+                    for hdr, cw in zip(['Indicador', 'Meta', 'Ejecución',
+                                        'Cumplimiento', 'Estado'], IND_COL_W):
+                        self.c.drawCentredString(hx + cw / 2,
+                                                 y_cur - HDR_H + 2 * mm, hdr)
+                        hx += cw
+                    y_cur -= HDR_H
+
+                    # ── Nivel 4: filas de indicadores ──────────────────
+                    for ridx, ind in enumerate(inds):
+                        if y_cur - ROW_H < TABLE_BOTTOM:
+                            break
+                        ind_pct  = float(ind.get('cumplimiento', 0))
+                        ind_scol = color_semaforo(ind_pct)
+                        bg = C_BG if ridx % 2 == 0 else C_WHITE
+
+                        self.c.setFillColor(bg)
+                        self.c.rect(self.MX, y_cur - ROW_H, IND_TBL_W, ROW_H,
+                                    fill=1, stroke=0)
+                        self.c.setFillColor(ind_scol)
+                        self.c.rect(self.MX, y_cur - ROW_H, 1.5 * mm, ROW_H,
+                                    fill=1, stroke=0)
+                        self.c.setStrokeColor(C_LIGHT)
+                        self.c.setLineWidth(0.3)
+                        self.c.rect(self.MX, y_cur - ROW_H, IND_TBL_W, ROW_H,
+                                    fill=0, stroke=1)
+
+                        ind_name = limpiar(str(ind.get('nombre', '')))
+                        ind_name = ind_name[:57] + ('…' if len(ind_name) > 57 else '')
+                        self.c.setFont('Helvetica', 6)
+                        self.c.setFillColor(C_DARK)
+                        self.c.drawString(self.MX + 2.5 * mm,
+                                          y_cur - ROW_H + 1.8 * mm, ind_name)
+
+                        meta_v = ind.get('meta_valor')
+                        ejec_v = ind.get('ejecucion')
+                        vals = [
+                            f'{float(meta_v):.1f}' if (
+                                meta_v is not None and
+                                str(meta_v) not in ('nan', 'None', '')
+                            ) else '-',
+                            f'{float(ejec_v):.1f}' if (
+                                ejec_v is not None and
+                                str(ejec_v) not in ('nan', 'None', '')
+                            ) else '-',
+                            f'{ind_pct:.0f}%',
+                            '✓' if ind_pct >= 100 else ('⚠' if ind_pct >= 80 else '✗'),
+                        ]
+                        hx = self.MX + IND_COL_W[0]
+                        for j, (val, cw) in enumerate(zip(vals, IND_COL_W[1:])):
+                            fnt = 'Helvetica-Bold' if j >= 2 else 'Helvetica'
+                            clr = ind_scol if j >= 2 else C_DARK
+                            self.c.setFont(fnt, 6.5)
+                            self.c.setFillColor(clr)
+                            self.c.drawCentredString(hx + cw / 2,
+                                                     y_cur - ROW_H + 1.8 * mm, val)
+                            hx += cw
+                        y_cur -= ROW_H
 
         # ── Sección de Proyectos ───────────────────────────────────────
         if proyectos and y_cur - 8 * mm > TABLE_BOTTOM:
@@ -1075,27 +1145,101 @@ def exportar_informe_pdf_reportlab(
             cumpl = float(lr.get('Cumplimiento', 0) or 0)
             n_ind = int(lr.get('Total_Indicadores', 0) or 0)
 
-            # ── Objetivos (Nivel 2) con Meta PDI asociada (Nivel 3) ───
+            # ── Jerarquía: N2 Objetivo → N3 Meta_PDI → N4 Indicadores ──
+            # Estructura: [{objetivo, cumplimiento, metas: [{meta_pdi, cumplimiento, indicadores[]}]}]
             objs = []
-            if df_cascada is not None and not df_cascada.empty and nc and lc:
+            _built_from_raw = False
+            if df_unificado is not None and not df_unificado.empty and \
+                    'Objetivo' in df_unificado.columns and 'Linea' in df_unificado.columns:
+                # Filtrar por línea, año e indicadores (no proyectos)
+                omask = df_unificado['Linea'] == nom
+                if 'Año' in df_unificado.columns:
+                    omask &= df_unificado['Año'] == año
+                if 'Proyectos' in df_unificado.columns:
+                    omask &= df_unificado['Proyectos'] == 0
+                if 'Fuente' in df_unificado.columns:
+                    omask &= df_unificado['Fuente'] == 'Avance'
+                df_src = df_unificado[omask]
+
+                _meta_col  = next((c for c in ['Meta', 'meta'] if c in df_src.columns), None)
+                _ejec_col  = next((c for c in ['Ejecución', 'Ejecucion', 'ejecucion']
+                                   if c in df_src.columns), None)
+                _ind_col   = next((c for c in ['Indicador', 'indicador']
+                                   if c in df_src.columns), None)
+                _cumpl_col = 'Cumplimiento' if 'Cumplimiento' in df_src.columns else None
+                _mpdi_col  = 'Meta_PDI' if 'Meta_PDI' in df_src.columns else None
+
+                def _safe_val(v):
+                    return None if (v is None or str(v) in ('nan', 'None', '')) else v
+
+                if not df_src.empty and _ind_col:
+                    for obj_name, df_obj in df_src.groupby('Objetivo', sort=True):
+                        cumpl_obj = float(df_obj[_cumpl_col].mean()) if _cumpl_col else 0.0
+                        metas_list = []
+
+                        # Agrupar indicadores por Meta_PDI (Nivel 3)
+                        if _mpdi_col and df_obj[_mpdi_col].notna().any():
+                            for meta_val, df_meta in df_obj.groupby(_mpdi_col, sort=True):
+                                cumpl_meta = float(df_meta[_cumpl_col].mean()) if _cumpl_col else 0.0
+                                inds = []
+                                for _, ir in df_meta.drop_duplicates(_ind_col).iterrows():
+                                    inds.append({
+                                        'nombre':       str(ir.get(_ind_col, '')),
+                                        'meta_valor':   _safe_val(ir.get(_meta_col) if _meta_col else None),
+                                        'ejecucion':    _safe_val(ir.get(_ejec_col) if _ejec_col else None),
+                                        'cumplimiento': float(ir.get(_cumpl_col, 0) or 0) if _cumpl_col else 0.0,
+                                    })
+                                metas_list.append({
+                                    'meta_pdi':     str(meta_val),
+                                    'cumplimiento': cumpl_meta,
+                                    'indicadores':  inds,
+                                })
+                        else:
+                            # Sin Meta_PDI: todos los indicadores en un solo bloque
+                            inds = []
+                            for _, ir in df_obj.drop_duplicates(_ind_col).iterrows():
+                                inds.append({
+                                    'nombre':       str(ir.get(_ind_col, '')),
+                                    'meta_valor':   _safe_val(ir.get(_meta_col) if _meta_col else None),
+                                    'ejecucion':    _safe_val(ir.get(_ejec_col) if _ejec_col else None),
+                                    'cumplimiento': float(ir.get(_cumpl_col, 0) or 0) if _cumpl_col else 0.0,
+                                })
+                            metas_list.append({
+                                'meta_pdi':     '',
+                                'cumplimiento': cumpl_obj,
+                                'indicadores':  inds,
+                            })
+
+                        objs.append({
+                            'objetivo':     str(obj_name),
+                            'cumplimiento': cumpl_obj,
+                            'metas':        metas_list,
+                        })
+                    _built_from_raw = True
+
+            # Fallback: cascada cuando no hay df_unificado
+            if not _built_from_raw and df_cascada is not None and \
+                    not df_cascada.empty and nc and lc:
                 mask2 = (df_cascada[nc] == 2) & (df_cascada[lc] == nom)
                 for _, or_ in df_cascada[mask2].iterrows():
-                    obj_name = str(or_.get('Objetivo', nom))
-                    # Buscar primera Meta_PDI asociada en Nivel 3
-                    meta_str = ''
+                    obj_name  = str(or_.get('Objetivo', nom))
+                    cumpl_obj = float(or_.get('Cumplimiento', 0) or 0)
+                    metas_fb  = []
                     if 'Meta_PDI' in df_cascada.columns:
-                        mask3 = (
-                            (df_cascada[nc] == 3) &
-                            (df_cascada[lc] == nom) &
-                            (df_cascada['Objetivo'] == obj_name)
-                        )
-                        metas = df_cascada[mask3]['Meta_PDI'].dropna().astype(str).tolist()
-                        meta_str = metas[0] if metas else ''
+                        mask3 = ((df_cascada[nc] == 3) & (df_cascada[lc] == nom) &
+                                 (df_cascada['Objetivo'] == obj_name))
+                        for _, mr in df_cascada[mask3].iterrows():
+                            metas_fb.append({
+                                'meta_pdi':     str(mr.get('Meta_PDI', '')),
+                                'cumplimiento': float(mr.get('Cumplimiento', 0) or 0),
+                                'indicadores':  [],
+                            })
+                    if not metas_fb:
+                        metas_fb = [{'meta_pdi': '', 'cumplimiento': cumpl_obj, 'indicadores': []}]
                     objs.append({
                         'objetivo':     obj_name,
-                        'meta':         meta_str,
-                        'cumplimiento': float(or_.get('Cumplimiento', 0) or 0),
-                        'indicadores':  int(or_.get('Total_Indicadores', 0) or 0),
+                        'cumplimiento': cumpl_obj,
+                        'metas':        metas_fb,
                     })
 
             # ── Proyectos de esta línea (Proyectos=1 en df_unificado) ─
