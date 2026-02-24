@@ -14,11 +14,11 @@ plotly>=5.18.0
 # Lectura de Excel
 openpyxl>=3.1.0
 
-# Integración con IA - Google Gemini (GRATUITO)
+# Integración con IA - Google Gemini
 google-genai>=1.0.0
 
 # Variables de entorno
 python-dotenv>=1.0.0
 
-# Generación de PDF (ligero y compatible con Streamlit Cloud)
-fpdf2>=2.7.0
+# Generación de PDF
+reportlab>=4.0.0

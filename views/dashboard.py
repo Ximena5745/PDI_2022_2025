@@ -26,7 +26,7 @@ from utils.visualizations import (
 from utils.ai_analysis import (
     generar_analisis_general, preparar_lineas_para_analisis, generar_analisis_linea
 )
-from utils.pdf_generator import exportar_informe_pdf, previsualizar_html
+from utils.pdf_generator_reportlab import exportar_informe_pdf_reportlab
 
 
 def mostrar_pagina():
@@ -272,94 +272,95 @@ def mostrar_pagina():
     with tab_datos:
         st.markdown("#### 📥 Exportar Datos del Dashboard")
 
-        # Sección de exportación PDF destacada
+        # Sección de exportación PDF
         st.markdown("""
         <div style="background: linear-gradient(90deg, #003d82 0%, #0056b3 100%);
                     padding: 15px 20px; border-radius: 10px; margin-bottom: 20px;">
             <span style="color: white; font-size: 16px; font-weight: bold;">
-                📄 Informe PDF Corporativo
+                Informe PDF Ejecutivo
             </span>
             <span style="color: rgba(255,255,255,0.8); font-size: 12px; margin-left: 10px;">
-                Genera un informe profesional con diseño institucional
+                Diseño institucional con fichas 3D, colores semáforo y análisis IA por línea
             </span>
         </div>
         """, unsafe_allow_html=True)
 
+        # Preparar datos para el PDF
+        df_año_pdf = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
+        if 'Fuente' in df_año_pdf.columns:
+            df_año_pdf = df_año_pdf[df_año_pdf['Fuente'] == 'Avance']
+
+        # Columnas: botón de descarga + descripción
         col_pdf1, col_pdf2 = st.columns([2, 1])
 
         with col_pdf1:
-            # Preparar datos para el PDF
-            df_año_pdf = df_unificado[df_unificado['Año'] == año_actual] if 'Año' in df_unificado.columns else df_unificado
-            if 'Fuente' in df_año_pdf.columns:
-                df_año_pdf = df_año_pdf[df_año_pdf['Fuente'] == 'Avance']
-
-            # Obtener análisis para incluir en PDF
             try:
-                lineas_data = preparar_lineas_para_analisis(df_unificado, año_actual)
-                analisis_pdf = generar_analisis_general(metricas, lineas_data)
-            except Exception:
-                analisis_pdf = ""
-
-            try:
-                # Generar cascada completa para el PDF (todos los niveles)
+                # Cascada completa para el PDF
                 df_cascada_pdf = obtener_cumplimiento_cascada(df_unificado, df_base, año_actual, max_niveles=4)
 
-                # Generar análisis IA por línea estratégica
+                # Análisis IA por línea
                 analisis_lineas_pdf = {}
                 try:
                     with st.spinner('Generando análisis IA por línea...'):
                         for _, lr in df_lineas.iterrows():
-                            nom = str(lr.get('Linea', lr.get('Línea', '')))
+                            nom    = str(lr.get('Linea', lr.get('Línea', '')))
                             cumpl_l = float(lr.get('Cumplimiento', 0) or 0)
                             n_ind_l = int(lr.get('Total_Indicadores', 0) or 0)
-                            # Objetivos de esta línea desde la cascada (Nivel 2)
-                            objs_l = []
+                            objs_l  = []
                             if df_cascada_pdf is not None and not df_cascada_pdf.empty:
                                 mask = (df_cascada_pdf['Nivel'] == 2) & (df_cascada_pdf['Linea'] == nom)
                                 for _, or_ in df_cascada_pdf[mask].iterrows():
                                     objs_l.append({
-                                        'objetivo': str(or_.get('Objetivo', '')),
+                                        'objetivo':     str(or_.get('Objetivo', '')),
                                         'cumplimiento': float(or_.get('Cumplimiento', 0) or 0),
-                                        'indicadores': int(or_.get('Total_Indicadores', 0) or 0),
+                                        'indicadores':  int(or_.get('Total_Indicadores', 0) or 0),
                                     })
-                            texto_l = generar_analisis_linea(nom, n_ind_l, cumpl_l, objs_l)
-                            analisis_lineas_pdf[nom] = texto_l
+                            analisis_lineas_pdf[nom] = generar_analisis_linea(nom, n_ind_l, cumpl_l, objs_l)
                 except Exception:
                     analisis_lineas_pdf = {}
 
-                pdf_bytes = exportar_informe_pdf(
-                    metricas=metricas,
-                    df_lineas=df_lineas,
-                    df_indicadores=df_año_pdf,
-                    analisis_texto=analisis_pdf,
-                    figuras=None,  # Sin gráficos por ahora (requiere kaleido)
-                    año=año_actual,
-                    df_cascada=df_cascada_pdf,
-                    analisis_lineas=analisis_lineas_pdf
-                )
+                # Generar PDF
+                with st.spinner('Generando informe PDF ejecutivo...'):
+                    pdf_bytes = exportar_informe_pdf_reportlab(
+                        metricas=metricas,
+                        df_lineas=df_lineas,
+                        df_indicadores=df_año_pdf,
+                        año=año_actual,
+                        df_cascada=df_cascada_pdf,
+                        analisis_lineas=analisis_lineas_pdf
+                    )
 
+                nombre_archivo = f"Informe_Ejecutivo_POLI_{año_actual}_{datetime.now().strftime('%Y%m%d')}.pdf"
                 st.download_button(
-                    label="📄 Descargar Informe PDF Corporativo",
+                    label="Descargar Informe PDF",
                     data=pdf_bytes,
-                    file_name=f"Informe_Estrategico_POLI_{año_actual}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    file_name=nombre_archivo,
                     mime="application/pdf",
                     use_container_width=True,
                     type="primary"
                 )
-            except ImportError as e:
-                st.warning(f"⚠️ Para generar PDFs, instale: `pip install fpdf2`")
+                tamaño_kb = len(pdf_bytes) / 1024
+                st.success(f"PDF generado correctamente ({tamaño_kb:.1f} KB)")
+
+            except ImportError:
+                st.warning("Para generar PDFs instale: `pip install reportlab`")
             except Exception as e:
                 st.error(f"Error al generar PDF: {str(e)}")
+                import traceback
+                with st.expander("Ver detalles del error"):
+                    st.code(traceback.format_exc())
 
         with col_pdf2:
             st.markdown("""
             <div style="background: #E3F2FD; padding: 15px; border-radius: 8px; font-size: 12px;">
-                <strong>📋 Contenido del PDF:</strong><br>
-                • Portada corporativa<br>
-                • KPIs principales<br>
-                • Análisis por línea<br>
-                • Detalle de indicadores<br>
-                • Análisis ejecutivo IA
+                <strong>Contenido del informe:</strong><br>
+                • Portada institucional<br>
+                • Resumen ejecutivo con KPIs<br>
+                • Ficha detallada por línea<br>
+                • Tabla completa de indicadores<br>
+                • Análisis IA por línea estratégica<br>
+                • Conclusiones y recomendaciones<br>
+                • Glosario de siglas
             </div>
             """, unsafe_allow_html=True)
 

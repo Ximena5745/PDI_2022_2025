@@ -1,0 +1,922 @@
+"""
+Generador de PDFs Ejecutivos con ReportLab - Dashboard Estratégico POLI
+=======================================================================
+Diseño ejecutivo profesional con:
+- Fichas 3D con sombras y bordes redondeados
+- Colores semáforo (verde/naranja/rojo) para cumplimiento
+- Barras de progreso redondeadas
+- Análisis IA por línea estratégica
+- Tabla detallada de indicadores (todos, paginada)
+- Portada institucional
+- Sin páginas en blanco
+"""
+
+import os
+import io
+import unicodedata
+from datetime import datetime
+from typing import Dict, List, Optional, Any
+
+import pandas as pd
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import mm, cm
+from reportlab.pdfgen import canvas as rl_canvas
+from reportlab.platypus import Paragraph
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.charts.piecharts import Pie
+from reportlab.graphics import renderPDF
+
+
+# ============================================================
+# PALETA DE COLORES
+# ============================================================
+
+# Semáforo
+C_VERDE   = colors.HexColor('#2e7d32')
+C_NARANJA = colors.HexColor('#e65100')
+C_ROJO    = colors.HexColor('#b71c1c')
+
+# Institucionales
+C_NAVY    = colors.HexColor('#0a2240')
+C_ACCENT  = colors.HexColor('#1e88e5')
+C_WHITE   = colors.white
+C_BG      = colors.HexColor('#f5f7fa')
+C_DARK    = colors.HexColor('#212529')
+C_GRAY    = colors.HexColor('#6c757d')
+C_LIGHT   = colors.HexColor('#dee2e6')
+C_SHADOW  = colors.HexColor('#c8cdd3')
+C_RING_BG = colors.HexColor('#e8ecef')
+
+# Por línea estratégica (con y sin tilde)
+COLOR_LINEAS: Dict[str, colors.Color] = {
+    'Expansión':                         colors.HexColor('#FBAF17'),
+    'Expansion':                         colors.HexColor('#FBAF17'),
+    'Transformación Organizacional':     colors.HexColor('#00A8A8'),
+    'Transformacion Organizacional':     colors.HexColor('#00A8A8'),
+    'Calidad':                           colors.HexColor('#EC0677'),
+    'Experiencia':                       colors.HexColor('#1FB2DE'),
+    'Sostenibilidad':                    colors.HexColor('#5A9E1A'),
+    'Educación para toda la vida':       colors.HexColor('#0F385A'),
+    'Educacion para toda la vida':       colors.HexColor('#0F385A'),
+}
+
+GLOSARIO = {
+    'PDI':    'Plan de Desarrollo Institucional',
+    'KPI':    'Key Performance Indicator (Indicador Clave de Desempeño)',
+    'B2B':    'Business to Business (Negocio a Negocio)',
+    'B2G':    'Business to Government (Negocio a Gobierno)',
+    'NPS':    'Net Promoter Score (Índice de Satisfacción)',
+    'EBITDA': 'Earnings Before Interest, Taxes, Depreciation and Amortization',
+    'ANS':    'Acuerdo de Nivel de Servicio',
+    'IA':     'Inteligencia Artificial',
+}
+
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def _norm(s: str) -> str:
+    """Normalize string: remove accents, lowercase, strip."""
+    return unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode().lower().strip()
+
+
+def color_semaforo(pct: float) -> colors.Color:
+    if pct >= 100:
+        return C_VERDE
+    if pct >= 80:
+        return C_NARANJA
+    return C_ROJO
+
+
+def texto_estado(pct: float) -> str:
+    if pct >= 100:
+        return 'CUMPLIDO'
+    if pct >= 80:
+        return 'EN PROGRESO'
+    return 'ATENCION'
+
+
+def color_linea(nombre: str) -> colors.Color:
+    """Return brand color for a strategic line (accent-insensitive)."""
+    n = _norm(nombre)
+    for key, col in COLOR_LINEAS.items():
+        if _norm(key) == n:
+            return col
+    for key, col in COLOR_LINEAS.items():
+        if _norm(key) in n or n in _norm(key):
+            return col
+    return C_ACCENT
+
+
+def limpiar(txt: str) -> str:
+    """Clean text for PDF (keep accents, strip problematic characters)."""
+    if not txt:
+        return ""
+    txt = str(txt)
+    for orig, rep in [('⚠️', '⚠'), ('✅', '✓'), ('❌', '✗'),
+                      ('📊', ''), ('📈', ''), ('📉', ''), ('🎯', ''),
+                      ('●', '•'), ('**', ''), ('*', '')]:
+        txt = txt.replace(orig, rep)
+    return txt.strip()
+
+
+def _light_color(c: colors.Color, factor: float = 0.82) -> colors.Color:
+    """Mix color with white to get a lighter tint."""
+    r = min(1.0, c.red   + (1 - c.red)   * factor)
+    g = min(1.0, c.green + (1 - c.green) * factor)
+    b = min(1.0, c.blue  + (1 - c.blue)  * factor)
+    return colors.Color(r, g, b)
+
+
+# ============================================================
+# CLASE PRINCIPAL
+# ============================================================
+
+class PDFReportePOLI:
+    """Genera informes PDF ejecutivos con canvas ReportLab."""
+
+    # Margen horizontal estándar
+    MX = 18 * mm
+    # Alturas de banda
+    H_HEADER = 22 * mm
+    H_FOOTER = 14 * mm
+
+    def __init__(self, año: int):
+        self.buffer = io.BytesIO()
+        self.c = rl_canvas.Canvas(self.buffer, pagesize=A4)
+        self.W, self.H = A4
+        self.año = año
+        self._page = 0          # current page number (1-based after portada)
+
+    # ----------------------------------------------------------
+    # Utilidades de página
+    # ----------------------------------------------------------
+
+    def _new_page(self):
+        self.c.showPage()
+        self._page += 1
+
+    def _footer(self, subtitulo: str = "Informe Estratégico POLI"):
+        """Dibuja pie de página estándar."""
+        y = self.H_FOOTER - 4 * mm
+        # Línea separadora
+        self.c.setStrokeColor(C_LIGHT)
+        self.c.setLineWidth(0.4)
+        self.c.line(self.MX, y + 3 * mm, self.W - self.MX, y + 3 * mm)
+        # Textos
+        self.c.setFont('Helvetica', 6.5)
+        self.c.setFillColor(C_GRAY)
+        fecha = datetime.now().strftime('%d/%m/%Y')
+        self.c.drawString(self.MX, y, f'PDI {self.año} | {limpiar(subtitulo)}')
+        self.c.drawRightString(
+            self.W - self.MX, y,
+            f'Página {self._page} | Gerencia de Planeación | {fecha}'
+        )
+
+    def _header_band(self, color: colors.Color, titulo: str, subtitulo: str = "") -> float:
+        """
+        Dibuja banda de encabezado con sombra.
+        Retorna la coordenada Y inferior de la banda (inicio del contenido).
+        """
+        y0 = self.H - self.H_HEADER
+        # Sombra
+        self.c.setFillColor(C_SHADOW)
+        self.c.rect(0, y0 - 2 * mm, self.W, self.H_HEADER, fill=1, stroke=0)
+        # Banda principal
+        self.c.setFillColor(color)
+        self.c.rect(0, y0, self.W, self.H_HEADER, fill=1, stroke=0)
+        # Línea decorativa inferior (blanca semitransparente → uso blanco)
+        self.c.setFillColor(C_WHITE)
+        self.c.rect(0, y0, self.W, 1 * mm, fill=1, stroke=0)
+        # Título
+        self.c.setFillColor(C_WHITE)
+        if subtitulo:
+            self.c.setFont('Helvetica-Bold', 13)
+            self.c.drawString(self.MX, y0 + 13 * mm, titulo)
+            self.c.setFont('Helvetica', 8)
+            self.c.setFillColor(colors.HexColor('#c8d8f0'))
+            self.c.drawString(self.MX, y0 + 6 * mm, subtitulo)
+        else:
+            self.c.setFont('Helvetica-Bold', 14)
+            self.c.drawCentredString(self.W / 2, y0 + 8 * mm, titulo)
+        return y0 - 2 * mm   # top of content area (just below shadow)
+
+    # ----------------------------------------------------------
+    # Primitivos visuales
+    # ----------------------------------------------------------
+
+    def _shadow_card(self, x: float, y: float, w: float, h: float,
+                     fill: colors.Color, radius: float = 3 * mm):
+        """Ficha redondeada con sombra (efecto 3D profundidad)."""
+        # Sombra desplazada
+        self.c.setFillColor(C_SHADOW)
+        self.c.roundRect(x + 2 * mm, y - 2 * mm, w, h, radius, fill=1, stroke=0)
+        # Tarjeta principal
+        self.c.setFillColor(fill)
+        self.c.roundRect(x, y, w, h, radius, fill=1, stroke=0)
+
+    def _kpi_card(self, x: float, y: float, w: float, h: float,
+                  value: str, label: str, color: colors.Color):
+        """Tarjeta KPI con acento de color y valor grande."""
+        bg = _light_color(color, 0.85)
+        self._shadow_card(x, y, w, h, bg, radius=3 * mm)
+        # Barra izquierda de acento
+        self.c.setFillColor(color)
+        self.c.roundRect(x, y, 2.5 * mm, h, 2 * mm, fill=1, stroke=0)
+        # Valor
+        self.c.setFont('Helvetica-Bold', 18)
+        self.c.setFillColor(color)
+        self.c.drawCentredString(x + w / 2, y + h * 0.52, value)
+        # Etiqueta
+        self.c.setFont('Helvetica', 7)
+        self.c.setFillColor(C_GRAY)
+        self.c.drawCentredString(x + w / 2, y + h * 0.18, label)
+
+    def _progress_bar(self, x: float, y: float, w: float, h: float,
+                      pct: float, color: colors.Color = None):
+        """Barra de progreso redondeada con texto central."""
+        if color is None:
+            color = color_semaforo(pct)
+        r = h / 2
+        # Fondo
+        self.c.setFillColor(C_RING_BG)
+        self.c.roundRect(x, y, w, h, r, fill=1, stroke=0)
+        # Progreso
+        fill_w = max(r * 2, w * min(float(pct), 100) / 100)
+        self.c.setFillColor(color)
+        self.c.roundRect(x, y, fill_w, h, r, fill=1, stroke=0)
+        # Texto
+        self.c.setFont('Helvetica-Bold', 6.5)
+        self.c.setFillColor(C_WHITE)
+        self.c.drawCentredString(x + w / 2, y + h / 2 - 2.2, f'{pct:.1f}%')
+
+    def _ring_drawing(self, pct: float, size: float = 4 * cm) -> Drawing:
+        """Crea un gráfico donut con color semáforo."""
+        d = Drawing(size, size)
+        pc = Pie()
+        pc.x = size * 0.05
+        pc.y = size * 0.05
+        pc.width  = size * 0.9
+        pc.height = size * 0.9
+        completado = min(float(pct), 100)
+        restante   = max(100 - completado, 0.001)
+        pc.data = [completado, restante]
+        pc.slices[0].fillColor = color_semaforo(pct)
+        pc.slices[1].fillColor = C_RING_BG
+        for i in range(2):
+            pc.slices[i].strokeWidth = 0
+            pc.slices[i].strokeColor = None
+        pc.innerRadiusFraction = 0.64
+        pc.startAngle = 90
+        pc.direction  = 'clockwise'
+        d.add(pc)
+        return d
+
+    def _wrap_paragraph(self, texto: str, x: float, y_top: float,
+                        max_w: float, max_h: float,
+                        font: str = 'Helvetica', size: float = 8,
+                        color: colors.Color = None, align=TA_LEFT) -> float:
+        """
+        Dibuja texto con wrapping usando Paragraph.
+        Retorna el alto real ocupado.
+        """
+        if color is None:
+            color = C_DARK
+        style = ParagraphStyle(
+            'tmp',
+            fontSize=size,
+            fontName=font,
+            leading=size * 1.35,
+            textColor=color,
+            alignment=align,
+        )
+        safe_txt = limpiar(texto).replace('\n', '<br/>')
+        p = Paragraph(safe_txt, style)
+        actual_w, actual_h = p.wrap(max_w, max_h)
+        p.drawOn(self.c, x, y_top - actual_h)
+        return actual_h
+
+    # ----------------------------------------------------------
+    # Páginas
+    # ----------------------------------------------------------
+
+    def portada(self, portada_path: Optional[str] = None):
+        """Página 1: Portada."""
+        self._page = 1
+        if portada_path and os.path.exists(portada_path):
+            self.c.drawImage(
+                portada_path, 0, 0, self.W, self.H, preserveAspectRatio=False
+            )
+        else:
+            # Fondo degradado navy (bandas horizontales de oscuro a menos oscuro)
+            steps = 80
+            for i in range(steps):
+                t = i / steps
+                r = int(10  + t * 15)
+                g = int(34  + t * 25)
+                b = int(64  + t * 35)
+                self.c.setFillColorRGB(r / 255, g / 255, b / 255)
+                band_h = self.H / steps + 1
+                self.c.rect(0, self.H * i / steps, self.W, band_h, fill=1, stroke=0)
+            # Acento dorado
+            self.c.setFillColor(colors.HexColor('#FBAF17'))
+            self.c.rect(0, self.H * 0.36, self.W, 3.5 * mm, fill=1, stroke=0)
+            # Textos
+            self.c.setFillColor(C_WHITE)
+            self.c.setFont('Helvetica-Bold', 30)
+            self.c.drawCentredString(self.W / 2, self.H * 0.56, 'INFORME ESTRATÉGICO')
+            self.c.setFont('Helvetica-Bold', 22)
+            self.c.drawCentredString(self.W / 2, self.H * 0.49, 'PLAN DE DESARROLLO')
+            self.c.drawCentredString(self.W / 2, self.H * 0.43, f'INSTITUCIONAL {self.año}')
+            self.c.setFont('Helvetica', 13)
+            self.c.setFillColor(colors.HexColor('#FBAF17'))
+            self.c.drawCentredString(self.W / 2, self.H * 0.33, 'Gerencia de Planeación Estratégica')
+            self.c.setFont('Helvetica', 9)
+            self.c.setFillColor(colors.HexColor('#a0b4c8'))
+            fecha_larga = datetime.now().strftime('%B de %Y').title()
+            self.c.drawCentredString(self.W / 2, self.H * 0.27, fecha_larga)
+        self._new_page()
+
+    def resumen_ejecutivo(self, metricas: Dict, df_lineas: pd.DataFrame):
+        """Página: Resumen Ejecutivo con KPIs y barras por línea."""
+        cont_top = self._header_band(
+            C_NAVY, 'RESUMEN EJECUTIVO',
+            f'Plan de Desarrollo Institucional {self.año}'
+        )
+        self._footer()
+
+        cumpl  = float(metricas.get('cumplimiento_promedio', 0))
+        total  = int(metricas.get('total_indicadores', 0))
+        cumpl_n = int(metricas.get('indicadores_cumplidos', 0))
+        en_prog = int(metricas.get('en_progreso', 0))
+        atenc   = int(metricas.get('no_cumplidos', 0))
+        c_sem   = color_semaforo(cumpl)
+
+        # --- Anillo principal ---
+        ring_sz = 6.8 * cm
+        rx = self.MX
+        ry = cont_top - ring_sz - 6 * mm
+        renderPDF.draw(self._ring_drawing(cumpl, ring_sz), self.c, rx, ry)
+        # Texto en el centro del anillo
+        cx = rx + ring_sz / 2
+        cy = ry + ring_sz / 2
+        self.c.setFont('Helvetica-Bold', 16)
+        self.c.setFillColor(c_sem)
+        self.c.drawCentredString(cx, cy + 4, f'{cumpl:.1f}%')
+        self.c.setFont('Helvetica', 6.5)
+        self.c.setFillColor(C_GRAY)
+        self.c.drawCentredString(cx, cy - 9, 'Cumplimiento')
+        self.c.drawCentredString(cx, cy - 17, 'Global PDI')
+        # Badge de estado debajo
+        bw, bh = 30 * mm, 7 * mm
+        bx = cx - bw / 2
+        by = ry - 11 * mm
+        self._shadow_card(bx, by, bw, bh, c_sem, radius=2.5 * mm)
+        self.c.setFont('Helvetica-Bold', 7)
+        self.c.setFillColor(C_WHITE)
+        self.c.drawCentredString(cx, by + bh / 2 - 2, texto_estado(cumpl))
+
+        # --- Fichas KPI ---
+        kpi_x     = rx + ring_sz + 8 * mm
+        kpi_w     = (self.W - kpi_x - self.MX) / 2 - 2 * mm
+        kpi_h     = 20 * mm
+        kpi_gap   = 4 * mm
+        kpi_start = cont_top - 8 * mm
+
+        kpis = [
+            (str(total),   'Total Indicadores',     C_ACCENT),
+            (str(cumpl_n), 'Cumplidos ≥100%',        C_VERDE),
+            (str(en_prog), 'En Progreso 80–99%',     C_NARANJA),
+            (str(atenc),   'Requieren Atención',     C_ROJO),
+        ]
+        for i, (val, lbl, col) in enumerate(kpis):
+            col_i = i % 2
+            row_i = i // 2
+            kx = kpi_x + col_i * (kpi_w + kpi_gap)
+            ky = kpi_start - row_i * (kpi_h + kpi_gap) - kpi_h
+            self._kpi_card(kx, ky, kpi_w, kpi_h, val, lbl, col)
+
+        # --- Barras por línea ---
+        y_bar = cont_top - ring_sz - 22 * mm
+        bar_w = self.W - 2 * self.MX
+        bar_h = 7 * mm
+        bar_gap = 10 * mm
+
+        self.c.setFont('Helvetica-Bold', 9)
+        self.c.setFillColor(C_NAVY)
+        self.c.drawString(self.MX, y_bar, 'CUMPLIMIENTO POR LÍNEA ESTRATÉGICA')
+        y_bar -= 5 * mm
+
+        if df_lineas is not None and not df_lineas.empty:
+            for _, row in df_lineas.iterrows():
+                if y_bar - bar_h - bar_gap < self.H_FOOTER + 4 * mm:
+                    break
+                nom = limpiar(str(row.get('Linea', row.get('Línea', ''))))
+                pct = float(row.get('Cumplimiento', 0) or 0)
+                col = color_linea(nom)
+
+                # Nombre de línea
+                self.c.setFont('Helvetica', 7.5)
+                self.c.setFillColor(C_DARK)
+                nom_s = nom[:45] + ('…' if len(nom) > 45 else '')
+                self.c.drawString(self.MX, y_bar, nom_s)
+                # Punto semáforo
+                c_dot = color_semaforo(pct)
+                self.c.setFillColor(c_dot)
+                self.c.circle(self.W - self.MX - 12 * mm, y_bar - bar_h / 2 + 2, 2 * mm, fill=1, stroke=0)
+
+                y_bar -= 5 * mm
+                self._progress_bar(self.MX, y_bar, bar_w - 16 * mm, bar_h, pct, col)
+                self.c.setFont('Helvetica-Bold', 7.5)
+                self.c.setFillColor(C_DARK)
+                self.c.drawRightString(self.W - self.MX, y_bar + bar_h / 2 - 2, f'{pct:.1f}%')
+                y_bar -= bar_gap
+
+        self._new_page()
+
+    def pagina_linea(self, nombre: str, cumplimiento: float, total_ind: int,
+                     objetivos: List[Dict], analisis: str):
+        """Una página detallada por línea estratégica."""
+        col_linea = color_linea(nombre)
+        cont_top = self._header_band(
+            col_linea,
+            limpiar(nombre).upper(),
+            f'Cumplimiento: {cumplimiento:.1f}%  |  {total_ind} indicadores'
+        )
+        self._footer(limpiar(nombre))
+        c_sem = color_semaforo(cumplimiento)
+
+        # --- Anillo (esquina derecha) ---
+        ring_sz = 5 * cm
+        rx = self.W - ring_sz - self.MX
+        ry = cont_top - ring_sz - 5 * mm
+        renderPDF.draw(self._ring_drawing(cumplimiento, ring_sz), self.c, rx, ry)
+        cx_r = rx + ring_sz / 2
+        cy_r = ry + ring_sz / 2
+        self.c.setFont('Helvetica-Bold', 13)
+        self.c.setFillColor(c_sem)
+        self.c.drawCentredString(cx_r, cy_r + 3, f'{cumplimiento:.1f}%')
+        self.c.setFont('Helvetica', 6)
+        self.c.setFillColor(C_GRAY)
+        self.c.drawCentredString(cx_r, cy_r - 10, texto_estado(cumplimiento))
+        # Badge debajo del anillo
+        bw, bh = 28 * mm, 6.5 * mm
+        bx = cx_r - bw / 2
+        by = ry - 9 * mm
+        self._shadow_card(bx, by, bw, bh, c_sem, radius=2 * mm)
+        self.c.setFont('Helvetica-Bold', 6.5)
+        self.c.setFillColor(C_WHITE)
+        self.c.drawCentredString(cx_r, by + bh / 2 - 2, texto_estado(cumplimiento))
+
+        # --- KPI fichas (izquierda) ---
+        left_w   = self.W - ring_sz - 3 * self.MX
+        kpi_w    = left_w / 3 - 2 * mm
+        kpi_h    = 16 * mm
+        kpi_y    = cont_top - 7 * mm - kpi_h
+        n_cumpl  = sum(1 for o in objetivos if float(o.get('cumplimiento', 0)) >= 100)
+        n_aten   = sum(1 for o in objetivos if float(o.get('cumplimiento', 0)) < 80)
+
+        for i, (val, lbl, col) in enumerate([
+            (str(len(objetivos)), 'Objetivos',    col_linea),
+            (str(n_cumpl),        'Cumplidos',    C_VERDE),
+            (str(n_aten),         'Con Atención', C_ROJO),
+        ]):
+            self._kpi_card(self.MX + i * (kpi_w + 2 * mm), kpi_y, kpi_w, kpi_h, val, lbl, col)
+
+        y_cur = kpi_y - 8 * mm
+
+        # --- Tabla de objetivos ---
+        if objetivos:
+            self.c.setFont('Helvetica-Bold', 9)
+            self.c.setFillColor(C_NAVY)
+            self.c.drawString(self.MX, y_cur, 'OBJETIVOS ESTRATÉGICOS')
+            y_cur -= 5 * mm
+
+            COL_W = [90 * mm, 20 * mm, 30 * mm, 22 * mm]
+            ROW_H = 7 * mm
+            HDR_H = 7.5 * mm
+
+            # Encabezado de tabla
+            self._shadow_card(self.MX, y_cur - HDR_H, sum(COL_W), HDR_H, C_NAVY, radius=2 * mm)
+            self.c.setFont('Helvetica-Bold', 7.5)
+            self.c.setFillColor(C_WHITE)
+            hdr_x = self.MX
+            for hdr, cw in zip(['Objetivo', 'Indicadores', 'Cumplimiento', 'Estado'], COL_W):
+                self.c.drawCentredString(hdr_x + cw / 2, y_cur - HDR_H + 2.5 * mm, hdr)
+                hdr_x += cw
+            y_cur -= HDR_H
+
+            # Filas
+            for idx, obj in enumerate(objetivos[:11]):
+                if y_cur - ROW_H < self.H_FOOTER + 50 * mm:
+                    break
+                obj_pct = float(obj.get('cumplimiento', 0))
+                obj_col = color_semaforo(obj_pct)
+                bg_row  = C_BG if idx % 2 == 0 else C_WHITE
+
+                # Fondo de fila
+                self.c.setFillColor(bg_row)
+                self.c.rect(self.MX, y_cur - ROW_H, sum(COL_W), ROW_H, fill=1, stroke=0)
+                # Acento lateral semáforo
+                self.c.setFillColor(obj_col)
+                self.c.rect(self.MX, y_cur - ROW_H, 1.5 * mm, ROW_H, fill=1, stroke=0)
+                # Borde
+                self.c.setStrokeColor(C_LIGHT)
+                self.c.setLineWidth(0.3)
+                self.c.rect(self.MX, y_cur - ROW_H, sum(COL_W), ROW_H, fill=0, stroke=1)
+
+                obj_txt = limpiar(str(obj.get('objetivo', '')))[:62]
+                if len(limpiar(str(obj.get('objetivo', '')))) > 62:
+                    obj_txt += '…'
+                self.c.setFont('Helvetica', 6.5)
+                self.c.setFillColor(C_DARK)
+                self.c.drawString(self.MX + 3 * mm, y_cur - ROW_H + 2.3 * mm, obj_txt)
+
+                # Indicadores
+                self.c.drawCentredString(
+                    self.MX + COL_W[0] + COL_W[1] / 2,
+                    y_cur - ROW_H + 2.3 * mm,
+                    str(int(obj.get('indicadores', 0)))
+                )
+                # Barra cumplimiento
+                bar_start = self.MX + COL_W[0] + COL_W[1]
+                self._progress_bar(
+                    bar_start + 2 * mm, y_cur - ROW_H + 1.5 * mm,
+                    COL_W[2] - 4 * mm, ROW_H - 3 * mm, obj_pct
+                )
+                # Estado
+                est_txt = '✓' if obj_pct >= 100 else ('⚠' if obj_pct >= 80 else '✗')
+                self.c.setFont('Helvetica-Bold', 9)
+                self.c.setFillColor(obj_col)
+                self.c.drawCentredString(
+                    self.MX + sum(COL_W[:3]) + COL_W[3] / 2,
+                    y_cur - ROW_H + 2.3 * mm,
+                    est_txt
+                )
+                y_cur -= ROW_H
+
+        y_cur -= 4 * mm
+
+        # --- Tarjeta de análisis IA ---
+        if analisis and y_cur > self.H_FOOTER + 28 * mm:
+            avail_h  = y_cur - self.H_FOOTER - 18 * mm
+            card_h   = min(avail_h, 55 * mm)
+            card_x   = self.MX
+            card_y   = y_cur - card_h
+            card_w   = self.W - 2 * self.MX
+
+            # Tarjeta fondo azul muy claro
+            self._shadow_card(card_x, card_y, card_w, card_h,
+                              colors.HexColor('#E3F2FD'), radius=3.5 * mm)
+            # Barra lateral con color de línea
+            self.c.setFillColor(col_linea)
+            self.c.roundRect(card_x, card_y, 3 * mm, card_h, 2 * mm, fill=1, stroke=0)
+            # Encabezado
+            self.c.setFont('Helvetica-Bold', 8)
+            self.c.setFillColor(C_NAVY)
+            self.c.drawString(card_x + 6 * mm, y_cur - 5.5 * mm, 'ANÁLISIS ESTRATÉGICO IA')
+            self.c.setFont('Helvetica-Oblique', 6.5)
+            self.c.setFillColor(C_GRAY)
+            self.c.drawRightString(
+                card_x + card_w - 3 * mm,
+                y_cur - 5.5 * mm,
+                'Generado con Inteligencia Artificial'
+            )
+            # Texto del análisis
+            self._wrap_paragraph(
+                analisis,
+                x=card_x + 6 * mm,
+                y_top=y_cur - 10 * mm,
+                max_w=card_w - 9 * mm,
+                max_h=card_h - 12 * mm,
+                size=7.5,
+                color=C_DARK,
+            )
+
+        self._new_page()
+
+    def tabla_indicadores(self, df_indicadores: pd.DataFrame):
+        """Tabla completa de indicadores, paginada, agrupada por línea."""
+        if df_indicadores is None or df_indicadores.empty:
+            return
+
+        # Detectar columnas
+        def _col(df, *names):
+            for n in names:
+                if n in df.columns:
+                    return n
+            return None
+
+        c_ind   = _col(df_indicadores, 'Indicador', 'indicador', 'INDICADOR')
+        c_linea = _col(df_indicadores, 'Linea', 'Línea', 'linea')
+        c_meta  = _col(df_indicadores, 'Meta', 'meta', 'META')
+        c_ejec  = _col(df_indicadores, 'Ejecucion', 'Ejecución', 'ejecucion', 'EJECUCION')
+        c_cumpl = _col(df_indicadores, 'Cumplimiento', 'cumplimiento', 'CUMPLIMIENTO')
+
+        # Ordenar por línea si existe
+        if c_linea:
+            df_sorted = df_indicadores.sort_values(c_linea)
+        else:
+            df_sorted = df_indicadores
+
+        # Constantes de tabla
+        COL_W  = [87 * mm, 17 * mm, 17 * mm, 16 * mm, 14 * mm]
+        ROW_H  = 6 * mm
+        HDR_H  = 8 * mm
+        BOTTOM = self.H_FOOTER + 6 * mm
+
+        def _draw_page_header():
+            cont = self._header_band(
+                C_NAVY, 'DETALLE DE INDICADORES',
+                f'Total: {len(df_indicadores)} indicadores'
+            )
+            self._footer('Detalle de Indicadores')
+            return cont
+
+        def _draw_table_header(y):
+            self._shadow_card(self.MX, y - HDR_H, sum(COL_W), HDR_H, C_NAVY, radius=2 * mm)
+            self.c.setFont('Helvetica-Bold', 7.5)
+            self.c.setFillColor(C_WHITE)
+            hx = self.MX
+            for hdr, cw in zip(['Indicador', 'Meta', 'Ejecución', '%', 'Estado'], COL_W):
+                self.c.drawCentredString(hx + cw / 2, y - HDR_H + 3 * mm, hdr)
+                hx += cw
+            return y - HDR_H
+
+        y = _draw_page_header()
+        y = _draw_table_header(y)
+
+        current_linea = None
+
+        for idx, (_, row) in enumerate(df_sorted.iterrows()):
+            # Subencabezado por línea
+            if c_linea:
+                linea_nom = limpiar(str(row.get(c_linea, '')))
+                if linea_nom != current_linea:
+                    current_linea = linea_nom
+                    sub_h = 6.5 * mm
+                    if y - sub_h < BOTTOM:
+                        self._new_page()
+                        y = _draw_page_header()
+                        y = _draw_table_header(y)
+                    sub_col = color_linea(linea_nom)
+                    self.c.setFillColor(sub_col)
+                    self.c.rect(self.MX, y - sub_h, sum(COL_W), sub_h, fill=1, stroke=0)
+                    self.c.setFont('Helvetica-Bold', 7.5)
+                    self.c.setFillColor(C_WHITE)
+                    self.c.drawString(self.MX + 3 * mm, y - sub_h + 2 * mm, linea_nom)
+                    y -= sub_h
+
+            # Salto de página
+            if y - ROW_H < BOTTOM:
+                self._new_page()
+                y = _draw_page_header()
+                y = _draw_table_header(y)
+
+            pct    = float(row.get(c_cumpl, 0) or 0) if c_cumpl else 0
+            c_row  = C_BG if idx % 2 == 0 else C_WHITE
+            c_s    = color_semaforo(pct)
+
+            self.c.setFillColor(c_row)
+            self.c.rect(self.MX, y - ROW_H, sum(COL_W), ROW_H, fill=1, stroke=0)
+            self.c.setFillColor(c_s)
+            self.c.rect(self.MX, y - ROW_H, 1.2 * mm, ROW_H, fill=1, stroke=0)
+            self.c.setStrokeColor(C_LIGHT)
+            self.c.setLineWidth(0.3)
+            self.c.rect(self.MX, y - ROW_H, sum(COL_W), ROW_H, fill=0, stroke=1)
+
+            # Nombre del indicador
+            ind_txt = limpiar(str(row.get(c_ind, '') if c_ind else ''))[:56]
+            if c_ind and len(limpiar(str(row.get(c_ind, '')))) > 56:
+                ind_txt += '…'
+            self.c.setFont('Helvetica', 6)
+            self.c.setFillColor(C_DARK)
+            self.c.drawString(self.MX + 2.5 * mm, y - ROW_H + 1.8 * mm, ind_txt)
+
+            # Columnas numéricas
+            meta = row.get(c_meta, None) if c_meta else None
+            ejec = row.get(c_ejec, None) if c_ejec else None
+            vals = [
+                f'{float(meta):.1f}' if meta is not None else '-',
+                f'{float(ejec):.1f}' if ejec is not None else '-',
+                f'{pct:.1f}%',
+                '✓' if pct >= 100 else ('⚠' if pct >= 80 else '✗'),
+            ]
+            hx = self.MX + COL_W[0]
+            for j, (val, cw) in enumerate(zip(vals, COL_W[1:])):
+                fnt = 'Helvetica-Bold' if j == 3 else 'Helvetica'
+                clr = c_s if j == 3 else C_DARK
+                self.c.setFont(fnt, 6.5)
+                self.c.setFillColor(clr)
+                self.c.drawCentredString(hx + cw / 2, y - ROW_H + 1.8 * mm, val)
+                hx += cw
+
+            y -= ROW_H
+
+        self._new_page()
+
+    def conclusiones(self, metricas: Dict, df_lineas: pd.DataFrame = None):
+        """Página: Conclusiones, recomendaciones y glosario."""
+        cont_top = self._header_band(C_NAVY, 'CONCLUSIONES Y RECOMENDACIONES', '')
+        self._footer('Conclusiones')
+
+        cumpl  = float(metricas.get('cumplimiento_promedio', 0))
+        total  = int(metricas.get('total_indicadores', 0))
+        cumpl_n = int(metricas.get('indicadores_cumplidos', 0))
+        c_sem  = color_semaforo(cumpl)
+
+        y = cont_top - 6 * mm
+
+        # --- Badge de cumplimiento global ---
+        bw, bh = 42 * mm, 19 * mm
+        self._shadow_card(self.MX, y - bh, bw, bh, c_sem, radius=4 * mm)
+        self.c.setFont('Helvetica-Bold', 22)
+        self.c.setFillColor(C_WHITE)
+        self.c.drawCentredString(self.MX + bw / 2, y - bh + 9 * mm, f'{cumpl:.1f}%')
+        self.c.setFont('Helvetica', 6.5)
+        self.c.drawCentredString(self.MX + bw / 2, y - bh + 4 * mm, 'Cumplimiento Global PDI')
+
+        # Texto conclusiones
+        lines = [
+            ('Helvetica-Bold', 11, C_NAVY,
+             f'Resultados del Plan de Desarrollo Institucional {self.año}'),
+            ('Helvetica', 8.5, C_DARK, ''),
+            ('Helvetica', 8.5, C_DARK,
+             f'El PDI 2022-{self.año} alcanzó un cumplimiento global del {cumpl:.1f}%, '
+             f'evidenciando el compromiso'),
+            ('Helvetica', 8.5, C_DARK,
+             f'institucional con los objetivos estratégicos definidos. '
+             f'{cumpl_n} de {total} indicadores'),
+            ('Helvetica', 8.5, C_DARK, 'alcanzaron o superaron sus metas establecidas.'),
+        ]
+        tx = self.MX + bw + 8 * mm
+        ty = y - 4 * mm
+        for fnt, sz, clr, txt in lines:
+            self.c.setFont(fnt, sz)
+            self.c.setFillColor(clr)
+            self.c.drawString(tx, ty, txt)
+            ty -= sz * 1.55
+
+        y -= bh + 8 * mm
+
+        # --- Recomendaciones ---
+        self.c.setFont('Helvetica-Bold', 9.5)
+        self.c.setFillColor(C_NAVY)
+        self.c.drawString(self.MX, y, 'RECOMENDACIONES ESTRATÉGICAS')
+        y -= 6 * mm
+
+        recomendaciones = [
+            ('Fortalecer seguimiento',
+             'Implementar revisiones trimestrales de indicadores en progreso.'),
+            ('Planes de acción',
+             'Desarrollar acciones correctivas para indicadores que requieren atención.'),
+            ('Mejores prácticas',
+             'Documentar y replicar estrategias de las líneas con mejor desempeño.'),
+            ('Alineación presupuestal',
+             'Garantizar los recursos necesarios para el cumplimiento de metas pendientes.'),
+        ]
+        CARD_H = 12 * mm
+        CARD_GAP = 3 * mm
+        for titulo, desc in recomendaciones:
+            if y - CARD_H < self.H_FOOTER + 50 * mm:
+                break
+            self._shadow_card(self.MX, y - CARD_H,
+                              self.W - 2 * self.MX, CARD_H, C_BG, radius=2 * mm)
+            self.c.setFillColor(C_ACCENT)
+            self.c.roundRect(self.MX, y - CARD_H, 2 * mm, CARD_H, 1 * mm, fill=1, stroke=0)
+            self.c.setFont('Helvetica-Bold', 8)
+            self.c.setFillColor(C_NAVY)
+            self.c.drawString(self.MX + 4 * mm, y - 5 * mm, f'{titulo}:')
+            self.c.setFont('Helvetica', 7.5)
+            self.c.setFillColor(C_DARK)
+            self.c.drawString(self.MX + 4 * mm, y - 10 * mm, desc)
+            y -= CARD_H + CARD_GAP
+
+        y -= 8 * mm
+
+        # --- Glosario ---
+        if y > self.H_FOOTER + 40 * mm:
+            self.c.setFont('Helvetica-Bold', 9.5)
+            self.c.setFillColor(C_NAVY)
+            self.c.drawString(self.MX, y, 'GLOSARIO DE SIGLAS')
+            y -= 5 * mm
+
+            items   = list(GLOSARIO.items())
+            cols    = 2
+            col_w   = (self.W - 2 * self.MX) / cols
+            row_h_g = 8.5 * mm
+
+            for i, (sigla, desc) in enumerate(items):
+                gx = self.MX + (i % cols) * col_w
+                gy = y - (i // cols) * row_h_g
+                if gy < self.H_FOOTER + 2 * mm:
+                    break
+                self.c.setFont('Helvetica-Bold', 8)
+                self.c.setFillColor(C_ACCENT)
+                self.c.drawString(gx, gy, f'{sigla}:')
+                self.c.setFont('Helvetica', 7)
+                self.c.setFillColor(C_DARK)
+                desc_s = desc[:48] + ('…' if len(desc) > 48 else '')
+                self.c.drawString(gx + 14 * mm, gy, desc_s)
+
+        self._new_page()
+
+    def generar(self) -> bytes:
+        """Finaliza y retorna los bytes del PDF."""
+        self.c.save()
+        return self.buffer.getvalue()
+
+
+# ============================================================
+# FUNCIÓN PRINCIPAL DE EXPORTACIÓN
+# ============================================================
+
+def exportar_informe_pdf_reportlab(
+    metricas: Dict[str, Any],
+    df_lineas: pd.DataFrame,
+    df_indicadores: pd.DataFrame,
+    analisis_texto: str = "",
+    año: int = 2025,
+    df_cascada: Optional[pd.DataFrame] = None,
+    analisis_lineas: Optional[Dict[str, str]] = None,
+) -> bytes:
+    """
+    Genera el informe PDF ejecutivo completo con ReportLab.
+
+    Args:
+        metricas: Diccionario con métricas generales del PDI.
+        df_lineas: DataFrame con líneas estratégicas y su cumplimiento.
+        df_indicadores: DataFrame con todos los indicadores del año.
+        analisis_texto: Texto de análisis ejecutivo general (no usado directamente).
+        año: Año del informe.
+        df_cascada: DataFrame cascada con jerarquía (Nivel, Linea, Objetivo, etc.).
+        analisis_lineas: Dict {nombre_linea: texto_analisis_IA}.
+
+    Returns:
+        bytes del PDF generado.
+    """
+    pdf = PDFReportePOLI(año)
+
+    # 1. Portada
+    portada_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        'Portada.png'
+    )
+    pdf.portada(portada_path if os.path.exists(portada_path) else None)
+
+    # 2. Resumen ejecutivo
+    pdf.resumen_ejecutivo(metricas, df_lineas)
+
+    # 3. Página por línea estratégica
+    if df_lineas is not None and not df_lineas.empty:
+        for _, lr in df_lineas.iterrows():
+            nom   = str(lr.get('Linea', lr.get('Línea', '')))
+            cumpl = float(lr.get('Cumplimiento', 0) or 0)
+            n_ind = int(lr.get('Total_Indicadores', 0) or 0)
+
+            # Obtener objetivos desde cascada (Nivel 2)
+            objs = []
+            if df_cascada is not None and not df_cascada.empty:
+                nc = 'Nivel' if 'Nivel' in df_cascada.columns else None
+                lc = 'Linea' if 'Linea' in df_cascada.columns else None
+                if nc and lc:
+                    mask = (df_cascada[nc] == 2) & (df_cascada[lc] == nom)
+                    for _, or_ in df_cascada[mask].iterrows():
+                        objs.append({
+                            'objetivo':     str(or_.get('Objetivo', nom)),
+                            'cumplimiento': float(or_.get('Cumplimiento', 0) or 0),
+                            'indicadores':  int(or_.get('Total_Indicadores', 0) or 0),
+                        })
+
+            # Análisis IA: búsqueda por nombre exacto o normalizado
+            analisis_txt = ''
+            if analisis_lineas:
+                analisis_txt = analisis_lineas.get(nom, '')
+                if not analisis_txt:
+                    nom_n = _norm(nom)
+                    for k, v in analisis_lineas.items():
+                        if _norm(k) == nom_n:
+                            analisis_txt = v
+                            break
+
+            pdf.pagina_linea(
+                nombre=nom,
+                cumplimiento=cumpl,
+                total_ind=n_ind,
+                objetivos=objs,
+                analisis=analisis_txt,
+            )
+
+    # 4. Tabla de indicadores
+    if df_indicadores is not None and not df_indicadores.empty:
+        pdf.tabla_indicadores(df_indicadores)
+
+    # 5. Conclusiones y glosario
+    pdf.conclusiones(metricas, df_lineas)
+
+    return pdf.generar()

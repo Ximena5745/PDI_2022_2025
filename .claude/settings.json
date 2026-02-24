@@ -9,7 +9,8 @@
       "Bash(python3.12:*)",
       "Bash(/c/Users/ximen/AppData/Local/Programs/Python/Python314/python.exe -c \"from fpdf import FPDF; print\\(''fpdf ok''\\)\")",
       "Bash(PYEXE=\"c:/Users/ximen/OneDrive/Proyectos_DS/PDI_2022_2025/Scripts/python.exe\")",
-      "Bash(\"$PYEXE\" -c \":*)"
+      "Bash(\"$PYEXE\" -c \":*)",
+      "Bash(wc:*)"
     ]
   }
 }
