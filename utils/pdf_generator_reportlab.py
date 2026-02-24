@@ -37,7 +37,7 @@ from reportlab.graphics import renderPDF
 
 # Semáforo
 C_VERDE   = colors.HexColor('#2e7d32')
-C_NARANJA = colors.HexColor('#e65100')
+C_NARANJA = colors.HexColor('#F9A825')
 C_ROJO    = colors.HexColor('#b71c1c')
 
 # Institucionales
