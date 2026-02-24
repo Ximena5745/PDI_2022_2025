@@ -125,6 +125,11 @@ def limpiar(txt: str) -> str:
     return txt.strip()
 
 
+def nombre_display(nombre: str) -> str:
+    """Convierte nombres internos (con _) a forma legible con espacios."""
+    return limpiar(nombre.replace('_', ' '))
+
+
 def _light_color(c: colors.Color, factor: float = 0.82) -> colors.Color:
     """Mix color with white to get a lighter tint."""
     r = min(1.0, c.red   + (1 - c.red)   * factor)
@@ -439,47 +444,182 @@ class PDFReportePOLI:
 
         self._new_page()
 
+    def pagina_cumplimiento_lineas(self, df_lineas: pd.DataFrame):
+        """
+        Página de resumen circular: fondo navy, grid 3×2 (o 3×N) con anillos
+        por línea estratégica (estilo visual del dashboard).
+        """
+        if df_lineas is None or df_lineas.empty:
+            return
+
+        # Fondo navy completo
+        self.c.setFillColor(C_NAVY)
+        self.c.rect(0, 0, self.W, self.H, fill=1, stroke=0)
+
+        # Pie de página (sobre fondo navy)
+        self.c.setFont('Helvetica', 6.5)
+        self.c.setFillColor(colors.HexColor('#6a8aac'))
+        fecha = datetime.now().strftime('%d/%m/%Y')
+        self.c.drawString(self.MX, self.H_FOOTER - 4 * mm,
+                          f'PDI {self.año} | Cumplimiento por Línea Estratégica')
+        self.c.drawRightString(self.W - self.MX, self.H_FOOTER - 4 * mm,
+                               f'Página {self._page} | Gerencia de Planeación | {fecha}')
+
+        # Título
+        self.c.setFillColor(C_WHITE)
+        self.c.setFont('Helvetica-Bold', 15)
+        self.c.drawCentredString(self.W / 2, self.H - 14 * mm,
+                                 'CUMPLIMIENTO POR LÍNEA ESTRATÉGICA')
+        self.c.setFont('Helvetica', 8.5)
+        self.c.setFillColor(colors.HexColor('#8aacc8'))
+        self.c.drawCentredString(self.W / 2, self.H - 20 * mm,
+                                 f'Plan de Desarrollo Institucional {self.año}')
+
+        # --- Grid de tarjetas ---
+        lineas = [(str(r.get('Linea', r.get('Línea', ''))),
+                   float(r.get('Cumplimiento', 0) or 0),
+                   int(r.get('Total_Indicadores', 0) or 0))
+                  for _, r in df_lineas.iterrows()]
+
+        N_COLS   = 3
+        N_ROWS   = (len(lineas) + N_COLS - 1) // N_COLS
+        MX_GRID  = 12 * mm
+        GAP      = 5 * mm
+        avail_w  = self.W - 2 * MX_GRID
+        avail_h  = self.H - 26 * mm - self.H_FOOTER
+        card_w   = (avail_w - (N_COLS - 1) * GAP) / N_COLS
+        card_h   = min((avail_h - (N_ROWS - 1) * GAP) / N_ROWS, 115 * mm)
+
+        RING_SZ  = min(card_w * 0.62, 40 * mm)
+
+        for idx, (nom, pct, n_ind) in enumerate(lineas):
+            col_i   = idx % N_COLS
+            row_i   = idx // N_COLS
+            card_x  = MX_GRID + col_i * (card_w + GAP)
+            card_y  = self.H - 26 * mm - (row_i + 1) * card_h - row_i * GAP
+
+            col     = color_linea(nom)
+            c_sem   = color_semaforo(pct)
+            nom_d   = nombre_display(nom)
+
+            # Sombra de tarjeta (tono navy oscuro)
+            self.c.setFillColor(colors.HexColor('#061525'))
+            self.c.roundRect(card_x + 2 * mm, card_y - 2 * mm,
+                             card_w, card_h, 4 * mm, fill=1, stroke=0)
+            # Tarjeta blanca
+            self.c.setFillColor(C_WHITE)
+            self.c.roundRect(card_x, card_y, card_w, card_h, 4 * mm, fill=1, stroke=0)
+            # Banda de color superior
+            self.c.setFillColor(col)
+            self.c.roundRect(card_x, card_y + card_h - 11 * mm,
+                             card_w, 11 * mm, 3 * mm, fill=1, stroke=0)
+            # Relleno inferior de la banda (elimina esquinas redondeadas abajo)
+            self.c.rect(card_x, card_y + card_h - 11 * mm,
+                        card_w, 4 * mm, fill=1, stroke=0)
+
+            # Nombre de línea en la banda
+            self.c.setFillColor(C_WHITE)
+            self.c.setFont('Helvetica-Bold', 7.5)
+            # Dividir en 2 líneas si es largo
+            palabras = nom_d.split()
+            mid = len(palabras) // 2
+            linea1 = ' '.join(palabras[:mid]) if mid > 0 else nom_d
+            linea2 = ' '.join(palabras[mid:])
+            if len(palabras) <= 2:
+                linea1 = nom_d
+                linea2 = ''
+            self.c.drawCentredString(card_x + card_w / 2,
+                                     card_y + card_h - 5.5 * mm, linea1)
+            if linea2:
+                self.c.setFont('Helvetica', 6.5)
+                self.c.drawCentredString(card_x + card_w / 2,
+                                         card_y + card_h - 9.5 * mm, linea2)
+
+            # Anillo centrado
+            ring_x = card_x + (card_w - RING_SZ) / 2
+            ring_y = card_y + card_h - 11 * mm - RING_SZ - 4 * mm
+            renderPDF.draw(self._ring_drawing(pct, RING_SZ), self.c, ring_x, ring_y)
+
+            # Texto porcentaje en centro del anillo
+            cx_c = ring_x + RING_SZ / 2
+            cy_c = ring_y + RING_SZ / 2
+            self.c.setFont('Helvetica-Bold', 12)
+            self.c.setFillColor(c_sem)
+            self.c.drawCentredString(cx_c, cy_c + 2, f'{pct:.0f}%')
+            self.c.setFont('Helvetica', 5.5)
+            self.c.setFillColor(C_GRAY)
+            self.c.drawCentredString(cx_c, cy_c - 8, 'cumplimiento')
+
+            # Indicadores
+            ind_y = ring_y - 5 * mm
+            self.c.setFont('Helvetica', 6.5)
+            self.c.setFillColor(C_GRAY)
+            self.c.drawCentredString(card_x + card_w / 2, ind_y,
+                                     f'{n_ind} indicadores')
+
+            # Badge estado
+            bw_c, bh_c = card_w * 0.7, 6 * mm
+            bx_c = card_x + (card_w - bw_c) / 2
+            by_c = card_y + 3 * mm
+            self.c.setFillColor(c_sem)
+            self.c.roundRect(bx_c, by_c, bw_c, bh_c, 2 * mm, fill=1, stroke=0)
+            self.c.setFont('Helvetica-Bold', 6)
+            self.c.setFillColor(C_WHITE)
+            self.c.drawCentredString(card_x + card_w / 2,
+                                     by_c + bh_c / 2 - 2, texto_estado(pct))
+
+        self._new_page()
+
     def pagina_linea(self, nombre: str, cumplimiento: float, total_ind: int,
                      objetivos: List[Dict], analisis: str):
-        """Una página detallada por línea estratégica."""
+        """
+        Página detallada por línea estratégica.
+        Layout sin superposición:
+          - Banda header (color de línea)
+          - TOP: Anillo (derecha) + KPI mini-fichas (izquierda)
+          - MEDIO: Tabla de objetivos completa (debajo del anillo)
+          - FINAL: Tarjeta de análisis IA
+        """
         col_linea = color_linea(nombre)
-        cont_top = self._header_band(
+        nom_d     = nombre_display(nombre)
+        cont_top  = self._header_band(
             col_linea,
-            limpiar(nombre).upper(),
+            nom_d.upper(),
             f'Cumplimiento: {cumplimiento:.1f}%  |  {total_ind} indicadores'
         )
-        self._footer(limpiar(nombre))
+        self._footer(nom_d)
         c_sem = color_semaforo(cumplimiento)
 
-        # --- Anillo (esquina derecha) ---
-        ring_sz = 5 * cm
-        rx = self.W - ring_sz - self.MX
-        ry = cont_top - ring_sz - 5 * mm
-        renderPDF.draw(self._ring_drawing(cumplimiento, ring_sz), self.c, rx, ry)
-        cx_r = rx + ring_sz / 2
-        cy_r = ry + ring_sz / 2
-        self.c.setFont('Helvetica-Bold', 13)
+        # ── Dimensiones del anillo (esquina derecha) ──────────────────
+        RING_SZ  = 3.8 * cm
+        ring_rx  = self.W - RING_SZ - self.MX          # left edge of ring
+        ring_ry  = cont_top - RING_SZ - 5 * mm         # bottom edge of ring
+        cx_r     = ring_rx + RING_SZ / 2
+        cy_r     = ring_ry + RING_SZ / 2
+        badge_by = ring_ry - 8 * mm                    # bottom of badge below ring
+
+        # Dibujar anillo
+        renderPDF.draw(self._ring_drawing(cumplimiento, RING_SZ), self.c, ring_rx, ring_ry)
+        self.c.setFont('Helvetica-Bold', 12)
         self.c.setFillColor(c_sem)
         self.c.drawCentredString(cx_r, cy_r + 3, f'{cumplimiento:.1f}%')
         self.c.setFont('Helvetica', 6)
         self.c.setFillColor(C_GRAY)
-        self.c.drawCentredString(cx_r, cy_r - 10, texto_estado(cumplimiento))
+        self.c.drawCentredString(cx_r, cy_r - 9, texto_estado(cumplimiento))
         # Badge debajo del anillo
-        bw, bh = 28 * mm, 6.5 * mm
-        bx = cx_r - bw / 2
-        by = ry - 9 * mm
-        self._shadow_card(bx, by, bw, bh, c_sem, radius=2 * mm)
+        bw, bh = 30 * mm, 6.5 * mm
+        self._shadow_card(cx_r - bw / 2, badge_by, bw, bh, c_sem, radius=2 * mm)
         self.c.setFont('Helvetica-Bold', 6.5)
         self.c.setFillColor(C_WHITE)
-        self.c.drawCentredString(cx_r, by + bh / 2 - 2, texto_estado(cumplimiento))
+        self.c.drawCentredString(cx_r, badge_by + bh / 2 - 2, texto_estado(cumplimiento))
 
-        # --- KPI fichas (izquierda) ---
-        left_w   = self.W - ring_sz - 3 * self.MX
-        kpi_w    = left_w / 3 - 2 * mm
-        kpi_h    = 16 * mm
-        kpi_y    = cont_top - 7 * mm - kpi_h
-        n_cumpl  = sum(1 for o in objetivos if float(o.get('cumplimiento', 0)) >= 100)
-        n_aten   = sum(1 for o in objetivos if float(o.get('cumplimiento', 0)) < 80)
+        # ── KPI mini-fichas (izquierda, junto al anillo) ──────────────
+        left_w  = ring_rx - self.MX - 6 * mm
+        kpi_w   = left_w / 3 - 2 * mm
+        kpi_h   = 16 * mm
+        kpi_y   = cont_top - 6 * mm - kpi_h
+        n_cumpl = sum(1 for o in objetivos if float(o.get('cumplimiento', 0)) >= 100)
+        n_aten  = sum(1 for o in objetivos if float(o.get('cumplimiento', 0)) < 80)
 
         for i, (val, lbl, col) in enumerate([
             (str(len(objetivos)), 'Objetivos',    col_linea),
@@ -488,112 +628,103 @@ class PDFReportePOLI:
         ]):
             self._kpi_card(self.MX + i * (kpi_w + 2 * mm), kpi_y, kpi_w, kpi_h, val, lbl, col)
 
-        y_cur = kpi_y - 8 * mm
+        # ── La tabla empieza DEBAJO del anillo + badge ─────────────────
+        # Punto de inicio = justo debajo del badge para no solaparse
+        y_cur = badge_by - 5 * mm
 
-        # --- Tabla de objetivos ---
+        # ── Tabla de objetivos ─────────────────────────────────────────
+        AI_RESERVE = 58 * mm   # espacio reservado en la parte baja para análisis IA
+        TABLE_BOTTOM = self.H_FOOTER + AI_RESERVE + 4 * mm
+
         if objetivos:
             self.c.setFont('Helvetica-Bold', 9)
             self.c.setFillColor(C_NAVY)
             self.c.drawString(self.MX, y_cur, 'OBJETIVOS ESTRATÉGICOS')
             y_cur -= 5 * mm
 
-            COL_W = [90 * mm, 20 * mm, 30 * mm, 22 * mm]
-            ROW_H = 7 * mm
-            HDR_H = 7.5 * mm
+            COL_W = [92 * mm, 20 * mm, 34 * mm, 20 * mm]
+            TBL_W = sum(COL_W)
+            ROW_H = 7.5 * mm
+            HDR_H = 8 * mm
 
-            # Encabezado de tabla
-            self._shadow_card(self.MX, y_cur - HDR_H, sum(COL_W), HDR_H, C_NAVY, radius=2 * mm)
+            # Encabezado
+            self._shadow_card(self.MX, y_cur - HDR_H, TBL_W, HDR_H, C_NAVY, radius=2 * mm)
             self.c.setFont('Helvetica-Bold', 7.5)
             self.c.setFillColor(C_WHITE)
-            hdr_x = self.MX
+            hx = self.MX
             for hdr, cw in zip(['Objetivo', 'Indicadores', 'Cumplimiento', 'Estado'], COL_W):
-                self.c.drawCentredString(hdr_x + cw / 2, y_cur - HDR_H + 2.5 * mm, hdr)
-                hdr_x += cw
+                self.c.drawCentredString(hx + cw / 2, y_cur - HDR_H + 3 * mm, hdr)
+                hx += cw
             y_cur -= HDR_H
 
             # Filas
-            for idx, obj in enumerate(objetivos[:11]):
-                if y_cur - ROW_H < self.H_FOOTER + 50 * mm:
+            for idx, obj in enumerate(objetivos[:12]):
+                if y_cur - ROW_H < TABLE_BOTTOM:
                     break
                 obj_pct = float(obj.get('cumplimiento', 0))
                 obj_col = color_semaforo(obj_pct)
                 bg_row  = C_BG if idx % 2 == 0 else C_WHITE
 
-                # Fondo de fila
                 self.c.setFillColor(bg_row)
-                self.c.rect(self.MX, y_cur - ROW_H, sum(COL_W), ROW_H, fill=1, stroke=0)
-                # Acento lateral semáforo
+                self.c.rect(self.MX, y_cur - ROW_H, TBL_W, ROW_H, fill=1, stroke=0)
                 self.c.setFillColor(obj_col)
                 self.c.rect(self.MX, y_cur - ROW_H, 1.5 * mm, ROW_H, fill=1, stroke=0)
-                # Borde
                 self.c.setStrokeColor(C_LIGHT)
                 self.c.setLineWidth(0.3)
-                self.c.rect(self.MX, y_cur - ROW_H, sum(COL_W), ROW_H, fill=0, stroke=1)
+                self.c.rect(self.MX, y_cur - ROW_H, TBL_W, ROW_H, fill=0, stroke=1)
 
-                obj_txt = limpiar(str(obj.get('objetivo', '')))[:62]
-                if len(limpiar(str(obj.get('objetivo', '')))) > 62:
-                    obj_txt += '…'
+                obj_raw = limpiar(str(obj.get('objetivo', '')))
+                obj_txt = obj_raw[:64] + ('…' if len(obj_raw) > 64 else '')
                 self.c.setFont('Helvetica', 6.5)
                 self.c.setFillColor(C_DARK)
-                self.c.drawString(self.MX + 3 * mm, y_cur - ROW_H + 2.3 * mm, obj_txt)
+                self.c.drawString(self.MX + 3 * mm, y_cur - ROW_H + 2.5 * mm, obj_txt)
 
-                # Indicadores
                 self.c.drawCentredString(
                     self.MX + COL_W[0] + COL_W[1] / 2,
-                    y_cur - ROW_H + 2.3 * mm,
+                    y_cur - ROW_H + 2.5 * mm,
                     str(int(obj.get('indicadores', 0)))
                 )
-                # Barra cumplimiento
-                bar_start = self.MX + COL_W[0] + COL_W[1]
+                bar_x = self.MX + COL_W[0] + COL_W[1]
                 self._progress_bar(
-                    bar_start + 2 * mm, y_cur - ROW_H + 1.5 * mm,
-                    COL_W[2] - 4 * mm, ROW_H - 3 * mm, obj_pct
+                    bar_x + 2 * mm, y_cur - ROW_H + 1.8 * mm,
+                    COL_W[2] - 4 * mm, ROW_H - 3.5 * mm, obj_pct
                 )
-                # Estado
                 est_txt = '✓' if obj_pct >= 100 else ('⚠' if obj_pct >= 80 else '✗')
                 self.c.setFont('Helvetica-Bold', 9)
                 self.c.setFillColor(obj_col)
                 self.c.drawCentredString(
                     self.MX + sum(COL_W[:3]) + COL_W[3] / 2,
-                    y_cur - ROW_H + 2.3 * mm,
+                    y_cur - ROW_H + 2.5 * mm,
                     est_txt
                 )
                 y_cur -= ROW_H
 
-        y_cur -= 4 * mm
+        # ── Tarjeta de análisis IA (anclada al fondo) ──────────────────
+        if analisis:
+            AI_H    = 55 * mm
+            card_x  = self.MX
+            card_y  = self.H_FOOTER + 3 * mm
+            card_w  = self.W - 2 * self.MX
 
-        # --- Tarjeta de análisis IA ---
-        if analisis and y_cur > self.H_FOOTER + 28 * mm:
-            avail_h  = y_cur - self.H_FOOTER - 18 * mm
-            card_h   = min(avail_h, 55 * mm)
-            card_x   = self.MX
-            card_y   = y_cur - card_h
-            card_w   = self.W - 2 * self.MX
-
-            # Tarjeta fondo azul muy claro
-            self._shadow_card(card_x, card_y, card_w, card_h,
+            self._shadow_card(card_x, card_y, card_w, AI_H,
                               colors.HexColor('#E3F2FD'), radius=3.5 * mm)
-            # Barra lateral con color de línea
             self.c.setFillColor(col_linea)
-            self.c.roundRect(card_x, card_y, 3 * mm, card_h, 2 * mm, fill=1, stroke=0)
-            # Encabezado
+            self.c.roundRect(card_x, card_y, 3 * mm, AI_H, 2 * mm, fill=1, stroke=0)
+
+            label_y = card_y + AI_H - 5.5 * mm
             self.c.setFont('Helvetica-Bold', 8)
             self.c.setFillColor(C_NAVY)
-            self.c.drawString(card_x + 6 * mm, y_cur - 5.5 * mm, 'ANÁLISIS ESTRATÉGICO IA')
+            self.c.drawString(card_x + 6 * mm, label_y, 'ANÁLISIS ESTRATÉGICO IA')
             self.c.setFont('Helvetica-Oblique', 6.5)
             self.c.setFillColor(C_GRAY)
-            self.c.drawRightString(
-                card_x + card_w - 3 * mm,
-                y_cur - 5.5 * mm,
-                'Generado con Inteligencia Artificial'
-            )
-            # Texto del análisis
+            self.c.drawRightString(card_x + card_w - 3 * mm, label_y,
+                                   'Generado con Inteligencia Artificial')
             self._wrap_paragraph(
                 analisis,
                 x=card_x + 6 * mm,
-                y_top=y_cur - 10 * mm,
+                y_top=label_y - 3 * mm,
                 max_w=card_w - 9 * mm,
-                max_h=card_h - 12 * mm,
+                max_h=AI_H - 10 * mm,
                 size=7.5,
                 color=C_DARK,
             )
@@ -872,7 +1003,10 @@ def exportar_informe_pdf_reportlab(
     # 2. Resumen ejecutivo
     pdf.resumen_ejecutivo(metricas, df_lineas)
 
-    # 3. Página por línea estratégica
+    # 3. Resumen circular por línea (página navy con grid de anillos)
+    pdf.pagina_cumplimiento_lineas(df_lineas)
+
+    # 4. Página detallada por línea estratégica
     if df_lineas is not None and not df_lineas.empty:
         for _, lr in df_lineas.iterrows():
             nom   = str(lr.get('Linea', lr.get('Línea', '')))
