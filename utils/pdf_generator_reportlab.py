@@ -15,9 +15,18 @@ import os
 import io
 import unicodedata
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 
 import pandas as pd
+
+try:
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -29,6 +38,7 @@ from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics import renderPDF
+from reportlab.lib.utils import ImageReader
 
 
 # ============================================================
@@ -49,7 +59,9 @@ C_DARK    = colors.HexColor('#212529')
 C_GRAY    = colors.HexColor('#6c757d')
 C_LIGHT   = colors.HexColor('#dee2e6')
 C_SHADOW  = colors.HexColor('#c8cdd3')
-C_RING_BG = colors.HexColor('#e8ecef')
+C_RING_BG     = colors.HexColor('#e8ecef')
+C_TABLE_ROW_ALT = colors.HexColor('#F0F5FB')   # alternating table row tint
+C_HDR_GRAD_END  = colors.HexColor('#1a3a5c')   # gradient header end color
 
 # Por línea estratégica (con y sin tilde)
 COLOR_LINEAS: Dict[str, colors.Color] = {
@@ -136,6 +148,31 @@ def _light_color(c: colors.Color, factor: float = 0.82) -> colors.Color:
     g = min(1.0, c.green + (1 - c.green) * factor)
     b = min(1.0, c.blue  + (1 - c.blue)  * factor)
     return colors.Color(r, g, b)
+
+
+def darken(c: colors.Color, factor: float = 0.3) -> colors.Color:
+    """Mix color with black to get a darker shade."""
+    r = max(0.0, c.red   * (1 - factor))
+    g = max(0.0, c.green * (1 - factor))
+    b = max(0.0, c.blue  * (1 - factor))
+    return colors.Color(r, g, b)
+
+
+def hex_to_rgb(hex_str: str):
+    """Convert #RRGGBB hex string to (r, g, b) floats 0–1."""
+    h = hex_str.lstrip('#')
+    return tuple(int(h[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+
+
+def fig_to_image(fig, w_pt: float = None, h_pt: float = None):
+    """Render a matplotlib figure to a ReportLab ImageReader (PNG in memory)."""
+    if not MATPLOTLIB_AVAILABLE:
+        return None
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight',
+                transparent=True)
+    buf.seek(0)
+    return ImageReader(buf)
 
 
 # ============================================================
@@ -307,6 +344,159 @@ class PDFReportePOLI:
         return actual_h
 
     # ----------------------------------------------------------
+    # Primitivos visuales avanzados
+    # ----------------------------------------------------------
+
+    def _gradient_band(self, x: float, y: float, w: float, h: float,
+                       c1: colors.Color, c2: colors.Color, steps: int = 32):
+        """Fill rectangle with horizontal gradient from c1 (left) to c2 (right)."""
+        for i in range(steps):
+            t = i / steps
+            r = c1.red   + (c2.red   - c1.red)   * t
+            g = c1.green + (c2.green - c1.green) * t
+            b = c1.blue  + (c2.blue  - c1.blue)  * t
+            band_w = w / steps + 0.5
+            self.c.setFillColorRGB(r, g, b)
+            self.c.rect(x + w * i / steps, y, band_w, h, fill=1, stroke=0)
+
+    def _status_circle(self, cx: float, cy: float, r: float, pct: float):
+        """Draw a filled semaphore circle with ✓ / ⚠ / ✗ symbol."""
+        col = color_semaforo(pct)
+        bg  = _light_color(col, 0.75)
+        self.c.setFillColor(bg)
+        self.c.circle(cx, cy, r, fill=1, stroke=0)
+        self.c.setFillColor(col)
+        self.c.setFont('Helvetica-Bold', r * 1.15)
+        sym = '\u2713' if pct >= 100 else ('\u26a0' if pct >= 80 else '\u2717')
+        self.c.drawCentredString(cx, cy - r * 0.38, sym)
+
+    def _ai_block(self, x: float, y: float, w: float, h: float,
+                  texto: str, col_linea: colors.Color):
+        """Draw AI analysis card with lighten bg, accent border, and gradient badge."""
+        bg = _light_color(col_linea, 0.93)
+        border_col = _light_color(col_linea, 0.55)
+        # Background card
+        self.c.setFillColor(bg)
+        self.c.roundRect(x, y, w, h, 3 * mm, fill=1, stroke=0)
+        # Subtle border
+        self.c.setStrokeColor(border_col)
+        self.c.setLineWidth(0.6)
+        self.c.roundRect(x, y, w, h, 3 * mm, fill=0, stroke=1)
+        # Left accent bar 3px
+        self.c.setFillColor(col_linea)
+        self.c.roundRect(x, y, 3, h, 1.5 * mm, fill=1, stroke=0)
+        # Gradient badge "✦ Análisis IA"
+        badge_w, badge_h = 34 * mm, 6.5 * mm
+        badge_x = x + 6 * mm
+        badge_y = y + h - badge_h - 3 * mm
+        self._gradient_band(badge_x, badge_y, badge_w, badge_h,
+                            C_NAVY, C_HDR_GRAD_END)
+        self.c.setFillColor(C_WHITE)
+        self.c.setFont('Helvetica-Bold', 6.5)
+        self.c.drawString(badge_x + 2.5 * mm, badge_y + badge_h / 2 - 2.5,
+                          '\u2736 Análisis IA')
+        # AI generation note
+        self.c.setFont('Helvetica-Oblique', 5.5)
+        self.c.setFillColor(darken(col_linea, 0.45))
+        self.c.drawRightString(x + w - 3 * mm, badge_y + badge_h / 2 - 2,
+                               'Generado con Inteligencia Artificial')
+        # Text content
+        if texto:
+            txt_y_top = badge_y - 2 * mm
+            self._wrap_paragraph(
+                texto,
+                x=x + 6 * mm,
+                y_top=txt_y_top,
+                max_w=w - 10 * mm,
+                max_h=txt_y_top - y - 2 * mm,
+                size=7.5,
+                color=C_DARK,
+            )
+
+    def _donut_chart_buf(self, cumpl_n: int, en_prog: int, atenc: int, total: int):
+        """Return ImageReader of a 3-segment donut chart using matplotlib."""
+        if not MATPLOTLIB_AVAILABLE:
+            return None
+        try:
+            nd = max(0, total - cumpl_n - en_prog - atenc)
+            raw = [(cumpl_n, '#2e7d32', 'Cumplidos'),
+                   (en_prog, '#F9A825', 'En Progreso'),
+                   (atenc,   '#b71c1c', 'Atención'),
+                   (nd,      '#dee2e6', 'Sin dato')]
+            segs = [(s, c, l) for s, c, l in raw if s > 0]
+            if not segs:
+                return None
+            sizes, cols, labels = zip(*segs)
+            fig, ax = plt.subplots(figsize=(3.2, 3.2),
+                                   subplot_kw=dict(aspect='equal'))
+            fig.patch.set_alpha(0)
+            ax.set_facecolor('none')
+            wedge_props = dict(width=0.48, edgecolor='white', linewidth=2)
+            ax.pie(sizes, colors=cols, wedgeprops=wedge_props, startangle=90)
+            pct_global = (cumpl_n / total * 100) if total > 0 else 0
+            ax.text(0, 0.08, f'{pct_global:.0f}%', ha='center', va='center',
+                    fontsize=13, fontweight='bold', color='#0a2240',
+                    fontfamily='DejaVu Sans')
+            ax.text(0, -0.22, f'{cumpl_n}/{total}', ha='center', va='center',
+                    fontsize=8, color='#6c757d',
+                    fontfamily='DejaVu Sans')
+            patches = [mpatches.Patch(color=c, label=l)
+                       for c, l in zip(cols, labels)]
+            ax.legend(handles=patches, loc='lower center', ncol=2, fontsize=6.5,
+                      bbox_to_anchor=(0.5, -0.18), frameon=False)
+            fig.tight_layout(pad=0.2)
+            img = fig_to_image(fig)
+            plt.close(fig)
+            return img
+        except Exception:
+            return None
+
+    def _bar_chart_lineas_buf(self, df_lineas: 'pd.DataFrame',
+                              w_pt: float, h_pt: float):
+        """Return ImageReader of horizontal bar chart per strategic line."""
+        if not MATPLOTLIB_AVAILABLE or df_lineas is None or df_lineas.empty:
+            return None
+        try:
+            nom_col = next((c for c in ['Linea', 'Línea'] if c in df_lineas.columns),
+                           df_lineas.columns[0])
+            cum_col = next((c for c in ['Cumplimiento'] if c in df_lineas.columns),
+                           df_lineas.columns[1])
+            noms  = [str(n)[:24] for n in df_lineas[nom_col]]
+            cumps = [float(c or 0) for c in df_lineas[cum_col]]
+            bar_cols = []
+            for n in df_lineas[nom_col]:
+                col = color_linea(str(n))
+                bar_cols.append(f'#{int(col.red*255):02x}'
+                                f'{int(col.green*255):02x}'
+                                f'{int(col.blue*255):02x}')
+            fig, ax = plt.subplots(figsize=(w_pt / 72, h_pt / 72))
+            fig.patch.set_alpha(0)
+            ax.set_facecolor('none')
+            y_pos = range(len(noms))
+            bars = ax.barh(y_pos, cumps, color=bar_cols, height=0.55, zorder=2)
+            ax.axvline(100, color='#b71c1c', linestyle='--', linewidth=1,
+                       alpha=0.8, zorder=3)
+            # Value labels
+            for bar, val in zip(bars, cumps):
+                ax.text(bar.get_width() + 1, bar.get_y() + bar.get_height() / 2,
+                        f'{val:.0f}%', va='center', fontsize=6.5,
+                        color='#212529', fontfamily='DejaVu Sans')
+            ax.set_yticks(list(y_pos))
+            ax.set_yticklabels(noms, fontsize=7)
+            ax.set_xlim(0, max(125, max(cumps, default=0) + 15))
+            ax.set_xlabel('Cumplimiento (%)', fontsize=7)
+            ax.grid(axis='x', alpha=0.25, zorder=1)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            fig.tight_layout(pad=0.3)
+            img = fig_to_image(fig)
+            plt.close(fig)
+            return img
+        except Exception:
+            return None
+
+    # ----------------------------------------------------------
     # Páginas
     # ----------------------------------------------------------
 
@@ -362,22 +552,30 @@ class PDFReportePOLI:
         atenc   = int(metricas.get('no_cumplidos', 0))
         c_sem   = color_semaforo(cumpl)
 
-        # --- Anillo principal ---
+        # --- Anillo / Donut principal ---
         ring_sz = 6.8 * cm
         rx = self.MX
         ry = cont_top - ring_sz - 6 * mm
-        renderPDF.draw(self._ring_drawing(cumpl, ring_sz), self.c, rx, ry)
-        # Texto en el centro del anillo
         cx = rx + ring_sz / 2
         cy = ry + ring_sz / 2
-        self.c.setFont('Helvetica-Bold', 16)
-        self.c.setFillColor(c_sem)
-        self.c.drawCentredString(cx, cy + 4, f'{cumpl:.1f}%')
-        self.c.setFont('Helvetica', 6.5)
-        self.c.setFillColor(C_GRAY)
-        self.c.drawCentredString(cx, cy - 9, 'Cumplimiento')
-        self.c.drawCentredString(cx, cy - 17, 'Global PDI')
-        # Badge de estado debajo
+
+        donut_img = self._donut_chart_buf(cumpl_n, en_prog, atenc, total)
+        if donut_img is not None:
+            # Matplotlib donut as image
+            self.c.drawImage(donut_img, rx, ry, ring_sz, ring_sz,
+                             preserveAspectRatio=True, mask='auto')
+        else:
+            # Fallback: ReportLab ring
+            renderPDF.draw(self._ring_drawing(cumpl, ring_sz), self.c, rx, ry)
+            self.c.setFont('Helvetica-Bold', 16)
+            self.c.setFillColor(c_sem)
+            self.c.drawCentredString(cx, cy + 4, f'{cumpl:.1f}%')
+            self.c.setFont('Helvetica', 6.5)
+            self.c.setFillColor(C_GRAY)
+            self.c.drawCentredString(cx, cy - 9, 'Cumplimiento')
+            self.c.drawCentredString(cx, cy - 17, 'Global PDI')
+
+        # Badge de estado debajo del donut
         bw, bh = 30 * mm, 7 * mm
         bx = cx - bw / 2
         by = ry - 11 * mm
@@ -411,31 +609,12 @@ class PDFReportePOLI:
         ai_bottom = self.H_FOOTER + 4 * mm
         ai_h = ai_top - ai_bottom
         if analisis_texto and ai_h > 20 * mm:
-            card_x = self.MX
-            card_w = self.W - 2 * self.MX
-            self._shadow_card(card_x, ai_bottom, card_w, ai_h,
-                              colors.HexColor('#E8F5E9'), radius=3.5 * mm)
-            self.c.setFillColor(C_VERDE)
-            self.c.roundRect(card_x, ai_bottom, 3 * mm, ai_h, 2 * mm, fill=1, stroke=0)
-            label_y = ai_bottom + ai_h - 5.5 * mm
-            self.c.setFont('Helvetica-Bold', 8)
-            self.c.setFillColor(C_NAVY)
-            self.c.drawString(card_x + 6 * mm, label_y, 'ANÁLISIS EJECUTIVO IA')
-            self.c.setFont('Helvetica-Oblique', 6.5)
-            self.c.setFillColor(C_GRAY)
-            self.c.drawRightString(card_x + card_w - 3 * mm, label_y,
-                                   'Generado con Inteligencia Artificial')
-            self._wrap_paragraph(
-                analisis_texto,
-                x=card_x + 6 * mm,
-                y_top=label_y - 3 * mm,
-                max_w=card_w - 9 * mm,
-                max_h=ai_h - 10 * mm,
-                size=7.5,
-                color=C_DARK,
+            self._ai_block(
+                self.MX, ai_bottom,
+                self.W - 2 * self.MX, ai_h,
+                analisis_texto, C_VERDE
             )
         elif not analisis_texto and ai_h > 10 * mm:
-            # Sin análisis: pequeño mensaje informativo
             self.c.setFont('Helvetica-Oblique', 7.5)
             self.c.setFillColor(C_GRAY)
             self.c.drawCentredString(
@@ -503,25 +682,27 @@ class PDFReportePOLI:
             c_sem   = color_semaforo(pct)
             nom_d   = nombre_display(nom)
 
-            # Sombra de tarjeta (tono navy oscuro)
-            self.c.setFillColor(colors.HexColor('#061525'))
-            self.c.roundRect(card_x + 2 * mm, card_y - 2 * mm,
+            # ── 3D shadow (offset +4px right, -4px down) ──────────────
+            self.c.setFillColor(colors.HexColor('#00000018'))
+            self.c.roundRect(card_x + 4, card_y - 4,
                              card_w, card_h, 4 * mm, fill=1, stroke=0)
-            # Tarjeta blanca
-            self.c.setFillColor(C_WHITE)
+            # ── Card bg = lighten(col, 0.88) ─────────────────────────
+            card_bg = _light_color(col, 0.88)
+            self.c.setFillColor(card_bg)
             self.c.roundRect(card_x, card_y, card_w, card_h, 4 * mm, fill=1, stroke=0)
-            # Banda de color superior
+            # ── 4px left border ──────────────────────────────────────
             self.c.setFillColor(col)
-            self.c.roundRect(card_x, card_y + card_h - 11 * mm,
-                             card_w, 11 * mm, 3 * mm, fill=1, stroke=0)
-            # Relleno inferior de la banda (elimina esquinas redondeadas abajo)
-            self.c.rect(card_x, card_y + card_h - 11 * mm,
-                        card_w, 4 * mm, fill=1, stroke=0)
+            self.c.rect(card_x, card_y, 4, card_h, fill=1, stroke=0)
+            # ── 6px top stripe ───────────────────────────────────────
+            self.c.roundRect(card_x, card_y + card_h - 6,
+                             card_w, 6, 4 * mm, fill=1, stroke=0)
+            # Fix: flat bottom edge of top stripe
+            self.c.rect(card_x, card_y + card_h - 6, card_w, 3, fill=1, stroke=0)
 
-            # Nombre de línea en la banda
-            self.c.setFillColor(C_WHITE)
+            # Name label (dark text on light bg)
+            name_col = darken(col, 0.45)
             self.c.setFont('Helvetica-Bold', 7.5)
-            # Dividir en 2 líneas si es largo
+            self.c.setFillColor(name_col)
             palabras = nom_d.split()
             mid = len(palabras) // 2
             linea1 = ' '.join(palabras[:mid]) if mid > 0 else nom_d
@@ -530,18 +711,18 @@ class PDFReportePOLI:
                 linea1 = nom_d
                 linea2 = ''
             self.c.drawCentredString(card_x + card_w / 2,
-                                     card_y + card_h - 5.5 * mm, linea1)
+                                     card_y + card_h - 10 * mm, linea1)
             if linea2:
                 self.c.setFont('Helvetica', 6.5)
                 self.c.drawCentredString(card_x + card_w / 2,
-                                         card_y + card_h - 9.5 * mm, linea2)
+                                         card_y + card_h - 14.5 * mm, linea2)
 
-            # Anillo centrado
+            # ── Anillo centrado ───────────────────────────────────────
+            label_offset = 14.5 * mm if linea2 else 10 * mm
             ring_x = card_x + (card_w - RING_SZ) / 2
-            ring_y = card_y + card_h - 11 * mm - RING_SZ - 4 * mm
+            ring_y = card_y + card_h - label_offset - RING_SZ - 4 * mm
             renderPDF.draw(self._ring_drawing(pct, RING_SZ), self.c, ring_x, ring_y)
 
-            # Texto porcentaje en centro del anillo
             cx_c = ring_x + RING_SZ / 2
             cy_c = ring_y + RING_SZ / 2
             self.c.setFont('Helvetica-Bold', 12)
@@ -551,23 +732,19 @@ class PDFReportePOLI:
             self.c.setFillColor(C_GRAY)
             self.c.drawCentredString(cx_c, cy_c - 8, 'cumplimiento')
 
-            # Indicadores
-            ind_y = ring_y - 5 * mm
+            # Indicadores count
+            ind_y = ring_y - 4 * mm
             self.c.setFont('Helvetica', 6.5)
             self.c.setFillColor(C_GRAY)
             self.c.drawCentredString(card_x + card_w / 2, ind_y,
                                      f'{n_ind} indicadores')
 
-            # Badge estado
-            bw_c, bh_c = card_w * 0.7, 6 * mm
-            bx_c = card_x + (card_w - bw_c) / 2
-            by_c = card_y + 3 * mm
-            self.c.setFillColor(c_sem)
-            self.c.roundRect(bx_c, by_c, bw_c, bh_c, 2 * mm, fill=1, stroke=0)
-            self.c.setFont('Helvetica-Bold', 6)
-            self.c.setFillColor(C_WHITE)
-            self.c.drawCentredString(card_x + card_w / 2,
-                                     by_c + bh_c / 2 - 2, texto_estado(pct))
+            # ── Mini progress bar at bottom ──────────────────────────
+            bar_h = 5 * mm
+            bar_w = card_w - 8 * mm
+            bar_x = card_x + 4 * mm
+            bar_y = card_y + 3.5 * mm
+            self._progress_bar(bar_x, bar_y, bar_w, bar_h, pct, col)
 
         self._new_page()
 
@@ -708,9 +885,11 @@ class PDFReportePOLI:
                     # ── Nivel 4: encabezado de columnas ────────────────
                     if y_cur - HDR_H < TABLE_BOTTOM:
                         break
-                    self.c.setFillColor(C_DARK)
-                    self.c.rect(self.MX, y_cur - HDR_H, IND_TBL_W, HDR_H,
-                                fill=1, stroke=0)
+                    self._gradient_band(self.MX, y_cur - HDR_H, IND_TBL_W, HDR_H,
+                                        C_NAVY, C_HDR_GRAD_END)
+                    # 2px accent line bottom of header
+                    self.c.setFillColor(col_linea)
+                    self.c.rect(self.MX, y_cur - HDR_H, IND_TBL_W, 2, fill=1, stroke=0)
                     self.c.setFont('Helvetica-Bold', 6)
                     self.c.setFillColor(C_WHITE)
                     hx = self.MX
@@ -727,7 +906,7 @@ class PDFReportePOLI:
                             break
                         ind_pct  = float(ind.get('cumplimiento', 0))
                         ind_scol = color_semaforo(ind_pct)
-                        bg = C_BG if ridx % 2 == 0 else C_WHITE
+                        bg = C_TABLE_ROW_ALT if ridx % 2 == 0 else C_WHITE
 
                         self.c.setFillColor(bg)
                         self.c.rect(self.MX, y_cur - ROW_H, IND_TBL_W, ROW_H,
@@ -749,7 +928,7 @@ class PDFReportePOLI:
 
                         meta_v = ind.get('meta_valor')
                         ejec_v = ind.get('ejecucion')
-                        vals = [
+                        num_vals = [
                             f'{float(meta_v):.1f}' if (
                                 meta_v is not None and
                                 str(meta_v) not in ('nan', 'None', '')
@@ -759,17 +938,19 @@ class PDFReportePOLI:
                                 str(ejec_v) not in ('nan', 'None', '')
                             ) else '-',
                             f'{ind_pct:.0f}%',
-                            '✓' if ind_pct >= 100 else ('⚠' if ind_pct >= 80 else '✗'),
                         ]
                         hx = self.MX + IND_COL_W[0]
-                        for j, (val, cw) in enumerate(zip(vals, IND_COL_W[1:])):
-                            fnt = 'Helvetica-Bold' if j >= 2 else 'Helvetica'
-                            clr = ind_scol if j >= 2 else C_DARK
+                        for j, (val, cw) in enumerate(zip(num_vals, IND_COL_W[1:4])):
+                            fnt = 'Helvetica-Bold' if j == 2 else 'Helvetica'
+                            clr = ind_scol if j == 2 else C_DARK
                             self.c.setFont(fnt, 6.5)
                             self.c.setFillColor(clr)
                             self.c.drawCentredString(hx + cw / 2,
                                                      y_cur - ROW_H + 1.8 * mm, val)
                             hx += cw
+                        # Estado: status circle
+                        self._status_circle(hx + IND_COL_W[4] / 2,
+                                            y_cur - ROW_H / 2, 2.5 * mm, ind_pct)
                         y_cur -= ROW_H
 
         # ── Sección de Proyectos ───────────────────────────────────────
@@ -832,28 +1013,10 @@ class PDFReportePOLI:
 
         # ── Tarjeta de análisis IA (anclada al fondo) ──────────────────
         if analisis:
-            card_x = self.MX
-            card_w = self.W - 2 * self.MX
-            self._shadow_card(card_x, AI_BOTTOM, card_w, AI_H,
-                              colors.HexColor('#E3F2FD'), radius=3.5 * mm)
-            self.c.setFillColor(col_linea)
-            self.c.roundRect(card_x, AI_BOTTOM, 3 * mm, AI_H, 2 * mm, fill=1, stroke=0)
-            label_y = AI_BOTTOM + AI_H - 5.5 * mm
-            self.c.setFont('Helvetica-Bold', 8)
-            self.c.setFillColor(C_NAVY)
-            self.c.drawString(card_x + 6 * mm, label_y, 'ANÁLISIS ESTRATÉGICO IA')
-            self.c.setFont('Helvetica-Oblique', 6.5)
-            self.c.setFillColor(C_GRAY)
-            self.c.drawRightString(card_x + card_w - 3 * mm, label_y,
-                                   'Generado con Inteligencia Artificial')
-            self._wrap_paragraph(
-                analisis,
-                x=card_x + 6 * mm,
-                y_top=label_y - 3 * mm,
-                max_w=card_w - 9 * mm,
-                max_h=AI_H - 10 * mm,
-                size=7.5,
-                color=C_DARK,
+            self._ai_block(
+                self.MX, AI_BOTTOM,
+                self.W - 2 * self.MX, AI_H,
+                analisis, col_linea
             )
 
         self._new_page()
@@ -896,8 +1059,13 @@ class PDFReportePOLI:
             self._footer('Detalle de Indicadores')
             return cont
 
-        def _draw_table_header(y):
-            self._shadow_card(self.MX, y - HDR_H, sum(COL_W), HDR_H, C_NAVY, radius=2 * mm)
+        def _draw_table_header(y, accent_col=None):
+            tbl_w = sum(COL_W)
+            # Gradient fill: #0a2240 → #1a3a5c
+            self._gradient_band(self.MX, y - HDR_H, tbl_w, HDR_H, C_NAVY, C_HDR_GRAD_END)
+            # 2px accent line at bottom
+            self.c.setFillColor(accent_col or C_ACCENT)
+            self.c.rect(self.MX, y - HDR_H, tbl_w, 2, fill=1, stroke=0)
             self.c.setFont('Helvetica-Bold', 7.5)
             self.c.setFillColor(C_WHITE)
             hx = self.MX
@@ -937,7 +1105,7 @@ class PDFReportePOLI:
                 y = _draw_table_header(y)
 
             pct    = float(row.get(c_cumpl, 0) or 0) if c_cumpl else 0
-            c_row  = C_BG if idx % 2 == 0 else C_WHITE
+            c_row  = C_TABLE_ROW_ALT if idx % 2 == 0 else C_WHITE
             c_s    = color_semaforo(pct)
 
             self.c.setFillColor(c_row)
@@ -956,23 +1124,26 @@ class PDFReportePOLI:
             self.c.setFillColor(C_DARK)
             self.c.drawString(self.MX + 2.5 * mm, y - ROW_H + 1.8 * mm, ind_txt)
 
-            # Columnas numéricas
+            # Columnas numéricas (Meta, Ejecución, %)
             meta = row.get(c_meta, None) if c_meta else None
             ejec = row.get(c_ejec, None) if c_ejec else None
-            vals = [
+            num_vals = [
                 f'{float(meta):.1f}' if meta is not None else '-',
                 f'{float(ejec):.1f}' if ejec is not None else '-',
                 f'{pct:.1f}%',
-                '✓' if pct >= 100 else ('⚠' if pct >= 80 else '✗'),
             ]
             hx = self.MX + COL_W[0]
-            for j, (val, cw) in enumerate(zip(vals, COL_W[1:])):
-                fnt = 'Helvetica-Bold' if j == 3 else 'Helvetica'
-                clr = c_s if j == 3 else C_DARK
+            for j, (val, cw) in enumerate(zip(num_vals, COL_W[1:4])):
+                fnt = 'Helvetica-Bold' if j == 2 else 'Helvetica'
+                clr = c_s if j == 2 else C_DARK
                 self.c.setFont(fnt, 6.5)
                 self.c.setFillColor(clr)
                 self.c.drawCentredString(hx + cw / 2, y - ROW_H + 1.8 * mm, val)
                 hx += cw
+            # Estado: status circle
+            circ_cx = hx + COL_W[4] / 2
+            circ_cy = y - ROW_H / 2
+            self._status_circle(circ_cx, circ_cy, 2.5 * mm, pct)
 
             y -= ROW_H
 

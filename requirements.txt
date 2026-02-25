@@ -22,3 +22,6 @@ python-dotenv>=1.0.0
 
 # Generación de PDF
 reportlab>=4.0.0
+
+# Gráficas embebidas en PDF (opcional - degrada gracefully si no está disponible)
+matplotlib>=3.7.0
