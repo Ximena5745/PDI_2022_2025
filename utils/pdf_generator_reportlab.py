@@ -101,11 +101,11 @@ ORDEN_LINEAS: List[str] = [
 COLOR_LINEAS: Dict[str, colors.Color] = {
     'Expansión':                         colors.HexColor('#FBAF17'),
     'Expansion':                         colors.HexColor('#FBAF17'),
-    'Transformación Organizacional':     colors.HexColor('#00A8A8'),
-    'Transformacion Organizacional':     colors.HexColor('#00A8A8'),
+    'Transformación Organizacional':     colors.HexColor('#42F2F2'),
+    'Transformacion Organizacional':     colors.HexColor('#42F2F2'),
     'Calidad':                           colors.HexColor('#EC0677'),
     'Experiencia':                       colors.HexColor('#1FB2DE'),
-    'Sostenibilidad':                    colors.HexColor('#5A9E1A'),
+    'Sostenibilidad':                    colors.HexColor('#A6CE38'),
     'Educación para toda la vida':       colors.HexColor('#0F385A'),
     'Educacion para toda la vida':       colors.HexColor('#0F385A'),
 }
@@ -796,9 +796,122 @@ class PDFReportePOLI:
                 self.c.drawImage(bar_img, bars_x, CHART_Y, bars_w, CHART_H,
                                  preserveAspectRatio=True, mask='auto')
 
+        # ── COMPACT LINE SUMMARY TABLE (fills gap between charts and AI) ─
+        AI_BOTTOM  = self.H_FOOTER + 4 * mm
+        AI_MAX_H   = 38 * mm
+        AI_TOP     = AI_BOTTOM + AI_MAX_H
+        CTBL_GAP   = 4 * mm
+        ctbl_top   = CHART_Y - CTBL_GAP
+        ctbl_bot   = AI_TOP + CTBL_GAP
+
+        if df_lineas is not None and not df_lineas.empty and ctbl_top - ctbl_bot > 20 * mm:
+            # Sort df_lineas by ORDEN_LINEAS
+            def _lsort(r):
+                n = _norm(str(r.get('Linea', r.get('Línea', ''))))
+                for i, ol in enumerate(ORDEN_LINEAS):
+                    if _norm(ol) == n or _norm(ol) in n or n in _norm(ol):
+                        return i
+                return 99
+            rows_sorted = sorted(df_lineas.to_dict('records'), key=_lsort)
+
+            # Determine available height and row height
+            ctbl_h_avail = ctbl_top - ctbl_bot
+            CTBL_HDR_H = 7 * mm
+            n_rows = len(rows_sorted)
+            CTBL_ROW_H = min((ctbl_h_avail - CTBL_HDR_H) / max(n_rows, 1), 8 * mm)
+            if CTBL_ROW_H < 4 * mm:
+                CTBL_ROW_H = 4 * mm
+
+            ctbl_y = ctbl_top - CTBL_HDR_H
+            CTBL_W = card_w
+
+            # Section label
+            self.c.setFont('Helvetica-Bold', 7.5)
+            self.c.setFillColor(NAVY_DARK)
+            self.c.drawString(MX, ctbl_top + 1.5 * mm, 'CUMPLIMIENTO POR LÍNEA ESTRATÉGICA')
+
+            # Table header (gradient)
+            self._gradient_band(MX, ctbl_y, CTBL_W, CTBL_HDR_H, NAVY_DARK, NAVY_MID)
+            self.c.setFillColor(TEAL_ACCENT)
+            self.c.rect(MX, ctbl_y, CTBL_W, 1.5, fill=1, stroke=0)
+            self.c.setFont('Helvetica-Bold', 6.5)
+            self.c.setFillColor(C_WHITE)
+            hdrs = [('Línea Estratégica', 0.42), ('% Cumpl.', 0.12),
+                    ('Progreso', 0.28), ('Estado', 0.18)]
+            hx = MX
+            for hdr_txt, hfrac in hdrs:
+                hw = CTBL_W * hfrac
+                self.c.drawCentredString(hx + hw / 2, ctbl_y + CTBL_HDR_H / 2 - 2.5, hdr_txt)
+                hx += hw
+
+            ctbl_y -= CTBL_HDR_H
+
+            for ridx, row in enumerate(rows_sorted):
+                if ctbl_y - CTBL_ROW_H < ctbl_bot:
+                    break
+                nom_r = str(row.get('Linea', row.get('Línea', '')))
+                pct_r = float(row.get('Cumplimiento', 0) or 0)
+                col_r = color_linea(nom_r)
+                c_s_r = color_semaforo(pct_r)
+                row_bg = C_TABLE_ROW_ALT if ridx % 2 == 0 else C_WHITE
+
+                # Row background
+                self.c.setFillColor(row_bg)
+                self.c.rect(MX, ctbl_y - CTBL_ROW_H, CTBL_W, CTBL_ROW_H, fill=1, stroke=0)
+                # Color swatch left
+                self.c.setFillColor(col_r)
+                self.c.rect(MX, ctbl_y - CTBL_ROW_H, 4, CTBL_ROW_H, fill=1, stroke=0)
+                # Light row border
+                self.c.setStrokeColor(TABLE_BORDER)
+                self.c.setLineWidth(0.3)
+                self.c.rect(MX, ctbl_y - CTBL_ROW_H, CTBL_W, CTBL_ROW_H, fill=0, stroke=1)
+
+                hx = MX
+                # Col 1: name
+                col1_w = CTBL_W * 0.42
+                nom_s = nombre_display(nom_r)[:30] + ('…' if len(nombre_display(nom_r)) > 30 else '')
+                self.c.setFont('Helvetica-Bold', 6.5)
+                self.c.setFillColor(C_DARK)
+                self.c.drawString(hx + 6, ctbl_y - CTBL_ROW_H + CTBL_ROW_H / 2 - 3, nom_s)
+                hx += col1_w
+                # Col 2: %
+                col2_w = CTBL_W * 0.12
+                self.c.setFont('Helvetica-Bold', 7)
+                self.c.setFillColor(c_s_r)
+                self.c.drawCentredString(hx + col2_w / 2,
+                                         ctbl_y - CTBL_ROW_H + CTBL_ROW_H / 2 - 3,
+                                         f'{pct_r:.0f}%')
+                hx += col2_w
+                # Col 3: mini progress bar
+                col3_w = CTBL_W * 0.28
+                bar_bw = col3_w - 4
+                bar_bh = min(CTBL_ROW_H * 0.45, 4)
+                bar_by = ctbl_y - CTBL_ROW_H + (CTBL_ROW_H - bar_bh) / 2
+                self.c.setFillColor(TABLE_BORDER)
+                self.c.roundRect(hx + 2, bar_by, bar_bw, bar_bh, 1, fill=1, stroke=0)
+                self.c.setFillColor(c_s_r)
+                self.c.roundRect(hx + 2, bar_by,
+                                 bar_bw * min(pct_r / 100, 1.0), bar_bh,
+                                 1, fill=1, stroke=0)
+                hx += col3_w
+                # Col 4: estado badge
+                col4_w = CTBL_W * 0.18
+                est_txt = texto_estado(pct_r)
+                est_bg  = color_semaforo_bg(pct_r)
+                est_tc  = color_semaforo_text(pct_r)
+                bw4, bh4 = col4_w - 4, min(CTBL_ROW_H * 0.65, 5 * mm)
+                by4 = ctbl_y - CTBL_ROW_H + (CTBL_ROW_H - bh4) / 2
+                self.c.setFillColor(est_bg)
+                self.c.roundRect(hx + 2, by4, bw4, bh4, 1.5 * mm, fill=1, stroke=0)
+                self.c.setFont('Helvetica-Bold', 5)
+                self.c.setFillColor(est_tc)
+                self.c.drawCentredString(hx + col4_w / 2,
+                                         by4 + bh4 / 2 - 2, est_txt)
+
+                ctbl_y -= CTBL_ROW_H
+
         # ── AI ANALYSIS BLOCK ─────────────────────────────────────────
-        AI_BOTTOM = self.H_FOOTER + 4 * mm
-        ai_h = CHART_Y - GAP - AI_BOTTOM
+        ai_h = AI_MAX_H
         if analisis_texto and ai_h > 15 * mm:
             self._ai_block(MX, AI_BOTTOM, card_w, ai_h, analisis_texto)
         elif not analisis_texto and ai_h > 10 * mm:
@@ -898,18 +1011,18 @@ class PDFReportePOLI:
             # ── 4px left border ───────────────────────────────────────
             self.c.setFillColor(col)
             self.c.rect(card_x, card_y, 4, card_h, fill=1, stroke=0)
-            # ── 5pt top stripe ────────────────────────────────────────
-            self.c.roundRect(card_x, card_y + card_h - 5,
-                             card_w, 5, 4 * mm, fill=1, stroke=0)
-            self.c.rect(card_x, card_y + card_h - 7, card_w, 3, fill=1, stroke=0)
 
-            # ── Name label (Bold 10pt, contrasting color) ─────────────
-            # Always inside the card, 12pt below top stripe
-            name_col = contrasting_text(card_bg)   # dark on light bg
-            # For extra readability, always use darken(col, 0.50)
-            name_col = darken(col, 0.50)
-            self.c.setFont('Helvetica-Bold', 9)
-            self.c.setFillColor(name_col)
+            # ── Header stripe 22pt (name rendered inside) ────────────
+            STRIPE_H = 22
+            stripe_y = card_y + card_h - STRIPE_H
+            # Rounded top corners: overdraw rounded rect + flat bottom cover
+            self.c.setFillColor(col)
+            self.c.roundRect(card_x, stripe_y, card_w, STRIPE_H + int(4 * mm),
+                             4 * mm, fill=1, stroke=0)
+            self.c.rect(card_x, stripe_y, card_w, STRIPE_H // 2, fill=1, stroke=0)
+
+            # Name: white on dark line, darken(col,0.55) on light line
+            name_col = darken(col, 0.55) if is_light_color(col) else C_WHITE
             # Wrap long names to 2 lines
             words = nom_d.split()
             if len(words) > 2:
@@ -919,13 +1032,21 @@ class PDFReportePOLI:
             else:
                 ln1 = nom_d
                 ln2 = ''
-            name_top = card_y + card_h - 8        # just below top stripe
-            self.c.drawCentredString(card_x + card_w / 2, name_top - 10, ln1)
+            self.c.setFillColor(name_col)
             if ln2:
-                self.c.setFont('Helvetica', 7.5)
-                self.c.drawCentredString(card_x + card_w / 2, name_top - 20, ln2)
+                self.c.setFont('Helvetica-Bold', 8.5)
+                self.c.drawCentredString(card_x + card_w / 2,
+                                         stripe_y + STRIPE_H - 9, ln1)
+                self.c.setFont('Helvetica', 7)
+                self.c.setFillColor(name_col)
+                self.c.drawCentredString(card_x + card_w / 2,
+                                         stripe_y + STRIPE_H - 18, ln2)
+            else:
+                self.c.setFont('Helvetica-Bold', 9)
+                self.c.drawCentredString(card_x + card_w / 2,
+                                         stripe_y + STRIPE_H / 2 - 4, ln1)
 
-            name_bottom = name_top - (22 if ln2 else 14)
+            name_bottom = stripe_y - 2
 
             # ── Status badge ──────────────────────────────────────────
             badge_txt = texto_estado(pct)
@@ -985,7 +1106,7 @@ class PDFReportePOLI:
 
     def pagina_linea(self, nombre: str, cumplimiento: float, total_ind: int,
                      objetivos: List[Dict], proyectos: List[Dict],
-                     analisis: str):
+                     analisis: str, sin_meta: List[Dict] = None):
         """
         Página detallada por línea estratégica.
         Layout:
@@ -1193,63 +1314,103 @@ class PDFReportePOLI:
                                             y_cur - ROW_H / 2, 2.5 * mm, ind_pct)
                         y_cur -= ROW_H
 
-        # ── Sección de Proyectos ───────────────────────────────────────
-        if proyectos and y_cur - 8 * mm > TABLE_BOTTOM:
+        # ── Dos columnas: Sin Meta/Stand By (izq) + Proyectos (der) ──────
+        has_sin_meta = sin_meta and len(sin_meta) > 0
+        has_proyectos = proyectos and len(proyectos) > 0
+
+        if (has_sin_meta or has_proyectos) and y_cur - 10 * mm > TABLE_BOTTOM:
             y_cur -= 4 * mm
-            self.c.setFont('Helvetica-Bold', 9)
-            self.c.setFillColor(C_NAVY)
-            self.c.drawString(self.MX, y_cur, 'PROYECTOS ESTRATÉGICOS')
-            y_cur -= 5 * mm
+            TWO_GAP = 4 * mm
+            TWO_W   = (self.W - 2 * self.MX - TWO_GAP) / 2
+            left_x  = self.MX
+            right_x = self.MX + TWO_W + TWO_GAP
+            PROW_H  = 6 * mm
+            HDR_H   = 7 * mm
 
-            PROW_H  = 6.5 * mm
-            PCOL_W  = [108 * mm, 25 * mm, 25 * mm]
-            PTBL_W  = sum(PCOL_W)
-
-            # Encabezado proyectos
-            self._shadow_card(self.MX, y_cur - PROW_H, PTBL_W, PROW_H,
-                              C_ACCENT, radius=2 * mm)
-            self.c.setFont('Helvetica-Bold', 7)
-            self.c.setFillColor(C_WHITE)
-            phx = self.MX
-            for phdr, pcw in zip(['Proyecto', 'Cumplimiento', 'Estado'], PCOL_W):
-                self.c.drawCentredString(phx + pcw / 2, y_cur - PROW_H + 2.5 * mm, phdr)
-                phx += pcw
-            y_cur -= PROW_H
-
-            for pidx, proy in enumerate(proyectos[:6]):
-                if y_cur - PROW_H < TABLE_BOTTOM:
-                    break
-                p_pct = float(proy.get('cumplimiento', 0))
-                p_col = color_semaforo(p_pct)
-                p_bg  = C_BG if pidx % 2 == 0 else C_WHITE
-
-                self.c.setFillColor(p_bg)
-                self.c.rect(self.MX, y_cur - PROW_H, PTBL_W, PROW_H, fill=1, stroke=0)
-                self.c.setFillColor(p_col)
-                self.c.rect(self.MX, y_cur - PROW_H, 1.5 * mm, PROW_H, fill=1, stroke=0)
-                self.c.setStrokeColor(C_LIGHT)
-                self.c.setLineWidth(0.3)
-                self.c.rect(self.MX, y_cur - PROW_H, PTBL_W, PROW_H, fill=0, stroke=1)
-
-                p_nom = limpiar(str(proy.get('nombre', '')))
-                p_nom = p_nom[:65] + ('…' if len(p_nom) > 65 else '')
-                self.c.setFont('Helvetica', 6)
-                self.c.setFillColor(C_DARK)
-                self.c.drawString(self.MX + 3 * mm, y_cur - PROW_H + 2 * mm, p_nom)
-
-                self.c.setFont('Helvetica-Bold', 6.5)
-                self.c.setFillColor(p_col)
-                self.c.drawCentredString(
-                    self.MX + PCOL_W[0] + PCOL_W[1] / 2,
-                    y_cur - PROW_H + 2 * mm, f'{p_pct:.0f}%'
-                )
-                est = '✓' if p_pct >= 100 else ('⚠' if p_pct >= 80 else '✗')
+            # ── LEFT: Sin Meta / Stand By ──────────────────────────────
+            if has_sin_meta:
+                # Section title
                 self.c.setFont('Helvetica-Bold', 8)
-                self.c.drawCentredString(
-                    self.MX + PCOL_W[0] + PCOL_W[1] + PCOL_W[2] / 2,
-                    y_cur - PROW_H + 2 * mm, est
-                )
-                y_cur -= PROW_H
+                self.c.setFillColor(AMBER_TEXT)
+                self.c.drawString(left_x, y_cur, '\u26a0 Sin Meta / Stand By')
+                y_sm = y_cur - 4 * mm
+                # Header
+                self._gradient_band(left_x, y_sm - HDR_H, TWO_W, HDR_H,
+                                    colors.HexColor('#78350F'), AMBER_TEXT)
+                self.c.setFont('Helvetica-Bold', 6)
+                self.c.setFillColor(C_WHITE)
+                self.c.drawString(left_x + 2 * mm, y_sm - HDR_H + 2.5 * mm, 'Indicador')
+                y_sm -= HDR_H
+                for sidx, si in enumerate(sin_meta[:8]):
+                    if y_sm - PROW_H < TABLE_BOTTOM:
+                        break
+                    si_bg = AMBER_BG if sidx % 2 == 0 else C_WHITE
+                    self.c.setFillColor(si_bg)
+                    self.c.rect(left_x, y_sm - PROW_H, TWO_W, PROW_H, fill=1, stroke=0)
+                    self.c.setFillColor(AMBER_SOLID)
+                    self.c.rect(left_x, y_sm - PROW_H, 2, PROW_H, fill=1, stroke=0)
+                    self.c.setStrokeColor(TABLE_BORDER)
+                    self.c.setLineWidth(0.3)
+                    self.c.rect(left_x, y_sm - PROW_H, TWO_W, PROW_H, fill=0, stroke=1)
+                    si_nm = limpiar(str(si.get('nombre', '')))
+                    si_nm = si_nm[:40] + ('…' if len(si_nm) > 40 else '')
+                    self.c.setFont('Helvetica', 5.5)
+                    self.c.setFillColor(C_DARK)
+                    self.c.drawString(left_x + 3, y_sm - PROW_H + 1.8 * mm, si_nm)
+                    y_sm -= PROW_H
+
+            # ── RIGHT: Proyectos Estratégicos ──────────────────────────
+            if has_proyectos:
+                self.c.setFont('Helvetica-Bold', 8)
+                self.c.setFillColor(C_NAVY)
+                self.c.drawString(right_x, y_cur, '\u25c6 Proyectos Asociados')
+                y_pr = y_cur - 4 * mm
+                # Header gradient
+                self._gradient_band(right_x, y_pr - HDR_H, TWO_W, HDR_H,
+                                    NAVY_DARK, NAVY_MID)
+                self.c.setFillColor(col_linea)
+                self.c.rect(right_x, y_pr - HDR_H, TWO_W, 2, fill=1, stroke=0)
+                self.c.setFont('Helvetica-Bold', 6)
+                self.c.setFillColor(C_WHITE)
+                hxp = right_x
+                for phdr, pfrac in [('Proyecto', 0.70), ('Cumpl.', 0.15), ('Est.', 0.15)]:
+                    phw = TWO_W * pfrac
+                    self.c.drawCentredString(hxp + phw / 2,
+                                             y_pr - HDR_H + 2.5 * mm, phdr)
+                    hxp += phw
+                y_pr -= HDR_H
+
+                for pidx, proy in enumerate(proyectos[:8]):
+                    if y_pr - PROW_H < TABLE_BOTTOM:
+                        break
+                    p_pct = float(proy.get('cumplimiento', 0))
+                    p_col = color_semaforo(p_pct)
+                    p_bg  = C_BG if pidx % 2 == 0 else C_WHITE
+                    self.c.setFillColor(p_bg)
+                    self.c.rect(right_x, y_pr - PROW_H, TWO_W, PROW_H, fill=1, stroke=0)
+                    self.c.setFillColor(p_col)
+                    self.c.rect(right_x, y_pr - PROW_H, 2, PROW_H, fill=1, stroke=0)
+                    self.c.setStrokeColor(TABLE_BORDER)
+                    self.c.setLineWidth(0.3)
+                    self.c.rect(right_x, y_pr - PROW_H, TWO_W, PROW_H, fill=0, stroke=1)
+                    p_nm = limpiar(str(proy.get('nombre', '')))
+                    p_nm = p_nm[:40] + ('…' if len(p_nm) > 40 else '')
+                    pw1 = TWO_W * 0.70
+                    pw2 = TWO_W * 0.15
+                    pw3 = TWO_W * 0.15
+                    self.c.setFont('Helvetica', 5.5)
+                    self.c.setFillColor(C_DARK)
+                    self.c.drawString(right_x + 3, y_pr - PROW_H + 1.8 * mm, p_nm)
+                    self.c.setFont('Helvetica-Bold', 6)
+                    self.c.setFillColor(p_col)
+                    self.c.drawCentredString(right_x + pw1 + pw2 / 2,
+                                             y_pr - PROW_H + 1.8 * mm,
+                                             f'{p_pct:.0f}%')
+                    sym = '\u2713' if p_pct >= 100 else ('\u26a0' if p_pct >= 80 else '\u2717')
+                    self.c.setFont('Helvetica-Bold', 7)
+                    self.c.drawCentredString(right_x + pw1 + pw2 + pw3 / 2,
+                                             y_pr - PROW_H + 1.8 * mm, sym)
+                    y_pr -= PROW_H
 
         # ── Tarjeta de análisis IA (anclada al fondo) ──────────────────
         if analisis:
@@ -1279,9 +1440,17 @@ class PDFReportePOLI:
         c_ejec  = _col(df_indicadores, 'Ejecucion', 'Ejecución', 'ejecucion', 'EJECUCION')
         c_cumpl = _col(df_indicadores, 'Cumplimiento', 'cumplimiento', 'CUMPLIMIENTO')
 
-        # Ordenar por línea si existe
+        # Ordenar por ORDEN_LINEAS (canonical order) luego por indicador
         if c_linea:
-            df_sorted = df_indicadores.sort_values(c_linea)
+            def _linea_sort_key(nom):
+                n = _norm(str(nom))
+                for i, ol in enumerate(ORDEN_LINEAS):
+                    if _norm(ol) == n or _norm(ol) in n or n in _norm(ol):
+                        return i
+                return 99
+            df_sorted = df_indicadores.copy()
+            df_sorted['_ord'] = df_sorted[c_linea].map(_linea_sort_key)
+            df_sorted = df_sorted.sort_values(['_ord', c_linea]).drop(columns=['_ord'])
         else:
             df_sorted = df_indicadores
 
@@ -1389,7 +1558,8 @@ class PDFReportePOLI:
 
         self._new_page()
 
-    def conclusiones(self, metricas: Dict, df_lineas: pd.DataFrame = None):
+    def conclusiones(self, metricas: Dict, df_lineas: pd.DataFrame = None,
+                     df_indicadores: pd.DataFrame = None):
         """Página: Conclusiones, recomendaciones y glosario."""
         cont_top = self._header_band(C_NAVY, 'CONCLUSIONES Y RECOMENDACIONES', '')
         self._footer('Conclusiones')
@@ -1466,7 +1636,129 @@ class PDFReportePOLI:
             self.c.drawString(self.MX + 4 * mm, y - 10 * mm, desc)
             y -= CARD_H + CARD_GAP
 
-        y -= 8 * mm
+        y -= 6 * mm
+
+        # --- Bloques semáforo: Incumplimiento (rojo) y En Progreso (ámbar) ──
+        if df_indicadores is not None and not df_indicadores.empty:
+            _ci   = next((c for c in ['Indicador','indicador'] if c in df_indicadores.columns), None)
+            _cl   = next((c for c in ['Linea','Línea','linea'] if c in df_indicadores.columns), None)
+            _ccmp = next((c for c in ['Cumplimiento','cumplimiento'] if c in df_indicadores.columns), None)
+            _cm   = next((c for c in ['Meta','meta'] if c in df_indicadores.columns), None)
+            _ce   = next((c for c in ['Ejecucion','Ejecución','ejecucion'] if c in df_indicadores.columns), None)
+
+            if _ci and _ccmp:
+                def _pct(r): return float(r.get(_ccmp, 0) or 0)
+                def _linea_badge(r):
+                    ln = str(r.get(_cl, '')) if _cl else ''
+                    return ln[:18] + ('…' if len(ln) > 18 else '')
+                def _ind_row(r):
+                    return {
+                        'nombre': limpiar(str(r.get(_ci, ''))),
+                        'linea':  _linea_badge(r),
+                        'meta':   r.get(_cm) if _cm else None,
+                        'ejec':   r.get(_ce) if _ce else None,
+                        'pct':    _pct(r),
+                        'col_l':  color_linea(str(r.get(_cl, ''))) if _cl else C_GRAY,
+                    }
+                rojo_rows  = [_ind_row(r) for _, r in df_indicadores.iterrows()
+                              if _pct(r) < 80 and _pct(r) > 0]
+                ambar_rows = [_ind_row(r) for _, r in df_indicadores.iterrows()
+                              if 80 <= _pct(r) < 100]
+                # Sort by pct ascending (worst first)
+                rojo_rows  = sorted(rojo_rows,  key=lambda x: x['pct'])
+                ambar_rows = sorted(ambar_rows, key=lambda x: x['pct'])
+
+                def _draw_semaforo_block(rows, title, bg_col, border_col, txt_col, max_rows=6):
+                    nonlocal y
+                    if not rows or y - 12 * mm < self.H_FOOTER + 4 * mm:
+                        return
+                    BROW_H = 6 * mm
+                    BHDR_H = 8 * mm
+                    n_show = min(len(rows), max_rows)
+                    block_h = BHDR_H + n_show * BROW_H + 2 * mm
+                    if y - block_h < self.H_FOOTER + 4 * mm:
+                        block_h = y - self.H_FOOTER - 4 * mm
+                        n_show = max(1, int((block_h - BHDR_H - 2 * mm) / BROW_H))
+                    BW = self.W - 2 * self.MX
+
+                    # Block bg
+                    self.c.setFillColor(bg_col)
+                    self.c.roundRect(self.MX, y - block_h, BW, block_h, 3 * mm,
+                                     fill=1, stroke=0)
+                    self.c.setStrokeColor(border_col)
+                    self.c.setLineWidth(1)
+                    self.c.roundRect(self.MX, y - block_h, BW, block_h, 3 * mm,
+                                     fill=0, stroke=1)
+                    # Left accent bar
+                    self.c.setFillColor(border_col)
+                    self.c.roundRect(self.MX, y - block_h, 4, block_h, 2 * mm,
+                                     fill=1, stroke=0)
+                    # Header
+                    self.c.setFont('Helvetica-Bold', 8)
+                    self.c.setFillColor(txt_col)
+                    self.c.drawString(self.MX + 6 * mm, y - BHDR_H + 2 * mm, title)
+                    self.c.setFont('Helvetica', 6.5)
+                    self.c.setFillColor(txt_col)
+                    self.c.drawRightString(
+                        self.MX + BW - 3 * mm, y - BHDR_H + 2 * mm,
+                        f'{len(rows)} indicadores'
+                    )
+                    # Separator
+                    self.c.setStrokeColor(border_col)
+                    self.c.setLineWidth(0.5)
+                    self.c.line(self.MX + 6 * mm, y - BHDR_H,
+                                self.MX + BW - 3 * mm, y - BHDR_H)
+
+                    row_y = y - BHDR_H
+                    for ri, irow in enumerate(rows[:n_show]):
+                        if row_y - BROW_H < y - block_h + 1 * mm:
+                            break
+                        # Line color swatch
+                        self.c.setFillColor(irow['col_l'])
+                        pill_w, pill_h = 14 * mm, 4 * mm
+                        pill_x = self.MX + 6 * mm
+                        pill_y = row_y - BROW_H + (BROW_H - pill_h) / 2
+                        self.c.roundRect(pill_x, pill_y, pill_w, pill_h, 2 * mm,
+                                         fill=1, stroke=0)
+                        self.c.setFont('Helvetica-Bold', 4.5)
+                        self.c.setFillColor(contrasting_text(irow['col_l']))
+                        linea_s = irow['linea'][:10]
+                        self.c.drawCentredString(pill_x + pill_w / 2,
+                                                 pill_y + pill_h / 2 - 1.5, linea_s)
+                        # Indicator name
+                        ind_nm = irow['nombre'][:60] + ('…' if len(irow['nombre']) > 60 else '')
+                        self.c.setFont('Helvetica', 6)
+                        self.c.setFillColor(C_DARK)
+                        self.c.drawString(pill_x + pill_w + 2 * mm,
+                                          row_y - BROW_H + 1.8 * mm, ind_nm)
+                        # Meta → Ejec → %
+                        mt = irow['meta']
+                        ej = irow['ejec']
+                        mt_s = f'{float(mt):.1f}' if mt is not None and str(mt) not in ('nan','None','') else '-'
+                        ej_s = f'{float(ej):.1f}' if ej is not None and str(ej) not in ('nan','None','') else '-'
+                        info = f'Meta {mt_s} → Ejec {ej_s} → {irow["pct"]:.0f}%'
+                        self.c.setFont('Helvetica-Bold', 6)
+                        self.c.setFillColor(border_col)
+                        self.c.drawRightString(self.MX + BW - 4 * mm,
+                                               row_y - BROW_H + 1.8 * mm, info)
+                        row_y -= BROW_H
+
+                    y -= block_h + 4 * mm
+
+                if rojo_rows:
+                    _draw_semaforo_block(
+                        rojo_rows,
+                        title='Indicadores con Incumplimiento  (<80%)',
+                        bg_col=RED_BG, border_col=RED_SOLID, txt_col=RED_TEXT,
+                    )
+                if ambar_rows:
+                    _draw_semaforo_block(
+                        ambar_rows,
+                        title='Indicadores en Progreso  (80–99%)',
+                        bg_col=AMBER_BG, border_col=AMBER_SOLID, txt_col=AMBER_TEXT,
+                    )
+
+        y -= 4 * mm
 
         # --- Glosario ---
         if y > self.H_FOOTER + 40 * mm:
@@ -1687,6 +1979,27 @@ def exportar_informe_pdf_reportlab(
                             'cumplimiento': float(pr.get('Cumplimiento', 0) or 0),
                         })
 
+            # ── Indicadores Sin Meta (Meta=NaN/0) ─────────────────────
+            sin_meta = []
+            if df_unificado is not None and not df_unificado.empty:
+                has_lin_u  = 'Linea' in df_unificado.columns
+                has_meta_u = 'Meta' in df_unificado.columns
+                has_ind_u  = 'Indicador' in df_unificado.columns
+                if has_lin_u and has_meta_u and has_ind_u:
+                    smask = df_unificado['Linea'] == nom
+                    if 'Año' in df_unificado.columns:
+                        smask &= df_unificado['Año'] == año
+                    if 'Proyectos' in df_unificado.columns:
+                        smask &= df_unificado['Proyectos'] == 0
+                    df_sm = df_unificado[smask]
+                    # Filter where Meta is NaN or zero
+                    meta_null = df_sm['Meta'].isna() | (df_sm['Meta'] == 0)
+                    df_sm_null = df_sm[meta_null].drop_duplicates('Indicador')
+                    for _, sr in df_sm_null.iterrows():
+                        sin_meta.append({
+                            'nombre': str(sr.get('Indicador', '')),
+                        })
+
             # ── Análisis IA por línea ─────────────────────────────────
             analisis_txt = ''
             if analisis_lineas:
@@ -1705,6 +2018,7 @@ def exportar_informe_pdf_reportlab(
                 objetivos=objs,
                 proyectos=proyectos,
                 analisis=analisis_txt,
+                sin_meta=sin_meta if sin_meta else None,
             )
 
     # 5. Tabla de indicadores
@@ -1712,6 +2026,6 @@ def exportar_informe_pdf_reportlab(
         pdf.tabla_indicadores(df_indicadores)
 
     # 6. Conclusiones y glosario
-    pdf.conclusiones(metricas, df_lineas)
+    pdf.conclusiones(metricas, df_lineas, df_indicadores=df_indicadores)
 
     return pdf.generar()
