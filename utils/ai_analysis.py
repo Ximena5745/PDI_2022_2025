@@ -381,46 +381,88 @@ Usa un tono profesional, conciso y orientado a la accion. Escribe en espanol."""
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def generar_analisis_linea(nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data):
+def generar_analisis_linea(nombre_linea, total_indicadores, cumplimiento_promedio,
+                           objetivos_data, indicadores_data=None):
     """
-    Genera analisis para una linea estrategica especifica.
+    Genera analisis contextual (4 parrafos) para una linea estrategica.
     Usa IA si esta disponible, sino genera analisis estatico.
+
+    indicadores_data: lista de dicts {nombre, meta, ejecucion, cumplimiento}
+                      con datos reales de cada indicador de la linea.
     """
-    # Primero intentar con IA
     client = get_gemini_client()
 
     if client is None:
-        return generar_analisis_estatico_linea(nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data)
+        return generar_analisis_estatico_linea(
+            nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data)
 
+    # Construir texto de objetivos
     objetivos_texto = "\n".join([
-        f"- {obj['objetivo']}: {obj['cumplimiento']:.1f}% ({obj['indicadores']} indicadores)"
+        f"- {obj['objetivo']}: {obj['cumplimiento']:.1f}% ({obj.get('indicadores', 0)} indicadores)"
         for obj in objetivos_data
     ]) if objetivos_data else "No hay datos de objetivos disponibles"
 
-    prompt = f"""Eres un analista estrategico del Politecnico Grancolombiano. Analiza el desempeno de la siguiente linea estrategica del PDI 2021-2025:
+    # Construir texto de indicadores individuales (si disponibles)
+    inds_texto = ""
+    if indicadores_data:
+        cumplidos    = [i for i in indicadores_data if float(i.get('cumplimiento', 0)) >= 100]
+        en_progreso  = [i for i in indicadores_data if 80 <= float(i.get('cumplimiento', 0)) < 100]
+        en_atencion  = [i for i in indicadores_data if float(i.get('cumplimiento', 0)) < 80]
+
+        def _fmt_ind(ind):
+            nombre = ind.get('nombre', 'Indicador')[:60]
+            meta   = ind.get('meta')
+            ejec   = ind.get('ejecucion')
+            cumpl  = float(ind.get('cumplimiento', 0))
+            partes = [f"{nombre}: {cumpl:.1f}%"]
+            if meta is not None and ejec is not None:
+                try:
+                    partes.append(f"(Meta: {float(meta):.1f}, Ejec: {float(ejec):.1f})")
+                except Exception:
+                    pass
+            return " ".join(partes)
+
+        lineas_inds = []
+        if cumplidos:
+            lineas_inds.append(f"CUMPLIDOS ({len(cumplidos)}):")
+            lineas_inds += [f"  ✓ {_fmt_ind(i)}" for i in cumplidos[:5]]
+        if en_progreso:
+            lineas_inds.append(f"EN PROGRESO ({len(en_progreso)}):")
+            lineas_inds += [f"  ⚠ {_fmt_ind(i)}" for i in en_progreso[:5]]
+        if en_atencion:
+            lineas_inds.append(f"REQUIEREN ATENCIÓN ({len(en_atencion)}):")
+            lineas_inds += [f"  ✗ {_fmt_ind(i)}" for i in en_atencion[:5]]
+        inds_texto = "\n".join(lineas_inds)
+
+    indicadores_section = f"\n\n**Detalle de Indicadores:**\n{inds_texto}" if inds_texto else ""
+
+    prompt = f"""Eres un analista estrategico del Politecnico Grancolombiano.
+Analiza el desempeno REAL de la siguiente linea estrategica del PDI 2021-2025 usando los datos exactos proporcionados.
 
 **Linea Estrategica: {nombre_linea}**
-
-**Datos Generales:**
-- Total de indicadores: {total_indicadores}
+- Total indicadores: {total_indicadores}
 - Cumplimiento promedio: {cumplimiento_promedio:.1f}%
 
-**Objetivos y su Cumplimiento:**
-{objetivos_texto}
+**Objetivos:**
+{objetivos_texto}{indicadores_section}
 
-Genera un ANALISIS de maximo 120 palabras que incluya:
-1. Evaluacion del estado actual de cumplimiento de la linea
-2. Los objetivos con mejor desempeno (destacados)
-3. Areas de mejora identificadas
-4. Una recomendacion estrategica especifica y accionable
+Genera un ANALISIS CONTEXTUAL de exactamente 4 parrafos cortos (max 200 palabras total):
 
-Usa un tono profesional y enfocado en acciones concretas. Escribe en espanol."""
+PARRAFO 1 — ESTADO REAL: Menciona el cumplimiento global y nombra EXPLICITAMENTE cuales indicadores cumplieron (con su %) y cuales no.
+
+PARRAFO 2 — BRECHA (solo si hay indicadores < 100%): Calcula y menciona el gap real de los indicadores mas criticos (diferencia entre meta y ejecucion, como numero absoluto y %).
+
+PARRAFO 3 — ALERTA O DESTACADO: Si hay indicador > 120% destacar el logro con numero exacto. Si hay indicador < 80% generar alerta con nombre y valor exacto. Si hay proyectos en 0% mencionarlos.
+
+PARRAFO 4 — RECOMENDACION ESPECIFICA: Nombrar el indicador con mayor brecha y proponer una accion medible y concreta. Evitar frases genericas.
+
+Tono: profesional, conciso, orientado a numeros reales. Escribe en espanol sin asteriscos ni markdown."""
 
     resultado = generar_analisis_con_ia(prompt)
 
-    # Si la API falla, usar analisis estatico
     if "No se pudo generar" in resultado or "RESOURCE_EXHAUSTED" in resultado:
-        return generar_analisis_estatico_linea(nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data)
+        return generar_analisis_estatico_linea(
+            nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data)
 
     return resultado
 

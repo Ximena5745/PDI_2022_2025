@@ -312,7 +312,7 @@ def mostrar_pagina():
                 try:
                     with st.spinner('Generando análisis IA por línea...'):
                         for _, lr in df_lineas.iterrows():
-                            nom    = str(lr.get('Linea', lr.get('Línea', '')))
+                            nom     = str(lr.get('Linea', lr.get('Línea', '')))
                             cumpl_l = float(lr.get('Cumplimiento', 0) or 0)
                             n_ind_l = int(lr.get('Total_Indicadores', 0) or 0)
                             objs_l  = []
@@ -324,7 +324,23 @@ def mostrar_pagina():
                                         'cumplimiento': float(or_.get('Cumplimiento', 0) or 0),
                                         'indicadores':  int(or_.get('Total_Indicadores', 0) or 0),
                                     })
-                            analisis_lineas_pdf[nom] = generar_analisis_linea(nom, n_ind_l, cumpl_l, objs_l)
+                            # Indicadores individuales para análisis contextual
+                            inds_l = []
+                            if 'Linea' in df_año_pdf.columns and 'Indicador' in df_año_pdf.columns:
+                                df_linea_ind = df_año_pdf[df_año_pdf['Linea'] == nom]
+                                _c_col = next((c for c in ['Cumplimiento'] if c in df_linea_ind.columns), None)
+                                _m_col = next((c for c in ['Meta', 'meta'] if c in df_linea_ind.columns), None)
+                                _e_col = next((c for c in ['Ejecución', 'Ejecucion', 'ejecucion'] if c in df_linea_ind.columns), None)
+                                for _, ir in df_linea_ind.drop_duplicates('Indicador').iterrows():
+                                    inds_l.append({
+                                        'nombre':       str(ir.get('Indicador', '')),
+                                        'meta':         ir.get(_m_col) if _m_col else None,
+                                        'ejecucion':    ir.get(_e_col) if _e_col else None,
+                                        'cumplimiento': float(ir.get(_c_col, 0) or 0) if _c_col else 0.0,
+                                    })
+                            analisis_lineas_pdf[nom] = generar_analisis_linea(
+                                nom, n_ind_l, cumpl_l, objs_l,
+                                indicadores_data=inds_l if inds_l else None)
                 except Exception:
                     analisis_lineas_pdf = {}
 
