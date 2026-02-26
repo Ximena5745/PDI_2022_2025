@@ -295,16 +295,21 @@ class PDFReportePOLI:
         # Línea decorativa inferior (blanca semitransparente → uso blanco)
         self.c.setFillColor(C_WHITE)
         self.c.rect(0, y0, self.W, 1 * mm, fill=1, stroke=0)
-        # Título
+        # Título — tamaño adaptativo según longitud del texto
         self.c.setFillColor(C_WHITE)
         if subtitulo:
-            self.c.setFont('Helvetica-Bold', 13)
-            self.c.drawString(self.MX, y0 + 13 * mm, titulo)
-            self.c.setFont('Helvetica', 8)
+            # Escala font según largo del título (máx 13pt, mín 10pt)
+            t_fsize = 13 if len(titulo) <= 24 else (11 if len(titulo) <= 34 else 9.5)
+            self.c.setFont('Helvetica-Bold', t_fsize)
+            # Alineación vertical: si font pequeño, ajustar posición
+            t_y = y0 + 13 * mm if t_fsize >= 12 else y0 + 14 * mm
+            self.c.drawString(self.MX, t_y, titulo)
+            self.c.setFont('Helvetica', 7.5)
             self.c.setFillColor(colors.HexColor('#c8d8f0'))
-            self.c.drawString(self.MX, y0 + 6 * mm, subtitulo)
+            self.c.drawString(self.MX, y0 + 5.5 * mm, subtitulo)
         else:
-            self.c.setFont('Helvetica-Bold', 14)
+            t_fsize = 14 if len(titulo) <= 28 else (11 if len(titulo) <= 38 else 9)
+            self.c.setFont('Helvetica-Bold', t_fsize)
             self.c.drawCentredString(self.W / 2, y0 + 8 * mm, titulo)
         return y0 - 2 * mm   # top of content area (just below shadow)
 
@@ -776,12 +781,18 @@ class PDFReportePOLI:
             self.c.setFont('Helvetica', 7 if i == 0 else 6.5)
             self.c.setFillColor(TEXT_SECONDARY)
             self.c.drawCentredString(kx + KPI_W / 2, ky + 3 * mm, lbl)
-            # Sub-badge percentage (only for cumplidos/en-progreso)
+            # Sub-badge percentage (below label, never overlapping number)
             if i > 0 and total:
                 badge = f'{int(val) / total * 100:.0f}%'
-                self.c.setFont('Helvetica-Bold', 6.5)
+                # Small pill badge at very bottom of card
+                bpw, bph = 14 * mm, 4 * mm
+                bpx = kx + (KPI_W - bpw) / 2
+                bpy = ky + 0.5 * mm
+                self.c.setFillColor(_light_color(colors.HexColor(top_h), 0.65))
+                self.c.roundRect(bpx, bpy, bpw, bph, 2 * mm, fill=1, stroke=0)
+                self.c.setFont('Helvetica-Bold', 6)
                 self.c.setFillColor(colors.HexColor(top_h))
-                self.c.drawCentredString(kx + KPI_W / 2, ky + kpi_h * 0.72, badge)
+                self.c.drawCentredString(kx + KPI_W / 2, bpy + 1 * mm, badge)
 
         KPI_Y = KPI_Y_BOT  # reference for chart row below
 
@@ -809,122 +820,10 @@ class PDFReportePOLI:
                 self.c.drawImage(bar_img, bars_x, CHART_Y, bars_w, CHART_H,
                                  preserveAspectRatio=True, mask='auto')
 
-        # ── COMPACT LINE SUMMARY TABLE (fills gap between charts and AI) ─
-        AI_BOTTOM  = self.H_FOOTER + 4 * mm
-        AI_MAX_H   = 38 * mm
-        AI_TOP     = AI_BOTTOM + AI_MAX_H
-        CTBL_GAP   = 4 * mm
-        ctbl_top   = CHART_Y - CTBL_GAP
-        ctbl_bot   = AI_TOP + CTBL_GAP
-
-        if df_lineas is not None and not df_lineas.empty and ctbl_top - ctbl_bot > 20 * mm:
-            # Sort df_lineas by ORDEN_LINEAS
-            def _lsort(r):
-                n = _norm(str(r.get('Linea', r.get('Línea', ''))))
-                for i, ol in enumerate(ORDEN_LINEAS):
-                    if _norm(ol) == n or _norm(ol)[:8] == n[:8]:
-                        return i
-                return 99
-            rows_sorted = sorted(df_lineas.to_dict('records'), key=_lsort)
-
-            # Determine available height and row height
-            ctbl_h_avail = ctbl_top - ctbl_bot
-            CTBL_HDR_H = 7 * mm
-            n_rows = len(rows_sorted)
-            CTBL_ROW_H = min((ctbl_h_avail - CTBL_HDR_H) / max(n_rows, 1), 8 * mm)
-            if CTBL_ROW_H < 4 * mm:
-                CTBL_ROW_H = 4 * mm
-
-            ctbl_y = ctbl_top - CTBL_HDR_H
-            CTBL_W = card_w
-
-            # Section label
-            self.c.setFont('Helvetica-Bold', 7.5)
-            self.c.setFillColor(NAVY_DARK)
-            self.c.drawString(MX, ctbl_top + 1.5 * mm, 'CUMPLIMIENTO POR LÍNEA ESTRATÉGICA')
-
-            # Table header (gradient)
-            self._gradient_band(MX, ctbl_y, CTBL_W, CTBL_HDR_H, NAVY_DARK, NAVY_MID)
-            self.c.setFillColor(TEAL_ACCENT)
-            self.c.rect(MX, ctbl_y, CTBL_W, 1.5, fill=1, stroke=0)
-            self.c.setFont('Helvetica-Bold', 6.5)
-            self.c.setFillColor(C_WHITE)
-            hdrs = [('Línea Estratégica', 0.42), ('% Cumpl.', 0.12),
-                    ('Progreso', 0.28), ('Estado', 0.18)]
-            hx = MX
-            for hdr_txt, hfrac in hdrs:
-                hw = CTBL_W * hfrac
-                self.c.drawCentredString(hx + hw / 2, ctbl_y + CTBL_HDR_H / 2 - 2.5, hdr_txt)
-                hx += hw
-
-            ctbl_y -= CTBL_HDR_H
-
-            for ridx, row in enumerate(rows_sorted):
-                if ctbl_y - CTBL_ROW_H < ctbl_bot:
-                    break
-                nom_r = str(row.get('Linea', row.get('Línea', '')))
-                pct_r = float(row.get('Cumplimiento', 0) or 0)
-                col_r = color_linea(nom_r)
-                c_s_r = color_semaforo(pct_r)
-                row_bg = C_TABLE_ROW_ALT if ridx % 2 == 0 else C_WHITE
-
-                # Row background
-                self.c.setFillColor(row_bg)
-                self.c.rect(MX, ctbl_y - CTBL_ROW_H, CTBL_W, CTBL_ROW_H, fill=1, stroke=0)
-                # Color swatch left
-                self.c.setFillColor(col_r)
-                self.c.rect(MX, ctbl_y - CTBL_ROW_H, 4, CTBL_ROW_H, fill=1, stroke=0)
-                # Light row border
-                self.c.setStrokeColor(TABLE_BORDER)
-                self.c.setLineWidth(0.3)
-                self.c.rect(MX, ctbl_y - CTBL_ROW_H, CTBL_W, CTBL_ROW_H, fill=0, stroke=1)
-
-                hx = MX
-                # Col 1: name
-                col1_w = CTBL_W * 0.42
-                nom_s = nombre_display(nom_r)[:30] + ('…' if len(nombre_display(nom_r)) > 30 else '')
-                self.c.setFont('Helvetica-Bold', 6.5)
-                self.c.setFillColor(C_DARK)
-                self.c.drawString(hx + 6, ctbl_y - CTBL_ROW_H + CTBL_ROW_H / 2 - 3, nom_s)
-                hx += col1_w
-                # Col 2: %
-                col2_w = CTBL_W * 0.12
-                self.c.setFont('Helvetica-Bold', 7)
-                self.c.setFillColor(c_s_r)
-                self.c.drawCentredString(hx + col2_w / 2,
-                                         ctbl_y - CTBL_ROW_H + CTBL_ROW_H / 2 - 3,
-                                         f'{pct_r:.0f}%')
-                hx += col2_w
-                # Col 3: mini progress bar
-                col3_w = CTBL_W * 0.28
-                bar_bw = col3_w - 4
-                bar_bh = min(CTBL_ROW_H * 0.45, 4)
-                bar_by = ctbl_y - CTBL_ROW_H + (CTBL_ROW_H - bar_bh) / 2
-                self.c.setFillColor(TABLE_BORDER)
-                self.c.roundRect(hx + 2, bar_by, bar_bw, bar_bh, 1, fill=1, stroke=0)
-                self.c.setFillColor(c_s_r)
-                self.c.roundRect(hx + 2, bar_by,
-                                 bar_bw * min(pct_r / 100, 1.0), bar_bh,
-                                 1, fill=1, stroke=0)
-                hx += col3_w
-                # Col 4: estado badge
-                col4_w = CTBL_W * 0.18
-                est_txt = texto_estado(pct_r)
-                est_bg  = color_semaforo_bg(pct_r)
-                est_tc  = color_semaforo_text(pct_r)
-                bw4, bh4 = col4_w - 4, min(CTBL_ROW_H * 0.65, 5 * mm)
-                by4 = ctbl_y - CTBL_ROW_H + (CTBL_ROW_H - bh4) / 2
-                self.c.setFillColor(est_bg)
-                self.c.roundRect(hx + 2, by4, bw4, bh4, 1.5 * mm, fill=1, stroke=0)
-                self.c.setFont('Helvetica-Bold', 5)
-                self.c.setFillColor(est_tc)
-                self.c.drawCentredString(hx + col4_w / 2,
-                                         by4 + bh4 / 2 - 2, est_txt)
-
-                ctbl_y -= CTBL_ROW_H
-
-        # ── AI ANALYSIS BLOCK ─────────────────────────────────────────
-        ai_h = AI_MAX_H
+        # ── AI ANALYSIS BLOCK (amplified — no redundant table) ────────
+        # Use all space from chart bottom to footer for the IA block
+        AI_BOTTOM = self.H_FOOTER + 4 * mm
+        ai_h      = max(CHART_Y - AI_BOTTOM - 6 * mm, 40 * mm)
         if analisis_texto and ai_h > 15 * mm:
             self._ai_block(MX, AI_BOTTOM, card_w, ai_h, analisis_texto)
         elif not analisis_texto and ai_h > 10 * mm:
@@ -1001,7 +900,7 @@ class PDFReportePOLI:
         avail_w  = self.W - 2 * MX_GRID
         avail_h  = self.H - 26 * mm - self.H_FOOTER
         card_w   = (avail_w - (N_COLS - 1) * GAP) / N_COLS
-        card_h   = min((avail_h - (N_ROWS - 1) * GAP) / N_ROWS, 115 * mm)
+        card_h   = min((avail_h - (N_ROWS - 1) * GAP) / N_ROWS, 90 * mm)
 
         for idx, (nom, pct, n_ind, cn, ep, ac) in enumerate(lineas):
             col_i  = idx % N_COLS
@@ -1038,12 +937,21 @@ class PDFReportePOLI:
 
             # Name: white on dark line, darken(col,0.55) on light line
             name_col = darken(col, 0.55) if is_light_color(col) else C_WHITE
-            # Wrap long names to 2 lines
+            # Wrap long names to 2 balanced lines (split near char midpoint)
             words = nom_d.split()
             if len(words) > 2:
-                mid = (len(words) + 1) // 2
-                ln1 = ' '.join(words[:mid])
-                ln2 = ' '.join(words[mid:])
+                total_chars = len(nom_d)
+                mid_target = total_chars // 2
+                best_split, best_dist = 1, total_chars
+                acc = 0
+                for wi, w in enumerate(words[:-1]):
+                    acc += len(w) + 1  # +1 for space
+                    dist = abs(acc - mid_target)
+                    if dist < best_dist:
+                        best_dist = dist
+                        best_split = wi + 1
+                ln1 = ' '.join(words[:best_split])
+                ln2 = ' '.join(words[best_split:])
             else:
                 ln1 = nom_d
                 ln2 = ''
@@ -1182,8 +1090,12 @@ class PDFReportePOLI:
             self._kpi_card(self.MX + i * (kpi_w + 2 * mm), kpi_y, kpi_w, kpi_h, val, lbl, col)
 
         # ── Inicio del contenido bajo anillo ──────────────────────────
-        AI_H      = 52 * mm
+        # Altura dinámica: estimamos líneas de texto (6 chars/pt ≈ aprox)
         AI_BOTTOM = self.H_FOOTER + 3 * mm
+        _ai_line_w = self.W - 2 * self.MX - 16 * mm  # ancho útil texto IA (pts)
+        _chars_per_line = max(1, int(_ai_line_w / 3.8))  # ~3.8pt/char Helvetica 6.5
+        _ai_lines = max(1, len(analisis or '') // _chars_per_line + 1) if analisis else 0
+        AI_H      = max(38 * mm, min(_ai_lines * 8 + int(16 * mm), 70 * mm))
         AI_TOP    = AI_BOTTOM + AI_H
         TABLE_BOTTOM = AI_TOP + 4 * mm
         y_cur = badge_by - 5 * mm
@@ -1217,8 +1129,8 @@ class PDFReportePOLI:
             # ── Encabezado global de columnas — UNA SOLA VEZ ──────────
             if y_cur - HDR_H >= TABLE_BOTTOM:
                 self._gradient_band(self.MX, y_cur - HDR_H, IND_TBL_W, HDR_H,
-                                    C_NAVY, C_HDR_GRAD_END)
-                self.c.setFillColor(col_linea)
+                                    darken(col_linea, 0.30), darken(col_linea, 0.55))
+                self.c.setFillColor(_light_color(col_linea, 0.55))
                 self.c.rect(self.MX, y_cur - HDR_H, IND_TBL_W, 2, fill=1, stroke=0)
                 self.c.setFont('Helvetica-Bold', 6)
                 self.c.setFillColor(C_WHITE)
@@ -1388,12 +1300,12 @@ class PDFReportePOLI:
             # ── COLUMNA 1: Stand By / Sin Resultados ─────────────────
             if has_sin_meta:
                 self.c.setFont('Helvetica-Bold', 7.5)
-                self.c.setFillColor(AMBER_TEXT)
-                self.c.drawString(COL1_X, y_col1, '\u23f8 Stand By')
+                self.c.setFillColor(NAVY_DARK)
+                self.c.drawString(COL1_X, y_col1, '\u23f8 Stand By / Sin Resultados')
                 y_col1 -= 4 * mm
-                # Header
+                # Header (color institucional: amber oscuro → navy)
                 self._gradient_band(COL1_X, y_col1 - PHDR_H, COL1_W, PHDR_H,
-                                    colors.HexColor('#78350F'), AMBER_TEXT)
+                                    NAVY_DARK, NAVY_MID)
                 self.c.setFont('Helvetica-Bold', 5.5)
                 self.c.setFillColor(C_WHITE)
                 self.c.drawString(COL1_X + 2 * mm, y_col1 - PHDR_H + 2 * mm, 'Indicador sin resultado')
@@ -1534,7 +1446,7 @@ class PDFReportePOLI:
         COL_W  = [87 * mm, 17 * mm, 17 * mm, 16 * mm, 14 * mm]
         ROW_H  = 6 * mm
         HDR_H  = 8 * mm
-        BOTTOM = self.H_FOOTER + 6 * mm
+        BOTTOM = self.H_FOOTER + 3 * mm
 
         def _draw_page_header():
             cont = self._header_band(
@@ -1576,11 +1488,13 @@ class PDFReportePOLI:
                         y = _draw_page_header()
                         y = _draw_table_header(y)
                     sub_col = color_linea(linea_nom)
+                    sub_txt = nombre_display(linea_nom)   # elimina guiones bajos
+                    sub_txt_col = contrasting_text(sub_col)
                     self.c.setFillColor(sub_col)
                     self.c.rect(self.MX, y - sub_h, sum(COL_W), sub_h, fill=1, stroke=0)
                     self.c.setFont('Helvetica-Bold', 7.5)
-                    self.c.setFillColor(C_WHITE)
-                    self.c.drawString(self.MX + 3 * mm, y - sub_h + 2 * mm, linea_nom)
+                    self.c.setFillColor(sub_txt_col)
+                    self.c.drawString(self.MX + 3 * mm, y - sub_h + 2 * mm, sub_txt)
                     y -= sub_h
 
             # Salto de página
