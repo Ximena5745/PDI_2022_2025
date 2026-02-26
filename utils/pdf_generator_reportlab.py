@@ -760,39 +760,33 @@ class PDFReportePOLI:
         for i, (val, lbl, bg_h, top_h, txt_h, fsize, kpi_h) in enumerate(KPI_SPECS):
             kx = MX + i * (KPI_W + GAP)
             ky = KPI_Y_BOT + (KPI_MAX_H - kpi_h)  # bottom-aligned
+            top_c = colors.HexColor(top_h)
             # Shadow
             self.c.setFillColor(C_SHADOW)
             self.c.roundRect(kx + 2, ky - 2, KPI_W, kpi_h, 3 * mm, fill=1, stroke=0)
             # Card bg
             self.c.setFillColor(colors.HexColor(bg_h))
             self.c.roundRect(kx, ky, KPI_W, kpi_h, 3 * mm, fill=1, stroke=0)
-            # Top border 3–4px
-            top_c = colors.HexColor(top_h)
-            border_h = 4 if i == 0 else 3
+            # Left accent bar (4px, rounded)
             self.c.setFillColor(top_c)
-            self.c.roundRect(kx, ky + kpi_h - border_h, KPI_W, border_h,
-                             1.5 * mm, fill=1, stroke=0)
-            self.c.rect(kx, ky + kpi_h - border_h - 2, KPI_W, 2, fill=1, stroke=0)
-            # Value (big number)
+            self.c.roundRect(kx, ky + 3 * mm, 4, kpi_h - 6 * mm, 2, fill=1, stroke=0)
+            # Value (big number) — centrado verticalmente en la mitad superior
+            num_y = ky + kpi_h * 0.50
             self.c.setFont('Helvetica-Bold', fsize)
             self.c.setFillColor(colors.HexColor(txt_h))
-            self.c.drawCentredString(kx + KPI_W / 2, ky + kpi_h * 0.45, val)
-            # Label
-            self.c.setFont('Helvetica', 7 if i == 0 else 6.5)
+            self.c.drawCentredString(kx + KPI_W / 2, num_y, val)
+            # Label — debajo del numero con separación clara
+            lbl_y = ky + 2.5 * mm
+            self.c.setFont('Helvetica', 6 if i > 0 else 7)
             self.c.setFillColor(TEXT_SECONDARY)
-            self.c.drawCentredString(kx + KPI_W / 2, ky + 3 * mm, lbl)
-            # Sub-badge percentage (below label, never overlapping number)
+            self.c.drawCentredString(kx + KPI_W / 2, lbl_y, lbl)
+            # Porcentaje — solo para cards 2 y 3, entre numero y label (sin solapar)
             if i > 0 and total:
-                badge = f'{int(val) / total * 100:.0f}%'
-                # Small pill badge at very bottom of card
-                bpw, bph = 14 * mm, 4 * mm
-                bpx = kx + (KPI_W - bpw) / 2
-                bpy = ky + 0.5 * mm
-                self.c.setFillColor(_light_color(colors.HexColor(top_h), 0.65))
-                self.c.roundRect(bpx, bpy, bpw, bph, 2 * mm, fill=1, stroke=0)
-                self.c.setFont('Helvetica-Bold', 6)
-                self.c.setFillColor(colors.HexColor(top_h))
-                self.c.drawCentredString(kx + KPI_W / 2, bpy + 1 * mm, badge)
+                pct_badge = f'{int(val) / total * 100:.0f}%'
+                mid_y = ky + kpi_h * 0.25  # zona entre numero y label
+                self.c.setFont('Helvetica-Bold', 7)
+                self.c.setFillColor(top_c)
+                self.c.drawCentredString(kx + KPI_W / 2, mid_y, pct_badge)
 
         KPI_Y = KPI_Y_BOT  # reference for chart row below
 
@@ -900,7 +894,7 @@ class PDFReportePOLI:
         avail_w  = self.W - 2 * MX_GRID
         avail_h  = self.H - 26 * mm - self.H_FOOTER
         card_w   = (avail_w - (N_COLS - 1) * GAP) / N_COLS
-        card_h   = min((avail_h - (N_ROWS - 1) * GAP) / N_ROWS, 90 * mm)
+        card_h   = min((avail_h - (N_ROWS - 1) * GAP) / N_ROWS, 65 * mm)
         # Distribuir filas con espacio uniforme para llenar la hoja visualmente
         row_gap  = (avail_h - N_ROWS * card_h) / (N_ROWS + 1) if N_ROWS > 0 else GAP
 
@@ -1141,19 +1135,22 @@ class PDFReportePOLI:
             # Leyenda
             y_cur = self._draw_leyenda_header(self.MX, y_cur, IND_TBL_W, col_linea)
 
-            # ── Encabezado columnas: gradiente suave + SIN borde exterior ──
+            # ── Encabezado columnas: fondo CLARO + texto oscuro + borde color línea ──
             if y_cur - HDR_H >= TABLE_BOTTOM:
-                self._gradient_band(self.MX, y_cur - HDR_H, IND_TBL_W, HDR_H,
-                                    darken(col_linea, 0.30), darken(col_linea, 0.55))
-                # Línea inferior de acento (más visible, sin borde superior)
-                self.c.setFillColor(_light_color(col_linea, 0.50))
-                self.c.rect(self.MX, y_cur - HDR_H, IND_TBL_W, 1.5, fill=1, stroke=0)
-                self.c.setFont('Helvetica-Bold', 6)
-                self.c.setFillColor(C_WHITE)
+                hdr_bg = _light_color(col_linea, 0.88)  # fondo muy claro
+                hdr_txt_col = darken(col_linea, 0.45)    # texto oscuro legible
+                self.c.setFillColor(hdr_bg)
+                self.c.roundRect(self.MX, y_cur - HDR_H, IND_TBL_W, HDR_H,
+                                 1.5 * mm, fill=1, stroke=0)
+                # Línea inferior en color de línea (2px)
+                self.c.setFillColor(col_linea)
+                self.c.rect(self.MX, y_cur - HDR_H, IND_TBL_W, 2, fill=1, stroke=0)
+                self.c.setFont('Helvetica-Bold', 6.5)
+                self.c.setFillColor(hdr_txt_col)
                 hx = self.MX
                 for hdr, cw in zip(['Indicador', 'Meta', 'Ejecución',
                                     'Cumplimiento', 'Estado'], IND_COL_W):
-                    self.c.drawCentredString(hx + cw / 2, y_cur - HDR_H + 2 * mm, hdr)
+                    self.c.drawCentredString(hx + cw / 2, y_cur - HDR_H + 2.2 * mm, hdr)
                     hx += cw
                 y_cur -= HDR_H
 
@@ -1164,40 +1161,40 @@ class PDFReportePOLI:
                 obj_pct = float(obj.get('cumplimiento', 0))
                 obj_sem = color_semaforo(obj_pct)
                 obj_txt = limpiar(str(obj.get('objetivo', '')))
-                obj_text_col = contrasting_text(col_linea)
 
-                # ── Nivel 2: Objetivo — banda con bordes redondeados ───
+                # ── Nivel 2: Objetivo — fila blanca con acento izquierdo grueso ───
+                # NO rectangulo sólido de color — solo acento lateral + texto oscuro
                 if y_cur - OBJ_H < TABLE_BOTTOM:
                     break
-                # Fondo redondeado para el objetivo (sin borde exterior)
+                # Fondo muy ligero (tinte 0.92)
+                obj_bg = _light_color(col_linea, 0.92)
+                self.c.setFillColor(obj_bg)
+                self.c.rect(self.MX, y_cur - OBJ_H, IND_TBL_W, OBJ_H, fill=1, stroke=0)
+                # Acento izquierdo grueso (6px, color de línea)
                 self.c.setFillColor(col_linea)
-                self.c.roundRect(self.MX, y_cur - OBJ_H, IND_TBL_W, OBJ_H,
-                                 2 * mm, fill=1, stroke=0)
+                self.c.rect(self.MX, y_cur - OBJ_H, 6, OBJ_H, fill=1, stroke=0)
+                # Separador superior (1px, color linea)
+                self.c.setFillColor(col_linea)
+                self.c.rect(self.MX, y_cur - 1, IND_TBL_W, 1, fill=1, stroke=0)
 
-                obj_max_chars = 72
+                obj_max_chars = 78
                 obj_s = obj_txt[:obj_max_chars] + ('…' if len(obj_txt) > obj_max_chars else '')
                 cy_obj = y_cur - OBJ_H / 2
-                self.c.setFont('Helvetica-Bold', 7)
-                self.c.setFillColor(obj_text_col)
-                self.c.drawString(self.MX + 4 * mm, cy_obj - 3, '\u25b6 ' + obj_s)
+                # Texto en color oscuro (contrastante sobre fondo claro)
+                self.c.setFont('Helvetica-Bold', 7.5)
+                self.c.setFillColor(darken(col_linea, 0.50))
+                self.c.drawString(self.MX + 9 * mm, cy_obj - 3, obj_s)
 
-                # Barra de progreso compacta
-                bar_by_o = cy_obj - 2
-                track_o = (_light_color(col_linea, 0.35) if not is_light_color(col_linea)
-                           else darken(col_linea, 0.25))
-                self.c.setFillColor(track_o)
-                self.c.roundRect(BAR_X, bar_by_o, BAR_W, 3.5, 1.5, fill=1, stroke=0)
-                self.c.setFillColor(obj_sem)
-                self.c.roundRect(BAR_X, bar_by_o, BAR_W * min(obj_pct / 100, 1.0), 3.5,
-                                 1.5, fill=1, stroke=0)
-                # % como texto limpio (sin pill en objetivo para no solapar barra)
-                self.c.setFont('Helvetica-Bold', 8)
-                self.c.setFillColor(obj_text_col)
-                self.c.drawCentredString(PCT_CX, cy_obj - 3, f'{obj_pct:.0f}%')
+                # Pill badge % (derecha, zona columnas numéricas)
+                _pill(PCT_CX, cy_obj,
+                      f'{obj_pct:.0f}%',
+                      color_semaforo_bg(obj_pct),
+                      obj_sem,
+                      pw=13 * mm, ph=5 * mm)
                 self._status_circle(CIRC_X, cy_obj, 2.5 * mm, obj_pct)
 
                 y_cur -= OBJ_H
-                y_cur -= 1  # micro-separación
+                y_cur -= 2  # separación visual entre objetivo y metas
 
                 for meta in obj.get('metas', []):
                     if y_cur - (META_H + ROW_H) < TABLE_BOTTOM:
@@ -1207,35 +1204,36 @@ class PDFReportePOLI:
                     meta_pct = float(meta.get('cumplimiento', 0))
                     meta_sem = color_semaforo(meta_pct)
 
-                    # ── Nivel 3: Meta — fondo tinte, sin borde ─────────
+                    # ── Nivel 3: Meta — fondo blanco + acento 3px + texto medio ──
                     if y_cur - META_H < TABLE_BOTTOM:
                         break
-                    meta_bg = _light_color(col_linea, 0.78)
-                    self.c.setFillColor(meta_bg)
-                    # Fondo sin borde — solo relleno
+                    self.c.setFillColor(C_WHITE)
                     self.c.rect(self.MX, y_cur - META_H, IND_TBL_W, META_H,
                                 fill=1, stroke=0)
-                    # Acento izquierdo redondeado (3px)
+                    # Acento izquierdo delgado (3px, color de línea, indentado)
                     self.c.setFillColor(col_linea)
-                    self.c.roundRect(self.MX, y_cur - META_H, 3, META_H,
-                                     1, fill=1, stroke=0)
+                    self.c.rect(self.MX + 8, y_cur - META_H, 3, META_H, fill=1, stroke=0)
+                    # Separador horizontal suave (0.5px gris)
+                    self.c.setStrokeColor(TABLE_BORDER)
+                    self.c.setLineWidth(0.4)
+                    self.c.line(self.MX + 14 * mm, y_cur,
+                                self.MX + IND_TBL_W, y_cur)
 
-                    meta_txt_col = contrasting_text(meta_bg)
-                    meta_label = (meta_txt[:92] + ('…' if len(meta_txt) > 92 else '')) \
+                    meta_txt_col = TEXT_SECONDARY
+                    meta_label = (meta_txt[:95] + ('…' if len(meta_txt) > 95 else '')) \
                                  if meta_txt else 'META ESTRATÉGICA'
                     cy_meta = y_cur - META_H / 2
-
                     self.c.setFont('Helvetica', 6.5)
                     self.c.setFillColor(meta_txt_col)
-                    self.c.drawString(self.MX + 6 * mm, cy_meta - 3,
-                                      '\u25c6 ' + meta_label)
+                    self.c.drawString(self.MX + 14 * mm, cy_meta - 3,
+                                      '\u25c6  ' + meta_label)
 
-                    # Pill-badge % para meta (pequeño, derecha)
+                    # Pill-badge % meta (pequeño, derecha)
                     _pill(PCT_CX, cy_meta,
                           f'{meta_pct:.0f}%',
                           color_semaforo_bg(meta_pct),
                           meta_sem,
-                          pw=11 * mm, ph=3.5 * mm)
+                          pw=10 * mm, ph=3.5 * mm)
 
                     y_cur -= META_H
 
@@ -1243,21 +1241,21 @@ class PDFReportePOLI:
                     if not inds:
                         continue
 
-                    # ── Nivel 4: Indicadores — filas limpias, sin bordes ──
+                    # ── Nivel 4: Indicadores — filas limpias, SIN bordes ──────
                     for ridx, ind in enumerate(inds):
                         if y_cur - ROW_H < TABLE_BOTTOM:
                             break
                         ind_pct  = float(ind.get('cumplimiento', 0))
                         ind_scol = color_semaforo(ind_pct)
-                        # Fondo alternado muy sutil (sin borde)
-                        bg = C_TABLE_ROW_ALT if ridx % 2 == 0 else C_WHITE
+                        # Fondo alternado muy sutil — gris clarísimo vs blanco
+                        bg = colors.HexColor('#F7F9FC') if ridx % 2 == 0 else C_WHITE
                         self.c.setFillColor(bg)
                         self.c.rect(self.MX, y_cur - ROW_H, IND_TBL_W, ROW_H,
                                     fill=1, stroke=0)
-                        # Punto semáforo izquierdo (2px)
+                        # Micro-dot semáforo izquierdo (3px redondo)
                         self.c.setFillColor(ind_scol)
-                        self.c.roundRect(self.MX + 1, y_cur - ROW_H + 1.5 * mm,
-                                         2, ROW_H - 3 * mm, 1, fill=1, stroke=0)
+                        dot_cy = y_cur - ROW_H / 2
+                        self.c.circle(self.MX + 5 * mm, dot_cy, 1.5, fill=1, stroke=0)
                         # Línea separadora inferior muy tenue
                         self.c.setStrokeColor(TABLE_BORDER)
                         self.c.setLineWidth(0.2)
@@ -1330,11 +1328,15 @@ class PDFReportePOLI:
                 self.c.setFillColor(NAVY_DARK)
                 self.c.drawString(COL1_X, y_col1, '\u23f8 Stand By / Sin Resultados')
                 y_col1 -= 4 * mm
-                # Header (color institucional: amber oscuro → navy)
-                self._gradient_band(COL1_X, y_col1 - PHDR_H, COL1_W, PHDR_H,
-                                    NAVY_DARK, NAVY_MID)
+                # Header: fondo claro + texto oscuro (consistente con tabla cascada)
+                sb_hdr_bg = colors.HexColor('#F0F2F5')
+                self.c.setFillColor(sb_hdr_bg)
+                self.c.roundRect(COL1_X, y_col1 - PHDR_H, COL1_W, PHDR_H,
+                                 1.5 * mm, fill=1, stroke=0)
+                self.c.setFillColor(AMBER_SOLID)
+                self.c.rect(COL1_X, y_col1 - PHDR_H, COL1_W, 2, fill=1, stroke=0)
                 self.c.setFont('Helvetica-Bold', 5.5)
-                self.c.setFillColor(C_WHITE)
+                self.c.setFillColor(NAVY_DARK)
                 self.c.drawString(COL1_X + 2 * mm, y_col1 - PHDR_H + 2 * mm, 'Indicador sin resultado')
                 y_col1 -= PHDR_H
 
@@ -1364,13 +1366,16 @@ class PDFReportePOLI:
                 self.c.setFillColor(NAVY_DARK)
                 self.c.drawString(COL2_X, y_col2, '\u25c6 Proyectos Estratégicos')
                 y_col2 -= 4 * mm
-                # Header
-                self._gradient_band(COL2_X, y_col2 - PHDR_H, COL2_W, PHDR_H,
-                                    NAVY_DARK, NAVY_MID)
+                # Header: fondo claro + acento color línea (consistente con cascada)
+                proy_hdr_bg = _light_color(col_linea, 0.88)
+                proy_hdr_txt = darken(col_linea, 0.45)
+                self.c.setFillColor(proy_hdr_bg)
+                self.c.roundRect(COL2_X, y_col2 - PHDR_H, COL2_W, PHDR_H,
+                                 1.5 * mm, fill=1, stroke=0)
                 self.c.setFillColor(col_linea)
                 self.c.rect(COL2_X, y_col2 - PHDR_H, COL2_W, 2, fill=1, stroke=0)
                 self.c.setFont('Helvetica-Bold', 5.5)
-                self.c.setFillColor(C_WHITE)
+                self.c.setFillColor(proy_hdr_txt)
                 _p2cols = [('Proyecto', 0.62), ('%', 0.16), ('Prog.', 0.14), ('Est', 0.08)]
                 phx2 = COL2_X
                 for phdr2, pfrac2 in _p2cols:
