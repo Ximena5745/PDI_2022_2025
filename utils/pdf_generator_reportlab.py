@@ -1105,18 +1105,23 @@ class PDFReportePOLI:
         HDR_H  = 6 * mm   # Encabezado global de columnas (UNA VEZ)
         ROW_H  = 6.5 * mm # Fila de indicador (ligeramente más alta para pill)
 
-        # Columnas: Indicador | Meta | Ejecución | % | Estado
+        # Columnas: Indicador(0) | Meta(1) | Ejecución(2) | Cumplimiento(3) | Estado(4)
         IND_COL_W = [84 * mm, 20 * mm, 20 * mm, 25 * mm, 17 * mm]
         IND_TBL_W = sum(IND_COL_W)   # 166 mm
 
-        # Zona derecha para barra obj/meta
-        RIGHT_W = 50 * mm
-        BAR_W   = 24 * mm
-        BAR_X   = self.MX + IND_TBL_W - RIGHT_W
-        PCT_CX  = BAR_X + BAR_W + 11 * mm
-        CIRC_X  = self.MX + IND_TBL_W - 5 * mm
+        # Posiciones X fijas para columnas numéricas (siempre visibles)
+        COL1_X = self.MX + IND_COL_W[0]                          # Meta
+        COL2_X = COL1_X + IND_COL_W[1]                           # Ejecución
+        COL3_X = COL2_X + IND_COL_W[2]                           # Cumplimiento
+        COL4_X = COL3_X + IND_COL_W[3]                           # Estado
 
-        # Pill-badge helper (dibuja badge redondeado + texto centrado)
+        # Barra de progreso para objetivo/meta (span col1+col2 = 40mm)
+        PROG_X  = COL1_X
+        PROG_W  = IND_COL_W[1] + IND_COL_W[2]   # 40 mm
+        PROG_H  = 3 * mm                          # altura barra
+        CIRC_X  = COL4_X + IND_COL_W[4] / 2      # centro col Estado
+
+        # Pill-badge helper — badge redondeado + texto centrado
         def _pill(cx, cy, txt, bg_col, txt_col, pw=12*mm, ph=4*mm):
             px = cx - pw / 2
             py = cy - ph / 2
@@ -1125,6 +1130,16 @@ class PDFReportePOLI:
             self.c.setFont('Helvetica-Bold', 6)
             self.c.setFillColor(txt_col)
             self.c.drawCentredString(cx, py + ph / 2 - 2, txt)
+
+        # Barra de progreso helper — track gris + fill color
+        def _prog_bar(bx, cy, bw, bh, pct, col):
+            by = cy - bh / 2
+            self.c.setFillColor(colors.HexColor('#E8ECF0'))
+            self.c.roundRect(bx, by, bw, bh, bh / 2, fill=1, stroke=0)
+            fill_w = bw * min(pct / 100.0, 1.0)
+            if fill_w > 0:
+                self.c.setFillColor(col)
+                self.c.roundRect(bx, by, fill_w, bh, bh / 2, fill=1, stroke=0)
 
         if objetivos:
             self.c.setFont('Helvetica-Bold', 9)
@@ -1135,10 +1150,10 @@ class PDFReportePOLI:
             # Leyenda
             y_cur = self._draw_leyenda_header(self.MX, y_cur, IND_TBL_W, col_linea)
 
-            # ── Encabezado columnas: fondo CLARO + texto oscuro + borde color línea ──
+            # ── Encabezado de columnas: fondo claro + texto oscuro ──────────
             if y_cur - HDR_H >= TABLE_BOTTOM:
-                hdr_bg = _light_color(col_linea, 0.88)  # fondo muy claro
-                hdr_txt_col = darken(col_linea, 0.45)    # texto oscuro legible
+                hdr_bg      = _light_color(col_linea, 0.88)
+                hdr_txt_col = darken(col_linea, 0.45)
                 self.c.setFillColor(hdr_bg)
                 self.c.roundRect(self.MX, y_cur - HDR_H, IND_TBL_W, HDR_H,
                                  1.5 * mm, fill=1, stroke=0)
@@ -1148,9 +1163,10 @@ class PDFReportePOLI:
                 self.c.setFont('Helvetica-Bold', 6.5)
                 self.c.setFillColor(hdr_txt_col)
                 hx = self.MX
-                for hdr, cw in zip(['Indicador', 'Meta', 'Ejecución',
-                                    'Cumplimiento', 'Estado'], IND_COL_W):
-                    self.c.drawCentredString(hx + cw / 2, y_cur - HDR_H + 2.2 * mm, hdr)
+                for hdr_lbl, cw in zip(['Indicador / Objetivo / Meta',
+                                        'Meta', 'Ejecución',
+                                        'Cumplimiento', 'Estado'], IND_COL_W):
+                    self.c.drawCentredString(hx + cw / 2, y_cur - HDR_H + 2.2 * mm, hdr_lbl)
                     hx += cw
                 y_cur -= HDR_H
 
@@ -1162,39 +1178,40 @@ class PDFReportePOLI:
                 obj_sem = color_semaforo(obj_pct)
                 obj_txt = limpiar(str(obj.get('objetivo', '')))
 
-                # ── Nivel 2: Objetivo — fila blanca con acento izquierdo grueso ───
-                # NO rectangulo sólido de color — solo acento lateral + texto oscuro
+                # ── Nivel 2: Objetivo ─────────────────────────────────────────
                 if y_cur - OBJ_H < TABLE_BOTTOM:
                     break
-                # Fondo muy ligero (tinte 0.92)
-                obj_bg = _light_color(col_linea, 0.92)
+                obj_bg = _light_color(col_linea, 0.90)
+                cy_obj = y_cur - OBJ_H / 2
+
+                # Fondo + separador superior
                 self.c.setFillColor(obj_bg)
                 self.c.rect(self.MX, y_cur - OBJ_H, IND_TBL_W, OBJ_H, fill=1, stroke=0)
-                # Acento izquierdo grueso (6px, color de línea)
-                self.c.setFillColor(col_linea)
-                self.c.rect(self.MX, y_cur - OBJ_H, 6, OBJ_H, fill=1, stroke=0)
-                # Separador superior (1px, color linea)
                 self.c.setFillColor(col_linea)
                 self.c.rect(self.MX, y_cur - 1, IND_TBL_W, 1, fill=1, stroke=0)
+                # Acento izquierdo (6px)
+                self.c.rect(self.MX, y_cur - OBJ_H, 6, OBJ_H, fill=1, stroke=0)
 
-                obj_max_chars = 78
-                obj_s = obj_txt[:obj_max_chars] + ('…' if len(obj_txt) > obj_max_chars else '')
-                cy_obj = y_cur - OBJ_H / 2
-                # Texto en color oscuro (contrastante sobre fondo claro)
-                self.c.setFont('Helvetica-Bold', 7.5)
+                # Nombre objetivo (col 0, desde 9mm para no solapar acento)
+                obj_s = obj_txt[:72] + ('…' if len(obj_txt) > 72 else '')
+                self.c.setFont('Helvetica-Bold', 7)
                 self.c.setFillColor(darken(col_linea, 0.50))
-                self.c.drawString(self.MX + 9 * mm, cy_obj - 3, obj_s)
+                self.c.drawString(self.MX + 9 * mm, cy_obj - 2.5, obj_s)
 
-                # Pill badge % (derecha, zona columnas numéricas)
-                _pill(PCT_CX, cy_obj,
+                # Col 1+2 → barra de progreso centrada verticalmente
+                _prog_bar(PROG_X + 2 * mm, cy_obj, PROG_W - 4 * mm, PROG_H, obj_pct, obj_sem)
+
+                # Col 3 → pill badge %
+                _pill(COL3_X + IND_COL_W[3] / 2, cy_obj,
                       f'{obj_pct:.0f}%',
-                      color_semaforo_bg(obj_pct),
-                      obj_sem,
-                      pw=13 * mm, ph=5 * mm)
+                      color_semaforo_bg(obj_pct), obj_sem,
+                      pw=14 * mm, ph=5 * mm)
+
+                # Col 4 → círculo estado
                 self._status_circle(CIRC_X, cy_obj, 2.5 * mm, obj_pct)
 
                 y_cur -= OBJ_H
-                y_cur -= 2  # separación visual entre objetivo y metas
+                y_cur -= 1  # micro-gap
 
                 for meta in obj.get('metas', []):
                     if y_cur - (META_H + ROW_H) < TABLE_BOTTOM:
@@ -1204,36 +1221,42 @@ class PDFReportePOLI:
                     meta_pct = float(meta.get('cumplimiento', 0))
                     meta_sem = color_semaforo(meta_pct)
 
-                    # ── Nivel 3: Meta — fondo blanco + acento 3px + texto medio ──
+                    # ── Nivel 3: Meta ─────────────────────────────────────────
                     if y_cur - META_H < TABLE_BOTTOM:
                         break
+                    cy_meta = y_cur - META_H / 2
+
+                    # Fondo blanco + separador gris suave
                     self.c.setFillColor(C_WHITE)
                     self.c.rect(self.MX, y_cur - META_H, IND_TBL_W, META_H,
                                 fill=1, stroke=0)
-                    # Acento izquierdo delgado (3px, color de línea, indentado)
+                    self.c.setStrokeColor(colors.HexColor('#E0E4EA'))
+                    self.c.setLineWidth(0.4)
+                    self.c.line(self.MX, y_cur, self.MX + IND_TBL_W, y_cur)
+                    # Acento izquierdo delgado (3px, indentado 8px)
                     self.c.setFillColor(col_linea)
                     self.c.rect(self.MX + 8, y_cur - META_H, 3, META_H, fill=1, stroke=0)
-                    # Separador horizontal suave (0.5px gris)
-                    self.c.setStrokeColor(TABLE_BORDER)
-                    self.c.setLineWidth(0.4)
-                    self.c.line(self.MX + 14 * mm, y_cur,
-                                self.MX + IND_TBL_W, y_cur)
 
-                    meta_txt_col = TEXT_SECONDARY
-                    meta_label = (meta_txt[:95] + ('…' if len(meta_txt) > 95 else '')) \
-                                 if meta_txt else 'META ESTRATÉGICA'
-                    cy_meta = y_cur - META_H / 2
+                    # Nombre meta (col 0, indentado 16mm)
+                    meta_label = (meta_txt[:88] + ('…' if len(meta_txt) > 88 else '')) \
+                                 if meta_txt else 'Meta estratégica'
                     self.c.setFont('Helvetica', 6.5)
-                    self.c.setFillColor(meta_txt_col)
-                    self.c.drawString(self.MX + 14 * mm, cy_meta - 3,
+                    self.c.setFillColor(TEXT_SECONDARY)
+                    self.c.drawString(self.MX + 16 * mm, cy_meta - 2.5,
                                       '\u25c6  ' + meta_label)
 
-                    # Pill-badge % meta (pequeño, derecha)
-                    _pill(PCT_CX, cy_meta,
+                    # Col 1+2 → barra de progreso (más pequeña que objetivo)
+                    _prog_bar(PROG_X + 2 * mm, cy_meta, PROG_W - 4 * mm,
+                              PROG_H - 0.5 * mm, meta_pct, meta_sem)
+
+                    # Col 3 → pill badge %
+                    _pill(COL3_X + IND_COL_W[3] / 2, cy_meta,
                           f'{meta_pct:.0f}%',
-                          color_semaforo_bg(meta_pct),
-                          meta_sem,
-                          pw=10 * mm, ph=3.5 * mm)
+                          color_semaforo_bg(meta_pct), meta_sem,
+                          pw=12 * mm, ph=4 * mm)
+
+                    # Col 4 → círculo estado
+                    self._status_circle(CIRC_X, cy_meta, 2 * mm, meta_pct)
 
                     y_cur -= META_H
 
@@ -1241,65 +1264,67 @@ class PDFReportePOLI:
                     if not inds:
                         continue
 
-                    # ── Nivel 4: Indicadores — filas limpias, SIN bordes ──────
+                    # ── Nivel 4: Indicadores ──────────────────────────────────
                     for ridx, ind in enumerate(inds):
                         if y_cur - ROW_H < TABLE_BOTTOM:
                             break
                         ind_pct  = float(ind.get('cumplimiento', 0))
                         ind_scol = color_semaforo(ind_pct)
-                        # Fondo alternado muy sutil — gris clarísimo vs blanco
-                        bg = colors.HexColor('#F7F9FC') if ridx % 2 == 0 else C_WHITE
+
+                        # Fondo alternado muy sutil — sin bordes
+                        bg = colors.HexColor('#F5F7FA') if ridx % 2 == 0 else C_WHITE
                         self.c.setFillColor(bg)
                         self.c.rect(self.MX, y_cur - ROW_H, IND_TBL_W, ROW_H,
                                     fill=1, stroke=0)
-                        # Micro-dot semáforo izquierdo (3px redondo)
-                        self.c.setFillColor(ind_scol)
-                        dot_cy = y_cur - ROW_H / 2
-                        self.c.circle(self.MX + 5 * mm, dot_cy, 1.5, fill=1, stroke=0)
-                        # Línea separadora inferior muy tenue
-                        self.c.setStrokeColor(TABLE_BORDER)
+                        # Separador inferior tenue
+                        self.c.setStrokeColor(colors.HexColor('#EAECEF'))
                         self.c.setLineWidth(0.2)
                         self.c.line(self.MX + 3 * mm, y_cur - ROW_H,
                                     self.MX + IND_TBL_W - 3 * mm, y_cur - ROW_H)
 
+                        cy_ind = y_cur - ROW_H / 2
+
+                        # Dot semáforo izquierdo
+                        self.c.setFillColor(ind_scol)
+                        self.c.circle(self.MX + 5 * mm, cy_ind, 1.5, fill=1, stroke=0)
+
+                        # Nombre indicador (col 0, desde 9mm)
                         ind_name = limpiar(str(ind.get('nombre', '')))
-                        ind_name = ind_name[:60] + ('…' if len(ind_name) > 60 else '')
+                        ind_name = ind_name[:62] + ('…' if len(ind_name) > 62 else '')
                         self.c.setFont('Helvetica', 6)
                         self.c.setFillColor(C_DARK)
-                        self.c.drawString(self.MX + 4 * mm,
-                                          y_cur - ROW_H + 2 * mm, ind_name)
+                        self.c.drawString(self.MX + 9 * mm,
+                                          cy_ind - 2.5, ind_name)
 
+                        # ── Valores numéricos siempre visibles ──────────────
                         meta_v = ind.get('meta_valor')
                         ejec_v = ind.get('ejecucion')
-                        meta_str = (f'{float(meta_v):.1f}' if (meta_v is not None and
-                                    str(meta_v) not in ('nan','None','')) else '-')
-                        ejec_str = (f'{float(ejec_v):.1f}' if (ejec_v is not None and
-                                    str(ejec_v) not in ('nan','None','')) else '-')
+                        meta_str = (f'{float(meta_v):.1f}'
+                                    if (meta_v is not None and
+                                        str(meta_v) not in ('nan', 'None', ''))
+                                    else '-')
+                        ejec_str = (f'{float(ejec_v):.1f}'
+                                    if (ejec_v is not None and
+                                        str(ejec_v) not in ('nan', 'None', ''))
+                                    else '-')
 
-                        hx = self.MX + IND_COL_W[0]
-                        # Meta (col 1)
+                        # Col 1 → Meta
                         self.c.setFont('Helvetica', 6.5)
                         self.c.setFillColor(TEXT_MUTED)
-                        self.c.drawCentredString(hx + IND_COL_W[1] / 2,
-                                                 y_cur - ROW_H + 2 * mm, meta_str)
-                        hx += IND_COL_W[1]
-                        # Ejecución (col 2)
-                        self.c.setFont('Helvetica', 6.5)
+                        self.c.drawCentredString(COL1_X + IND_COL_W[1] / 2,
+                                                 cy_ind - 2.5, meta_str)
+                        # Col 2 → Ejecución
                         self.c.setFillColor(C_DARK)
-                        self.c.drawCentredString(hx + IND_COL_W[2] / 2,
-                                                 y_cur - ROW_H + 2 * mm, ejec_str)
-                        hx += IND_COL_W[2]
-                        # % como pill-badge (col 3)
-                        _pill(hx + IND_COL_W[3] / 2,
-                              y_cur - ROW_H / 2,
+                        self.c.drawCentredString(COL2_X + IND_COL_W[2] / 2,
+                                                 cy_ind - 2.5, ejec_str)
+                        # Col 3 → % pill-badge
+                        _pill(COL3_X + IND_COL_W[3] / 2, cy_ind,
                               f'{ind_pct:.0f}%',
-                              color_semaforo_bg(ind_pct),
-                              ind_scol,
+                              color_semaforo_bg(ind_pct), ind_scol,
                               pw=13 * mm, ph=4 * mm)
-                        hx += IND_COL_W[3]
-                        # Estado (col 4)
-                        self._status_circle(hx + IND_COL_W[4] / 2,
-                                            y_cur - ROW_H / 2, 2.5 * mm, ind_pct)
+                        # Col 4 → círculo estado
+                        self._status_circle(CIRC_X, cy_ind, 2.5 * mm, ind_pct)
+
                         y_cur -= ROW_H
 
         # ── Proyectos + Stand By — dos columnas lado a lado ──────────

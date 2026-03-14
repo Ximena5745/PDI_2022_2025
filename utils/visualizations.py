@@ -6,7 +6,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 import streamlit as st
-from .data_loader import COLORS, COLORES_LINEAS, calcular_cumplimiento, obtener_color_semaforo
+from core.config import COLORS, COLORES_LINEAS
+from core.calculations import calcular_cumplimiento, obtener_color_semaforo
 
 
 def crear_grafico_historico(df_indicador, nombre_indicador, sentido='Creciente', unidad='', periodicidad='Anual', linea_estrategica=None):

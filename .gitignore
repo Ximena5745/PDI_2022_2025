@@ -40,6 +40,10 @@ temp_*
 
 # Cache
 .cache/
+Data/analisis_cache.json
+
+# PDFs generados (no son parte del código fuente)
+*.pdf
 
 # Archivo antiguo de streamlit
 streamlit-app.py

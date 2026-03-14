@@ -1,0 +1,182 @@
+"""
+AIService: orquesta cache → proveedor IA → fallback estático.
+Desacopla la lógica de generación de los views.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Optional
+
+from ai.gemini_provider import GeminiProvider
+from ai.static_provider import StaticProvider
+from ai.prompts import (
+    prompt_analisis_general,
+    prompt_analisis_linea,
+    prompt_analisis_indicador,
+)
+from core.config import CACHE_ANALISIS_PATH
+
+
+class AIService:
+    """
+    Pipeline de análisis inteligente:
+    1. Busca en cache JSON pre-generado
+    2. Intenta con GeminiProvider (si API key disponible)
+    3. Cae a StaticProvider (siempre disponible)
+    """
+
+    def __init__(self, base_path: Optional[Path] = None) -> None:
+        self._base = base_path or self._detectar_raiz()
+        self._gemini = GeminiProvider()
+        self._static = StaticProvider()
+        self._cache: dict = self._cargar_cache()
+
+    # ------------------------------------------------------------------
+    # Análisis general del PDI
+    # ------------------------------------------------------------------
+    def analisis_general(
+        self,
+        metricas: dict,
+        cumplimiento_por_linea: list[dict],
+    ) -> str:
+        if self._gemini.is_available():
+            lineas_texto = "\n".join(
+                f"- {i['linea']}: {i['cumplimiento']:.1f}% ({i['indicadores']} indicadores)"
+                for i in cumplimiento_por_linea
+            ) or "No hay datos disponibles"
+            resultado = self._gemini.generate(
+                prompt_analisis_general(metricas, lineas_texto)
+            )
+            if resultado:
+                return resultado
+
+        return self._static.analisis_general(metricas, cumplimiento_por_linea)
+
+    # ------------------------------------------------------------------
+    # Análisis por línea estratégica
+    # ------------------------------------------------------------------
+    def analisis_linea(
+        self,
+        nombre_linea: str,
+        total_indicadores: int,
+        cumplimiento_promedio: float,
+        objetivos_data: list[dict],
+        indicadores_data: Optional[list[dict]] = None,
+    ) -> str:
+        if self._gemini.is_available():
+            objetivos_texto = "\n".join(
+                f"- {o['objetivo']}: {o['cumplimiento']:.1f}% ({o.get('indicadores', 0)} indicadores)"
+                for o in objetivos_data
+            ) or "No hay datos de objetivos disponibles"
+
+            indicadores_section = ""
+            if indicadores_data:
+                cumplidos   = [i for i in indicadores_data if float(i.get("cumplimiento", 0)) >= 100]
+                en_prog     = [i for i in indicadores_data if 80 <= float(i.get("cumplimiento", 0)) < 100]
+                en_atencion = [i for i in indicadores_data if float(i.get("cumplimiento", 0)) < 80]
+
+                def _fmt(ind):
+                    nombre = ind.get("nombre", "Indicador")[:60]
+                    cumpl = float(ind.get("cumplimiento", 0))
+                    meta = ind.get("meta")
+                    ejec = ind.get("ejecucion")
+                    partes = [f"{nombre}: {cumpl:.1f}%"]
+                    if meta is not None and ejec is not None:
+                        try:
+                            partes.append(f"(Meta: {float(meta):.1f}, Ejec: {float(ejec):.1f})")
+                        except Exception:
+                            pass
+                    return " ".join(partes)
+
+                lineas_inds = []
+                if cumplidos:
+                    lineas_inds += [f"CUMPLIDOS ({len(cumplidos)}):"] + [f"  ✓ {_fmt(i)}" for i in cumplidos[:5]]
+                if en_prog:
+                    lineas_inds += [f"EN PROGRESO ({len(en_prog)}):"] + [f"  ⚠ {_fmt(i)}" for i in en_prog[:5]]
+                if en_atencion:
+                    lineas_inds += [f"REQUIEREN ATENCIÓN ({len(en_atencion)}):"] + [f"  ✗ {_fmt(i)}" for i in en_atencion[:5]]
+                indicadores_section = f"\n\n**Detalle de Indicadores:**\n" + "\n".join(lineas_inds)
+
+            resultado = self._gemini.generate(
+                prompt_analisis_linea(
+                    nombre_linea, total_indicadores, cumplimiento_promedio,
+                    objetivos_texto, indicadores_section,
+                )
+            )
+            if resultado:
+                return resultado
+
+        return self._static.analisis_linea(
+            nombre_linea, total_indicadores, cumplimiento_promedio, objetivos_data
+        )
+
+    # ------------------------------------------------------------------
+    # Análisis por indicador
+    # ------------------------------------------------------------------
+    def analisis_indicador(
+        self,
+        nombre_indicador: str,
+        linea: str,
+        descripcion: str,
+        historico_data: list[dict],
+        sentido: str = "Creciente",
+    ) -> str:
+        # 1. Cache pre-generado
+        cached = self._cache.get(nombre_indicador, {}).get("analisis")
+        if cached:
+            return f"**Análisis del Indicador**\n\n{cached}"
+
+        # 2. IA en vivo
+        if self._gemini.is_available() and historico_data:
+            historico_texto = "\n".join(
+                f"- {h['año']}{' (Línea Base)' if h['año'] == 2021 else ''}: "
+                f"Meta: {h['meta']:.2f}, Ejecución: {h['ejecucion']:.2f}, Cumplimiento: {h['cumplimiento']:.1f}%"
+                for h in historico_data
+            )
+            if len(historico_data) >= 2:
+                primer_cumpl = historico_data[0]["cumplimiento"]
+                ultimo_cumpl = historico_data[-1]["cumplimiento"]
+                variacion = ultimo_cumpl - primer_cumpl
+                tendencia = "ascendente" if variacion > 5 else "descendente" if variacion < -5 else "estable"
+            else:
+                variacion, tendencia = 0.0, "no determinada"
+
+            resultado = self._gemini.generate(
+                prompt_analisis_indicador(
+                    nombre_indicador, linea, descripcion,
+                    historico_texto, tendencia, variacion, sentido,
+                )
+            )
+            if resultado:
+                return resultado
+
+        # 3. Fallback estático
+        return self._static.analisis_indicador(
+            nombre_indicador, linea, historico_data, sentido
+        )
+
+    # ------------------------------------------------------------------
+    # Internos
+    # ------------------------------------------------------------------
+    def _cargar_cache(self) -> dict:
+        path = self._base / CACHE_ANALISIS_PATH
+        if not path.exists():
+            # compatibilidad con ruta legacy
+            legacy = self._base / "Data" / "analisis_cache.json"
+            path = legacy if legacy.exists() else path
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    @staticmethod
+    def _detectar_raiz() -> Path:
+        current = Path(__file__).resolve().parent
+        for _ in range(5):
+            if (current / "app.py").exists():
+                return current
+            current = current.parent
+        return Path(__file__).resolve().parent.parent
