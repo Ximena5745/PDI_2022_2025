@@ -1086,117 +1086,237 @@ class PDFReportePOLI:
             try:
                 import math as _math
                 import numpy as _np
+                from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+
                 N = len(lineas)
                 n_cols = 3
                 n_rows = (N + n_cols - 1) // n_cols
-                fig_w = (self.W - 2 * self.MX) / 72  # pts → inches
-                avail_h_pt = self.H - self.H_HEADER - self.H_FOOTER - 8 * mm
-                fig_h = avail_h_pt / 72
 
-                fig, axes = plt.subplots(n_rows, n_cols,
-                                         figsize=(fig_w, fig_h))
+                # Figure fills the exact PDF content area → no wasted space
+                img_x  = self.MX
+                img_y  = self.H_FOOTER + 3 * mm
+                img_w  = self.W - 2 * self.MX          # pts
+                img_h  = self.H - self.H_HEADER - self.H_FOOTER - 6 * mm
+                fig_w  = img_w / 72                     # pts → inches
+                fig_h  = img_h / 72
+
+                fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_w, fig_h))
                 fig.patch.set_facecolor('#F7F9FC')
+
+                # Normalise axes array to always be 2-D list
                 if n_rows == 1 and n_cols == 1:
                     axes = [[axes]]
                 elif n_rows == 1:
-                    axes = [axes]
+                    axes = [list(axes)]
                 elif n_cols == 1:
                     axes = [[ax] for ax in axes]
+
+                # Tight margins – gauges fill every cell
+                fig.subplots_adjust(left=0.01, right=0.99,
+                                    top=0.99, bottom=0.01,
+                                    hspace=0.06, wspace=0.06)
+
+                # ── Coordinate space per cell ────────────────────────────
+                # xlim: -1.25 … 1.25  (2.5 units, symmetric)
+                # ylim: -1.10 … 1.40  (2.5 units → square data area)
+                # set_aspect is NOT set → matplotlib fills the full cell
+                # The arc is drawn via fill-polygon using cos/sin but scaled
+                # to stay circular regardless of cell proportions.
 
                 for idx, (nom, pct, n_ind, cn, ep, ac) in enumerate(lineas):
                     ri = idx // n_cols
                     ci = idx % n_cols
                     ax = axes[ri][ci]
 
-                    col_rl = color_linea(nom)
-                    col_hex = f'#{int(col_rl.red*255):02x}{int(col_rl.green*255):02x}{int(col_rl.blue*255):02x}'
+                    col_rl  = color_linea(nom)
+                    col_hex = f'#{int(col_rl.red*255):02x}' \
+                              f'{int(col_rl.green*255):02x}' \
+                              f'{int(col_rl.blue*255):02x}'
                     sem_rl  = color_semaforo(pct)
-                    sem_hex = f'#{int(sem_rl.red*255):02x}{int(sem_rl.green*255):02x}{int(sem_rl.blue*255):02x}'
+                    sem_hex = f'#{int(sem_rl.red*255):02x}' \
+                              f'{int(sem_rl.green*255):02x}' \
+                              f'{int(sem_rl.blue*255):02x}'
+                    is_lt   = is_light_color(col_rl)
+                    txt_col = '#1E293B' if is_lt else 'white'
 
-                    ax.set_xlim(-1.2, 1.2)
-                    ax.set_ylim(-0.6, 1.3)
-                    ax.set_aspect('equal')
+                    # ── Axes limits and background ───────────────────────
+                    XL, XR = -1.25, 1.25     # x range  (2.5 units)
+                    YB, YT =  -1.10, 1.40    # y range  (2.5 units)
+                    ax.set_xlim(XL, XR)
+                    ax.set_ylim(YB, YT)
                     ax.axis('off')
                     ax.set_facecolor('#F7F9FC')
 
-                    # Header strip
-                    from matplotlib.patches import FancyBboxPatch
-                    hdr = FancyBboxPatch((-1.2, 0.95), 2.4, 0.35,
-                                        boxstyle='round,pad=0.02',
-                                        facecolor=col_hex, edgecolor='none')
-                    ax.add_patch(hdr)
-                    nom_d = nombre_display(nom)
-                    ax.text(0, 1.12, nom_d, ha='center', va='center',
-                            fontsize=7.5, fontweight='bold',
-                            color='white' if not is_light_color(col_rl) else '#0a2240',
-                            fontfamily='DejaVu Sans')
+                    # Subtle card background
+                    card_bg = FancyBboxPatch(
+                        (XL, YB), XR - XL, YT - YB,
+                        boxstyle='round,pad=0.03,rounding_size=0.12',
+                        facecolor='white', edgecolor='#E2EAF4',
+                        linewidth=1.2, zorder=0)
+                    ax.add_patch(card_bg)
 
-                    # Track arc (light gray, 180°)
-                    theta = _np.linspace(_math.pi, 0, 200)
-                    r_out, r_in = 0.88, 0.62
-                    xs_out = r_out * _np.cos(theta)
-                    ys_out = r_out * _np.sin(theta)
-                    xs_in  = r_in  * _np.cos(theta[::-1])
-                    ys_in  = r_in  * _np.sin(theta[::-1])
+                    # ── Header strip ─────────────────────────────────────
+                    HDR_Y = 0.92          # top-of-strip y
+                    HDR_H = 0.38          # strip height
+                    hdr = FancyBboxPatch(
+                        (XL + 0.05, HDR_Y), (XR - XL - 0.10), HDR_H,
+                        boxstyle='round,pad=0.02,rounding_size=0.08',
+                        facecolor=col_hex, edgecolor='none', zorder=3)
+                    ax.add_patch(hdr)
+
+                    nom_d  = nombre_display(nom)
+                    words  = nom_d.split()
+                    if len(words) > 2:
+                        mid = len(words) // 2
+                        ln1 = ' '.join(words[:mid])
+                        ln2 = ' '.join(words[mid:])
+                    else:
+                        ln1, ln2 = nom_d, ''
+                    if ln2:
+                        ax.text(0, HDR_Y + HDR_H * 0.70, ln1,
+                                ha='center', va='center',
+                                fontsize=7, fontweight='bold', color=txt_col,
+                                fontfamily='DejaVu Sans', zorder=4)
+                        ax.text(0, HDR_Y + HDR_H * 0.28, ln2,
+                                ha='center', va='center',
+                                fontsize=6.5, color=txt_col,
+                                fontfamily='DejaVu Sans', zorder=4)
+                    else:
+                        ax.text(0, HDR_Y + HDR_H * 0.50, ln1,
+                                ha='center', va='center',
+                                fontsize=7.5, fontweight='bold', color=txt_col,
+                                fontfamily='DejaVu Sans', zorder=4)
+
+                    # ── Semicircular gauge ────────────────────────────────
+                    # Arc polygon: outer radius=0.82, inner=0.54, center=(0,0)
+                    R_OUT, R_IN = 0.82, 0.54
+                    theta_full = _np.linspace(_math.pi, 0, 300)
+                    xs_out = R_OUT * _np.cos(theta_full)
+                    ys_out = R_OUT * _np.sin(theta_full)
+                    xs_in  = R_IN  * _np.cos(theta_full[::-1])
+                    ys_in  = R_IN  * _np.sin(theta_full[::-1])
                     ax.fill(list(xs_out) + list(xs_in),
                             list(ys_out) + list(ys_in),
-                            color='#dde3ea', zorder=2)
+                            color='#DDE3EA', zorder=2)
 
-                    # Value arc
-                    val_frac = min(pct / 100.0, 1.0)
-                    theta_v  = _np.linspace(_math.pi, _math.pi - _math.pi * val_frac, 200)
-                    xs_ov = r_out * _np.cos(theta_v)
-                    ys_ov = r_out * _np.sin(theta_v)
-                    xs_iv = r_in  * _np.cos(theta_v[::-1])
-                    ys_iv = r_in  * _np.sin(theta_v[::-1])
+                    # Value arc (up to 125% max = full sweep)
+                    val_frac = min(pct / 125.0, 1.0)
+                    theta_v  = _np.linspace(_math.pi,
+                                            _math.pi - _math.pi * val_frac, 300)
+                    xs_ov = R_OUT * _np.cos(theta_v)
+                    ys_ov = R_OUT * _np.sin(theta_v)
+                    xs_iv = R_IN  * _np.cos(theta_v[::-1])
+                    ys_iv = R_IN  * _np.sin(theta_v[::-1])
                     ax.fill(list(xs_ov) + list(xs_iv),
                             list(ys_ov) + list(ys_iv),
                             color=sem_hex, zorder=3)
 
+                    # 100% reference tick
+                    frac_100 = 100 / 125.0
+                    ang_100  = _math.pi - _math.pi * frac_100
+                    tx0 = R_IN  * _math.cos(ang_100)
+                    ty0 = R_IN  * _math.sin(ang_100)
+                    tx1 = (R_OUT + 0.08) * _math.cos(ang_100)
+                    ty1 = (R_OUT + 0.08) * _math.sin(ang_100)
+                    ax.plot([tx0, tx1], [ty0, ty1],
+                            color='#EF4444', linewidth=1.2,
+                            alpha=0.75, zorder=4)
+                    ax.text(tx1 + 0.04, ty1 + 0.03, '100%',
+                            ha='left', va='bottom',
+                            fontsize=4.5, color='#EF4444',
+                            alpha=0.80, fontfamily='DejaVu Sans')
+
+                    # Scale labels 0% / 125%
+                    ax.text(-R_OUT - 0.08, -0.04, '0%',
+                            ha='center', va='top',
+                            fontsize=5, color='#94A3B8',
+                            fontfamily='DejaVu Sans')
+                    ax.text( R_OUT + 0.08, -0.04, '125%',
+                            ha='center', va='top',
+                            fontsize=5, color='#94A3B8',
+                            fontfamily='DejaVu Sans')
+
                     # Needle
                     needle_ang = _math.pi - _math.pi * val_frac
-                    nx = 0.78 * _math.cos(needle_ang)
-                    ny = 0.78 * _math.sin(needle_ang)
-                    ax.plot([0, nx], [0, ny], color='#0a2240',
-                            linewidth=2, zorder=5)
-                    ax.scatter([0], [0], s=25, color='#0a2240', zorder=6)
+                    nx = (R_IN + 0.18) * _math.cos(needle_ang)
+                    ny = (R_IN + 0.18) * _math.sin(needle_ang)
+                    ax.annotate('',
+                        xy=(nx, ny), xytext=(0, 0),
+                        arrowprops=dict(arrowstyle='->', color='#0a2240',
+                                        lw=1.8, mutation_scale=10),
+                        zorder=6)
+                    ax.scatter([0], [0], s=30, color='#0a2240',
+                               zorder=7, clip_on=False)
 
-                    # Percentage text
-                    ax.text(0, 0.22, f'{pct:.0f}%',
+                    # ── Central text ─────────────────────────────────────
+                    ax.text(0, 0.24, f'{pct:.0f}%',
                             ha='center', va='center',
-                            fontsize=14, fontweight='bold',
+                            fontsize=16, fontweight='bold',
                             color=sem_hex, fontfamily='DejaVu Sans', zorder=7)
 
-                    # Status text
-                    ax.text(0, -0.05, texto_estado(pct),
+                    # Status badge (pill)
+                    estado = texto_estado(pct)
+                    sbg = {'CUMPLIDO': '#DCFCE7',
+                           'EN PROGRESO': '#FEF3C7',
+                           'ATENCIÓN': '#FEE2E2'}.get(estado, '#F1F5F9')
+                    sfg = {'CUMPLIDO': '#166534',
+                           'EN PROGRESO': '#92400E',
+                           'ATENCIÓN': '#991B1B'}.get(estado, '#334155')
+                    badge = FancyBboxPatch(
+                        (-0.60, -0.20), 1.20, 0.25,
+                        boxstyle='round,pad=0.02,rounding_size=0.06',
+                        facecolor=sbg, edgecolor='none', zorder=5)
+                    ax.add_patch(badge)
+                    ax.text(0, -0.075, estado,
+                            ha='center', va='center',
+                            fontsize=6, fontweight='bold', color=sfg,
+                            fontfamily='DejaVu Sans', zorder=6)
+
+                    # ── Bottom info (indicator count + mini bar) ─────────
+                    ax.text(0, -0.40,
+                            f'{n_ind} indicadores',
                             ha='center', va='center',
                             fontsize=6, color='#64748B',
                             fontfamily='DejaVu Sans')
 
-                    # Indicator count
-                    ax.text(0, -0.38, f'{n_ind} indicadores · {cn} cumplidos',
+                    # Mini progress bar
+                    bar_y  = -0.62
+                    bar_h  = 0.12
+                    bar_xL = -0.80
+                    bar_w  = 1.60
+                    bar_bg = FancyBboxPatch(
+                        (bar_xL, bar_y), bar_w, bar_h,
+                        boxstyle='round,pad=0,rounding_size=0.05',
+                        facecolor='#E2EAF4', edgecolor='none', zorder=4)
+                    ax.add_patch(bar_bg)
+                    fill_frac = min(pct / 100.0, 1.0)
+                    bar_fill = FancyBboxPatch(
+                        (bar_xL, bar_y), bar_w * fill_frac, bar_h,
+                        boxstyle='round,pad=0,rounding_size=0.05',
+                        facecolor=sem_hex, edgecolor='none', zorder=5)
+                    ax.add_patch(bar_fill)
+
+                    # Cumplidos / total pill below bar
+                    ax.text(0, -0.88,
+                            f'{cn} cumplidos  ·  {ep} en progreso  ·  {ac} atención',
                             ha='center', va='center',
-                            fontsize=5.5, color='#94A3B8',
+                            fontsize=5, color='#94A3B8',
                             fontfamily='DejaVu Sans')
 
-                # Hide unused axes
+                # ── Hide extra cells ─────────────────────────────────────
                 for idx in range(N, n_rows * n_cols):
                     ri = idx // n_cols
                     ci = idx % n_cols
                     axes[ri][ci].axis('off')
                     axes[ri][ci].set_facecolor('#F7F9FC')
 
-                plt.tight_layout(pad=0.5)
                 gauge_img = fig_to_image(fig)
                 plt.close(fig)
 
                 if gauge_img is not None:
-                    img_x  = self.MX
-                    img_y  = self.H_FOOTER + 3 * mm
-                    img_w  = self.W - 2 * self.MX
-                    img_h  = self.H - self.H_HEADER - self.H_FOOTER - 8 * mm
+                    # preserveAspectRatio=False: figure already matches PDF area
                     self.c.drawImage(gauge_img, img_x, img_y, img_w, img_h,
-                                     preserveAspectRatio=True, mask='auto')
+                                     preserveAspectRatio=False, mask='auto')
             except Exception:
                 pass  # fallback: no gauges drawn
 
@@ -1292,9 +1412,6 @@ class PDFReportePOLI:
             self.c.setFillColor(NAVY_DARK)
             self.c.drawString(self.MX, y_cur, 'OBJETIVOS E INDICADORES')
             y_cur -= 5 * mm
-
-            # Leyenda
-            y_cur = self._draw_leyenda_header(self.MX, y_cur, IND_TBL_W, col_linea)
 
             # ── Encabezado de columnas: fondo claro + texto oscuro ──────────
             if y_cur - HDR_H >= TABLE_BOTTOM:
@@ -1462,145 +1579,135 @@ class PDFReportePOLI:
                         self.c.setFillColor(C_DARK)
                         self.c.drawCentredString(COL2_X + IND_COL_W[2] / 2,
                                                  cy_ind - 2.5, ejec_str)
-                        # Col 3 → % pill-badge
-                        _pill(COL3_X + IND_COL_W[3] / 2, cy_ind,
-                              f'{ind_pct:.0f}%',
-                              color_semaforo_bg(ind_pct), ind_scol,
-                              pw=13 * mm, ph=4 * mm)
-                        # Col 4 → círculo estado
-                        self._status_circle(CIRC_X, cy_ind, 2.5 * mm, ind_pct)
+                        # Col 3 → barra de progreso redondeada con % centrado
+                        bar_x3 = COL3_X + 2 * mm
+                        bar_w3 = IND_COL_W[3] - 4 * mm
+                        bar_h3 = 3.5 * mm
+                        bar_y3 = cy_ind - bar_h3 / 2
+                        self.c.setFillColor(colors.HexColor('#E8ECF0'))
+                        self.c.roundRect(bar_x3, bar_y3, bar_w3, bar_h3,
+                                         bar_h3 / 2, fill=1, stroke=0)
+                        fill_w3 = bar_w3 * min(ind_pct / 100.0, 1.0)
+                        if fill_w3 > 0:
+                            self.c.setFillColor(ind_scol)
+                            self.c.roundRect(bar_x3, bar_y3, fill_w3, bar_h3,
+                                             bar_h3 / 2, fill=1, stroke=0)
+                        self.c.setFont('Helvetica-Bold', 5.5)
+                        self.c.setFillColor(C_WHITE)
+                        self.c.drawCentredString(bar_x3 + bar_w3 / 2,
+                                                 cy_ind - 2, f'{ind_pct:.0f}%')
+                        # Col 4 → símbolo estado simple
+                        sym = '\u2713' if ind_pct >= 100 else ('\u26a0' if ind_pct >= 80 else '\u2717')
+                        self.c.setFont('Helvetica-Bold', 8)
+                        self.c.setFillColor(ind_scol)
+                        self.c.drawCentredString(CIRC_X, cy_ind - 3, sym)
 
                         y_cur -= ROW_H
 
-        # ── Proyectos + Stand By — dos columnas lado a lado ──────────
+        # ── Proyectos + Stand By ──────────────────────────────────────
         PROW_H   = 6 * mm
         PHDR_H   = 7 * mm
-        TWO_GAP  = 4 * mm
-        has_sin_meta = sin_meta and len(sin_meta) > 0
-        has_proyectos = proyectos and len(proyectos) > 0
+        has_sin_meta  = bool(sin_meta)
+        has_proyectos = bool(proyectos)
 
-        if (has_proyectos or has_sin_meta) and y_cur - (PHDR_H + 16 * mm) > TABLE_BOTTOM:
+        if (has_proyectos or has_sin_meta) and y_cur - (PHDR_H + PROW_H + 10 * mm) > TABLE_BOTTOM:
             y_cur -= 5 * mm
 
-            # Column widths: Stand By (left, 42%) | Projects (right, 55%)
-            COL1_W = IND_TBL_W * 0.42   # Stand By
-            COL2_W = IND_TBL_W * 0.55   # Projects
-            COL1_X = self.MX
-            COL2_X = self.MX + COL1_W + TWO_GAP
-
-            y_start   = y_cur
-            y_col1    = y_start
-            y_col2    = y_start
-
-            # ── COLUMNA 1: Stand By / Sin Resultados ─────────────────
+            # ── Stand By: lista completa, ancho total ─────────────────
             if has_sin_meta:
                 self.c.setFont('Helvetica-Bold', 7.5)
                 self.c.setFillColor(NAVY_DARK)
-                self.c.drawString(COL1_X, y_col1, '\u23f8 Stand By / Sin Resultados')
-                y_col1 -= 4 * mm
-                # Header: fondo claro + texto oscuro (consistente con tabla cascada)
-                sb_hdr_bg = colors.HexColor('#F0F2F5')
-                self.c.setFillColor(sb_hdr_bg)
-                self.c.roundRect(COL1_X, y_col1 - PHDR_H, COL1_W, PHDR_H,
+                self.c.drawString(self.MX, y_cur, '\u23f8 Stand By / Sin Resultados')
+                y_cur -= 4 * mm
+                # Header
+                self.c.setFillColor(colors.HexColor('#F0F2F5'))
+                self.c.roundRect(self.MX, y_cur - PHDR_H, IND_TBL_W, PHDR_H,
                                  1.5 * mm, fill=1, stroke=0)
                 self.c.setFillColor(AMBER_SOLID)
-                self.c.rect(COL1_X, y_col1 - PHDR_H, COL1_W, 2, fill=1, stroke=0)
+                self.c.rect(self.MX, y_cur - PHDR_H, IND_TBL_W, 2, fill=1, stroke=0)
                 self.c.setFont('Helvetica-Bold', 5.5)
                 self.c.setFillColor(NAVY_DARK)
-                self.c.drawString(COL1_X + 2 * mm, y_col1 - PHDR_H + 2 * mm, 'Indicador sin resultado')
-                y_col1 -= PHDR_H
-
-                for sidx, si in enumerate(sin_meta[:14]):
-                    if y_col1 - PROW_H < TABLE_BOTTOM:
+                self.c.drawString(self.MX + 2 * mm, y_cur - PHDR_H + 2 * mm,
+                                  'Indicador sin resultado')
+                y_cur -= PHDR_H
+                for sidx, si in enumerate(sin_meta[:10]):
+                    if y_cur - PROW_H < TABLE_BOTTOM:
                         break
                     si_bg = AMBER_BG if sidx % 2 == 0 else C_WHITE
                     self.c.setFillColor(si_bg)
-                    self.c.rect(COL1_X, y_col1 - PROW_H, COL1_W, PROW_H, fill=1, stroke=0)
+                    self.c.rect(self.MX, y_cur - PROW_H, IND_TBL_W, PROW_H,
+                                fill=1, stroke=0)
                     self.c.setFillColor(AMBER_SOLID)
-                    self.c.rect(COL1_X, y_col1 - PROW_H, 2, PROW_H, fill=1, stroke=0)
-                    self.c.setStrokeColor(TABLE_BORDER)
-                    self.c.setLineWidth(0.3)
-                    self.c.rect(COL1_X, y_col1 - PROW_H, COL1_W, PROW_H, fill=0, stroke=1)
-                    si_nm = limpiar(str(si.get('nombre', '')))
-                    # Truncate to fit column
-                    max_chars = int(COL1_W / (3.5))
-                    si_nm = si_nm[:max_chars] + ('…' if len(si_nm) > max_chars else '')
+                    self.c.rect(self.MX, y_cur - PROW_H, 2, PROW_H, fill=1, stroke=0)
+                    si_nm = limpiar(str(si.get('nombre', '')))[:int(IND_TBL_W / 3.5)]
                     self.c.setFont('Helvetica', 5.5)
                     self.c.setFillColor(C_DARK)
-                    self.c.drawString(COL1_X + 3, y_col1 - PROW_H + 1.8 * mm, si_nm)
-                    y_col1 -= PROW_H
+                    self.c.drawString(self.MX + 3, y_cur - PROW_H + 1.8 * mm, si_nm)
+                    y_cur -= PROW_H
+                y_cur -= 3 * mm
 
-            # ── COLUMNA 2: Proyectos Estratégicos ────────────────────
-            if has_proyectos:
+            # ── Proyectos: grid 2 por fila, ancho total ───────────────
+            if has_proyectos and y_cur - (PHDR_H + PROW_H) > TABLE_BOTTOM:
                 self.c.setFont('Helvetica-Bold', 7.5)
                 self.c.setFillColor(NAVY_DARK)
-                self.c.drawString(COL2_X, y_col2, '\u25c6 Proyectos Estratégicos')
-                y_col2 -= 4 * mm
-                # Header: fondo claro + acento color línea (consistente con cascada)
-                proy_hdr_bg = _light_color(col_linea, 0.88)
-                proy_hdr_txt = darken(col_linea, 0.45)
-                self.c.setFillColor(proy_hdr_bg)
-                self.c.roundRect(COL2_X, y_col2 - PHDR_H, COL2_W, PHDR_H,
-                                 1.5 * mm, fill=1, stroke=0)
-                self.c.setFillColor(col_linea)
-                self.c.rect(COL2_X, y_col2 - PHDR_H, COL2_W, 2, fill=1, stroke=0)
-                self.c.setFont('Helvetica-Bold', 5.5)
-                self.c.setFillColor(proy_hdr_txt)
-                _p2cols = [('Proyecto', 0.62), ('%', 0.16), ('Prog.', 0.14), ('Est', 0.08)]
-                phx2 = COL2_X
-                for phdr2, pfrac2 in _p2cols:
-                    phw2 = COL2_W * pfrac2
-                    self.c.drawCentredString(phx2 + phw2 / 2, y_col2 - PHDR_H + 2 * mm, phdr2)
-                    phx2 += phw2
-                y_col2 -= PHDR_H
+                self.c.drawString(self.MX, y_cur, '\u25c6 Proyectos Estratégicos')
+                y_cur -= 4 * mm
 
-                pw1 = COL2_W * 0.62
-                pw2 = COL2_W * 0.16
-                pw3 = COL2_W * 0.14
-                pw4 = COL2_W * 0.08
+                PCELL_GAP = 3 * mm
+                PCELL_W   = (IND_TBL_W - PCELL_GAP) / 2   # 2 proyectos por fila
+                PCT_W     = 14 * mm   # ancho zona % (derecha de cada celda)
+                BAR_H     = 3 * mm
 
-                for pidx, proy in enumerate(proyectos[:14]):
-                    if y_col2 - PROW_H < TABLE_BOTTOM:
-                        break
+                for pidx, proy in enumerate(proyectos[:12]):
+                    col_in_row = pidx % 2
+                    if col_in_row == 0:
+                        # Nueva fila: verificar espacio
+                        if y_cur - PROW_H < TABLE_BOTTOM:
+                            break
                     p_pct = float(proy.get('cumplimiento', 0))
                     p_col = color_semaforo(p_pct)
-                    p_bg  = C_TABLE_ROW_ALT if pidx % 2 == 0 else C_WHITE
-                    self.c.setFillColor(p_bg)
-                    self.c.rect(COL2_X, y_col2 - PROW_H, COL2_W, PROW_H, fill=1, stroke=0)
+                    cell_x = self.MX + col_in_row * (PCELL_W + PCELL_GAP)
+                    cell_y = y_cur - PROW_H
+
+                    # Fondo celda alternado
+                    cell_bg = C_TABLE_ROW_ALT if (pidx // 2) % 2 == 0 else C_WHITE
+                    self.c.setFillColor(cell_bg)
+                    self.c.rect(cell_x, cell_y, PCELL_W, PROW_H, fill=1, stroke=0)
+                    # Acento izquierdo color semáforo
                     self.c.setFillColor(p_col)
-                    self.c.rect(COL2_X, y_col2 - PROW_H, 2, PROW_H, fill=1, stroke=0)
+                    self.c.rect(cell_x, cell_y, 3, PROW_H, fill=1, stroke=0)
+                    # Borde celda
                     self.c.setStrokeColor(TABLE_BORDER)
                     self.c.setLineWidth(0.3)
-                    self.c.rect(COL2_X, y_col2 - PROW_H, COL2_W, PROW_H, fill=0, stroke=1)
+                    self.c.rect(cell_x, cell_y, PCELL_W, PROW_H, fill=0, stroke=1)
+
+                    # Nombre proyecto
                     p_nm = limpiar(str(proy.get('nombre', '')))
-                    max_pc = int(pw1 / 3.5)
+                    max_pc = int((PCELL_W - PCT_W - 6) / 3.5)
                     p_nm = p_nm[:max_pc] + ('…' if len(p_nm) > max_pc else '')
                     self.c.setFont('Helvetica', 5.5)
                     self.c.setFillColor(C_DARK)
-                    self.c.drawString(COL2_X + 3, y_col2 - PROW_H + 1.8 * mm, p_nm)
+                    self.c.drawString(cell_x + 4, cell_y + 1.8 * mm, p_nm)
+
+                    # Mini barra de progreso
+                    mbx = cell_x + PCELL_W - PCT_W - 2 * mm
+                    mbw = PCT_W - 12 * mm
+                    mby = cell_y + (PROW_H - BAR_H) / 2
+                    self.c.setFillColor(TABLE_BORDER)
+                    self.c.roundRect(mbx, mby, mbw, BAR_H, 1, fill=1, stroke=0)
+                    self.c.setFillColor(p_col)
+                    self.c.roundRect(mbx, mby, mbw * min(p_pct / 100, 1.0),
+                                     BAR_H, 1, fill=1, stroke=0)
+
+                    # % valor (bold, color semáforo)
                     self.c.setFont('Helvetica-Bold', 6)
                     self.c.setFillColor(p_col)
-                    self.c.drawCentredString(COL2_X + pw1 + pw2 / 2,
-                                             y_col2 - PROW_H + 1.8 * mm, f'{p_pct:.0f}%')
-                    # Mini progress bar
-                    mbx = COL2_X + pw1 + pw2 + 2
-                    mbw = pw3 - 4
-                    mbh = 3
-                    mby = y_col2 - PROW_H + (PROW_H - mbh) / 2
-                    self.c.setFillColor(TABLE_BORDER)
-                    self.c.roundRect(mbx, mby, mbw, mbh, 1, fill=1, stroke=0)
-                    self.c.setFillColor(p_col)
-                    self.c.roundRect(mbx, mby, mbw * min(p_pct / 100, 1.0), mbh, 1,
-                                     fill=1, stroke=0)
-                    sym = '\u2713' if p_pct >= 100 else ('\u26a0' if p_pct >= 80 else '\u2717')
-                    self.c.setFont('Helvetica-Bold', 8)
-                    self.c.setFillColor(p_col)
-                    self.c.drawCentredString(COL2_X + pw1 + pw2 + pw3 + pw4 / 2,
-                                             y_col2 - PROW_H + 1.8 * mm, sym)
-                    y_col2 -= PROW_H
+                    self.c.drawRightString(cell_x + PCELL_W - 2 * mm,
+                                           cell_y + 1.8 * mm, f'{p_pct:.0f}%')
 
-            # Advance y_cur by whichever column consumed more space
-            y_cur = min(y_col1, y_col2)
+                    # Avanzar fila al completar par
+                    if col_in_row == 1:
+                        y_cur -= PROW_H
 
         # ── Tarjeta de análisis IA (anclada al fondo) ──────────────────
         if analisis:
