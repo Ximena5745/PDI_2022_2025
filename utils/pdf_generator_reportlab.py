@@ -349,10 +349,10 @@ def _pil_get_font(size: int, bold: bool = False):
         return None
 
 
-def _crear_grafico_lineas_pil(datos, meta=100, ancho=700):
+def _crear_grafico_lineas_pil(datos, meta=100, w_px=800, h_px=420):
     """
     Genera el gráfico de barras cápsula por línea estratégica usando Pillow.
-    Retorna ImageReader para ReportLab o None si PIL no está disponible.
+    Genera exactamente w_px × h_px para que ReportLab lo escale sin distorsión.
 
     datos: list of (nombre, valor_float, color_hex)
     """
@@ -360,80 +360,87 @@ def _crear_grafico_lineas_pil(datos, meta=100, ancho=700):
         return None
     try:
         n = len(datos)
-        margin_left  = 190
-        margin_right = 90
-        margin_top   = 55
-        row_height   = 80
-        bar_height   = 28
-        alto = margin_top + n * row_height + 25
+        if n == 0:
+            return None
 
-        bar_area_w = ancho - margin_left - margin_right
-        max_val    = max(d[1] for d in datos) if datos else 100
-        scale_max  = max(max_val, meta) * 1.12
+        W, H = w_px, h_px
 
-        img  = Image.new('RGB', (ancho, alto), 'white')
+        # Márgenes proporcionales al tamaño de imagen
+        ml   = int(W * 0.30)   # left: zona etiquetas
+        mr   = int(W * 0.13)   # right: zona pill %
+        mt   = int(H * 0.05)   # top
+        mb   = int(H * 0.04)   # bottom
+
+        bar_area_w = W - ml - mr
+        row_h      = (H - mt - mb) // n
+        bar_h      = max(int(row_h * 0.40), 10)
+        font_sz    = max(int(row_h * 0.28), 11)
+        pill_sz    = max(int(row_h * 0.28), 11)
+
+        max_val   = max(d[1] for d in datos) if datos else 100
+        scale_max = max(max_val, meta) * 1.10  # pequeño margen visual
+
+        img  = Image.new('RGB', (W, H), 'white')
         draw = ImageDraw.Draw(img)
 
-        font_title = _pil_get_font(15, bold=True)
-        font_label = _pil_get_font(12)
-        font_pct   = _pil_get_font(12, bold=True)
+        font_label = _pil_get_font(font_sz)
+        font_pct   = _pil_get_font(pill_sz, bold=True)
 
-        # Borde tarjeta
-        _pil_rounded_rect(draw, [3, 3, ancho-4, alto-4],
-                          radius=14, fill='white', outline='#c8ddf0', width=2)
-
-        # Título
-        titulo = 'Cumplimiento por Línea Estratégica'
-        try:
-            tb = font_title.getbbox(titulo)
-            tw = tb[2] - tb[0]
-        except Exception:
-            tw = len(titulo) * 9
-        draw.text(((ancho - tw) // 2, 18), titulo, fill='#1a2340', font=font_title)
+        # Borde tarjeta suave
+        _pil_rounded_rect(draw, [2, 2, W-3, H-3],
+                          radius=12, fill='white', outline='#c8ddf0', width=2)
 
         for i, (nombre, valor, col_hex) in enumerate(datos):
-            row_y  = margin_top + i * row_height
-            row_cy = row_y + row_height // 2
+            row_y  = mt + i * row_h
+            row_cy = row_y + row_h // 2
 
             # Fondo alternado
-            bg = '#f0f7ff' if i % 2 == 0 else '#ffffff'
-            draw.rectangle([12, row_y+4, ancho-13, row_y+row_height-4], fill=bg)
+            bg = '#f3f8ff' if i % 2 == 0 else '#ffffff'
+            draw.rectangle([6, row_y + 2, W - 6, row_y + row_h - 2], fill=bg)
 
-            # Etiqueta nombre
+            # Etiqueta nombre (truncar para caber en ml)
             try:
                 lb = font_label.getbbox(nombre)
                 lh = lb[3] - lb[1]
             except Exception:
-                lh = 14
-            draw.text((22, row_cy - lh // 2 - 1), nombre, fill='#333333', font=font_label)
+                lh = font_sz
+            lbl = nombre
+            while len(lbl) > 4:
+                try:
+                    bx = font_label.getbbox(lbl)
+                    if bx[2] - bx[0] <= ml - 16:
+                        break
+                except Exception:
+                    break
+                lbl = lbl[:-1]
+            draw.text((14, row_cy - lh // 2), lbl, fill='#2c3e50', font=font_label)
 
-            # Barra cápsula — track de fondo (100% width)
-            track_w = int((meta / scale_max) * bar_area_w) + int(bar_area_w * 0.06)
-            _pil_capsule(draw, margin_left, row_cy - bar_height//2,
-                         track_w, bar_height, _pil_lighten(col_hex, 0.72), highlight=False)
+            # Track fondo (hasta 100% + margen)
+            track_w = int((meta / scale_max) * bar_area_w) + int(bar_area_w * 0.04)
+            _pil_capsule(draw, ml, row_cy - bar_h // 2,
+                         track_w, bar_h, _pil_lighten(col_hex, 0.72), highlight=False)
 
-            # Barra cápsula — fill capped at 100%
+            # Barra fill capped al 100%
             fill_val = min(valor, 100)
-            bar_w = max(int((fill_val / scale_max) * bar_area_w), bar_height + 4)
-            _pil_capsule(draw, margin_left, row_cy - bar_height//2,
-                         bar_w, bar_height, col_hex, highlight=True)
+            bar_w = max(int((fill_val / scale_max) * bar_area_w), bar_h + 4)
+            _pil_capsule(draw, ml, row_cy - bar_h // 2,
+                         bar_w, bar_h, col_hex, highlight=True)
 
-            # Pill de porcentaje
-            pill_bg  = _pil_lighten(col_hex, 0.82)
-            pill_fg  = _pil_darken(col_hex, 0.40)
-            pill_x   = margin_left + track_w + 10
+            # Pill % al lado derecho del track
+            pill_bg = _pil_lighten(col_hex, 0.80)
+            pill_fg = _pil_darken(col_hex, 0.42)
+            pill_x  = ml + track_w + 8
             _pil_pill_label(draw, pill_x, row_cy,
                             f'{valor:.0f}%', pill_bg, pill_fg, font_pct)
 
-        # Línea de meta punteada
-        meta_x   = margin_left + int((meta / scale_max) * bar_area_w)
-        y_start  = margin_top + 4
-        y_end    = margin_top + n * row_height - 4
-        y_cur    = y_start
-        while y_cur < y_end:
-            draw.line([(meta_x, y_cur), (meta_x, min(y_cur+7, y_end))],
-                      fill='#888888', width=2)
-            y_cur += 13
+        # Línea de meta punteada (100%)
+        meta_x = ml + int((meta / scale_max) * bar_area_w)
+        y0, y1 = mt + 4, H - mb - 4
+        yy = y0
+        while yy < y1:
+            draw.line([(meta_x, yy), (meta_x, min(yy + 8, y1))],
+                      fill='#778899', width=max(2, bar_h // 12))
+            yy += 15
 
         buf = io.BytesIO()
         img.save(buf, 'PNG')
@@ -1039,9 +1046,11 @@ class PDFReportePOLI:
                 col_hex = f'#{int(col.red*255):02x}{int(col.green*255):02x}{int(col.blue*255):02x}'
                 datos.append((nom, val, col_hex))
 
-            # PIL chart (primary)
-            ancho_px = max(600, int(w_pt * 1.5))
-            img_reader = _crear_grafico_lineas_pil(datos, meta=100, ancho=ancho_px)
+            # PIL chart — generate at 2× PDF slot size for crisp rendering
+            ancho_px = max(700, int(w_pt * 2))
+            alto_px  = max(300, int(h_pt * 2))
+            img_reader = _crear_grafico_lineas_pil(datos, meta=100,
+                                                   w_px=ancho_px, h_px=alto_px)
             if img_reader is not None:
                 return img_reader
 
@@ -1252,7 +1261,7 @@ class PDFReportePOLI:
             bar_img = self._bar_chart_lineas_buf(df_lineas, bars_w, CHART_H)
             if bar_img is not None:
                 self.c.drawImage(bar_img, bars_x, CHART_Y, bars_w, CHART_H,
-                                 preserveAspectRatio=True, mask='auto')
+                                 preserveAspectRatio=False, mask='auto')
 
         # ── AI ANALYSIS BLOCK (amplified — no redundant table) ────────
         # Use all space from chart bottom to footer for the IA block
