@@ -1918,7 +1918,8 @@ class PDFReportePOLI:
     def pagina_linea_retos(self, nombre: str, cumplimiento: float, total_ind: int,
                            proyectos: List[Dict],
                            retos_data: Dict,
-                           total_retos_año: int):
+                           total_retos_año: int,
+                           año_retos: int = 2025):
         """
         Página 1 de cada línea estratégica: Plan de Retos, Proyectos Estratégicos
         y sección en blanco de Logros de Proyectos.
@@ -1949,7 +1950,7 @@ class PDFReportePOLI:
         # ── SECCIÓN: PLAN DE RETOS ────────────────────────────────────
         self.c.setFont('Helvetica-Bold', 9)
         self.c.setFillColor(NAVY_DARK)
-        self.c.drawString(self.MX, y_cur, f'\u25c6 Plan de Retos {self.año}')
+        self.c.drawString(self.MX, y_cur, f'\u25c6 Plan de Retos {año_retos}')
         y_cur -= 4 * mm
 
         # Separador
@@ -1967,7 +1968,7 @@ class PDFReportePOLI:
         cumpl_pct = float(retos_data.get('cumplimiento', 0)) * 100
 
         kpi_items = [
-            (str(total_retos_año),     f'Total Retos {self.año}', col_linea),
+            (str(total_retos_año),     f'Total Retos {año_retos}', col_linea),
             (f'{meta_pct:.0f}%',       'Meta',                    NAVY_DARK),
             (f'{ejec_pct:.1f}%',       'Ejecución',               color_semaforo(ejec_pct)),
             (f'{cumpl_pct:.1f}%',      'Cumplimiento',            color_semaforo(cumpl_pct)),
@@ -2606,14 +2607,15 @@ def exportar_informe_pdf_reportlab(
     """
     pdf = PDFReportePOLI(año)
 
-    # Cargar datos de Retos
+    # Cargar datos de Retos — siempre usar año 2025
+    _AÑO_RETOS = 2025
     _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     df_retos_linea, df_planes = _cargar_retos(_base_dir)
     _total_retos_año = 0
     if not df_planes.empty:
         for _c in df_planes.columns:
             if 'a' in _c.lower() and df_planes[_c].dtype in ['int64', 'float64', 'object']:
-                _row = df_planes[pd.to_numeric(df_planes[_c], errors='coerce') == año]
+                _row = df_planes[pd.to_numeric(df_planes[_c], errors='coerce') == _AÑO_RETOS]
                 if not _row.empty:
                     _nc = [c for c in df_planes.columns if c != _c]
                     if _nc:
@@ -2816,7 +2818,7 @@ def exportar_informe_pdf_reportlab(
                 if _col_lin and _col_a:
                     _mask_r = (df_retos_linea[_col_lin].astype(str).str.strip()
                                .apply(_norm) == _norm(nom)) & \
-                              (pd.to_numeric(df_retos_linea[_col_a], errors='coerce') == año)
+                              (pd.to_numeric(df_retos_linea[_col_a], errors='coerce') == _AÑO_RETOS)
                     _df_r = df_retos_linea[_mask_r]
                     if not _df_r.empty:
                         _row_r = _df_r.iloc[0]
@@ -2834,6 +2836,7 @@ def exportar_informe_pdf_reportlab(
                 proyectos=proyectos,
                 retos_data=_retos_data,
                 total_retos_año=_total_retos_año,
+                año_retos=_AÑO_RETOS,
             )
 
             # Página 2: Indicadores + Stand By + IA
@@ -3012,14 +3015,15 @@ def exportar_informe_pdf_poli(
     """
     pdf = PDFReportePOLI(año)
 
-    # Cargar datos de Retos
+    # Cargar datos de Retos — siempre usar año 2025
+    _AÑO_RETOS = 2025
     _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     df_retos_linea, df_planes = _cargar_retos(_base_dir)
     _total_retos_año = 0
     if not df_planes.empty:
         for _c in df_planes.columns:
             if 'a' in _c.lower() and df_planes[_c].dtype in ['int64', 'float64', 'object']:
-                _row = df_planes[pd.to_numeric(df_planes[_c], errors='coerce') == año]
+                _row = df_planes[pd.to_numeric(df_planes[_c], errors='coerce') == _AÑO_RETOS]
                 if not _row.empty:
                     _nc = [c for c in df_planes.columns if c != _c]
                     if _nc:
@@ -3122,7 +3126,7 @@ def exportar_informe_pdf_poli(
                 if _col_lin and _col_a:
                     _mask_r = (df_retos_linea[_col_lin].astype(str).str.strip()
                                .apply(_norm) == _norm(nom)) & \
-                              (pd.to_numeric(df_retos_linea[_col_a], errors='coerce') == año)
+                              (pd.to_numeric(df_retos_linea[_col_a], errors='coerce') == _AÑO_RETOS)
                     _df_r = df_retos_linea[_mask_r]
                     if not _df_r.empty:
                         _row_r = _df_r.iloc[0]
@@ -3140,6 +3144,7 @@ def exportar_informe_pdf_poli(
                 proyectos=proyectos,
                 retos_data=_retos_data,
                 total_retos_año=_total_retos_año,
+                año_retos=_AÑO_RETOS,
             )
 
             # Página 2: Indicadores + Stand By + IA
