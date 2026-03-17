@@ -1864,13 +1864,12 @@ class PDFReportePOLI:
 
                         y_cur -= ROW_H
 
-        # ── Proyectos + Stand By ──────────────────────────────────────
+        # ── Stand By ──────────────────────────────────────────────────
         PROW_H   = 6 * mm
         PHDR_H   = 7 * mm
         has_sin_meta  = bool(sin_meta)
-        has_proyectos = bool(proyectos)
 
-        if (has_proyectos or has_sin_meta) and y_cur - (PHDR_H + PROW_H + 10 * mm) > TABLE_BOTTOM:
+        if has_sin_meta and y_cur - (PHDR_H + PROW_H + 10 * mm) > TABLE_BOTTOM:
             y_cur -= 5 * mm
 
             # ── Stand By: lista completa, ancho total ─────────────────
@@ -1906,69 +1905,6 @@ class PDFReportePOLI:
                     y_cur -= PROW_H
                 y_cur -= 3 * mm
 
-            # ── Proyectos: grid 2 por fila, ancho total ───────────────
-            if has_proyectos and y_cur - (PHDR_H + PROW_H) > TABLE_BOTTOM:
-                self.c.setFont('Helvetica-Bold', 7.5)
-                self.c.setFillColor(NAVY_DARK)
-                self.c.drawString(self.MX, y_cur, '\u25c6 Proyectos Estratégicos')
-                y_cur -= 4 * mm
-
-                PCELL_GAP = 3 * mm
-                PCELL_W   = (IND_TBL_W - PCELL_GAP) / 2   # 2 proyectos por fila
-                PCT_W     = 14 * mm   # ancho zona % (derecha de cada celda)
-                BAR_H     = 3 * mm
-
-                for pidx, proy in enumerate(proyectos[:12]):
-                    col_in_row = pidx % 2
-                    if col_in_row == 0:
-                        # Nueva fila: verificar espacio
-                        if y_cur - PROW_H < TABLE_BOTTOM:
-                            break
-                    p_pct = float(proy.get('cumplimiento', 0))
-                    p_col = color_semaforo(p_pct)
-                    cell_x = self.MX + col_in_row * (PCELL_W + PCELL_GAP)
-                    cell_y = y_cur - PROW_H
-
-                    # Fondo celda alternado
-                    cell_bg = C_TABLE_ROW_ALT if (pidx // 2) % 2 == 0 else C_WHITE
-                    self.c.setFillColor(cell_bg)
-                    self.c.rect(cell_x, cell_y, PCELL_W, PROW_H, fill=1, stroke=0)
-                    # Acento izquierdo color línea
-                    self.c.setFillColor(col_linea)
-                    self.c.rect(cell_x, cell_y, 3, PROW_H, fill=1, stroke=0)
-                    # Borde celda
-                    self.c.setStrokeColor(TABLE_BORDER)
-                    self.c.setLineWidth(0.3)
-                    self.c.rect(cell_x, cell_y, PCELL_W, PROW_H, fill=0, stroke=1)
-
-                    # Nombre proyecto
-                    p_nm = limpiar(str(proy.get('nombre', '')))
-                    max_pc = int((PCELL_W - PCT_W - 6) / 3.5)
-                    p_nm = p_nm[:max_pc] + ('…' if len(p_nm) > max_pc else '')
-                    self.c.setFont('Helvetica', 5.5)
-                    self.c.setFillColor(C_DARK)
-                    self.c.drawString(cell_x + 4, cell_y + 1.8 * mm, p_nm)
-
-                    # Mini barra de progreso
-                    mbx = cell_x + PCELL_W - PCT_W - 2 * mm
-                    mbw = PCT_W - 12 * mm
-                    mby = cell_y + (PROW_H - BAR_H) / 2
-                    self.c.setFillColor(TABLE_BORDER)
-                    self.c.roundRect(mbx, mby, mbw, BAR_H, 1, fill=1, stroke=0)
-                    self.c.setFillColor(p_col)
-                    self.c.roundRect(mbx, mby, mbw * min(p_pct / 100, 1.0),
-                                     BAR_H, 1, fill=1, stroke=0)
-
-                    # % valor (bold, color semáforo)
-                    self.c.setFont('Helvetica-Bold', 6)
-                    self.c.setFillColor(p_col)
-                    self.c.drawRightString(cell_x + PCELL_W - 2 * mm,
-                                           cell_y + 1.8 * mm, f'{p_pct:.0f}%')
-
-                    # Avanzar fila al completar par
-                    if col_in_row == 1:
-                        y_cur -= PROW_H
-
         # ── Tarjeta de análisis IA (anclada al fondo) ──────────────────
         if analisis:
             _ai_block(
@@ -1976,6 +1912,163 @@ class PDFReportePOLI:
                 self.W - 2 * self.MX, AI_H,
                 analisis
             )
+
+        self._new_page()
+
+    def pagina_linea_retos(self, nombre: str, cumplimiento: float, total_ind: int,
+                           proyectos: List[Dict],
+                           retos_data: Dict,
+                           total_retos_año: int):
+        """
+        Página 1 de cada línea estratégica: Plan de Retos, Proyectos Estratégicos
+        y sección en blanco de Logros de Proyectos.
+        retos_data: {'meta': float, 'ejecucion': float, 'cumplimiento': float}
+                    valores en rango 0-1; se muestran como porcentaje.
+        total_retos_año: número total de retos del año (hoja Planes).
+        """
+        col_linea = color_linea_header(nombre)
+        nom_d     = nombre_display(nombre)
+
+        all_inds_count = total_ind
+        # reutilizamos n_cumpl del header (pasado como cumplimiento ya calculado)
+        n_cumpl_ind = 0  # solo para el header; se recalcula internamente en _header_linea
+
+        _page_bg(self.c, self.W, self.H, col_linea)
+        cont_top = _header_linea(
+            self.c, self.W, self.H, self.MX,
+            nombre, cumplimiento, total_ind,
+            col_linea, n_cumpl_ind, self.año
+        )
+        _footer_std(self.c, self.W, self.H_FOOTER, self.MX,
+                    self.año, self._page, nom_d, col_linea)
+
+        BOTTOM   = self.H_FOOTER + 3 * mm
+        y_cur    = cont_top - 5 * mm
+        TBL_W    = self.W - 2 * self.MX   # ancho contenido
+
+        # ── SECCIÓN: PLAN DE RETOS ────────────────────────────────────
+        self.c.setFont('Helvetica-Bold', 9)
+        self.c.setFillColor(NAVY_DARK)
+        self.c.drawString(self.MX, y_cur, f'\u25c6 Plan de Retos {self.año}')
+        y_cur -= 4 * mm
+
+        # Separador
+        self.c.setFillColor(col_linea)
+        self.c.rect(self.MX, y_cur, TBL_W, 1.5, fill=1, stroke=0)
+        y_cur -= 3 * mm
+
+        # 4 tarjetas KPI: Total Retos | Meta | Ejecución | Cumplimiento
+        CARD_H   = 22 * mm
+        CARD_GAP = 4 * mm
+        CARD_W   = (TBL_W - 3 * CARD_GAP) / 4
+
+        meta_pct  = float(retos_data.get('meta', 1)) * 100
+        ejec_pct  = float(retos_data.get('ejecucion', 0)) * 100
+        cumpl_pct = float(retos_data.get('cumplimiento', 0)) * 100
+
+        kpi_items = [
+            (str(total_retos_año),     f'Total Retos {self.año}', col_linea),
+            (f'{meta_pct:.0f}%',       'Meta',                    NAVY_DARK),
+            (f'{ejec_pct:.1f}%',       'Ejecución',               color_semaforo(ejec_pct)),
+            (f'{cumpl_pct:.1f}%',      'Cumplimiento',            color_semaforo(cumpl_pct)),
+        ]
+        kx = self.MX
+        for val, lbl, col in kpi_items:
+            self._kpi_card(kx, y_cur - CARD_H, CARD_W, CARD_H, val, lbl, col)
+            kx += CARD_W + CARD_GAP
+        y_cur -= CARD_H + 6 * mm
+
+        # Barra de progreso Plan de Retos
+        BAR_H_RETOS = 5 * mm
+        self._progress_bar(self.MX, y_cur - BAR_H_RETOS,
+                           TBL_W, BAR_H_RETOS, cumpl_pct, color_semaforo(cumpl_pct))
+        y_cur -= BAR_H_RETOS + 8 * mm
+
+        # ── SECCIÓN: PROYECTOS ESTRATÉGICOS ──────────────────────────
+        if proyectos and y_cur - 20 * mm > BOTTOM:
+            self.c.setFont('Helvetica-Bold', 9)
+            self.c.setFillColor(NAVY_DARK)
+            self.c.drawString(self.MX, y_cur, '\u25c6 Proyectos Estratégicos')
+            y_cur -= 4 * mm
+
+            self.c.setFillColor(col_linea)
+            self.c.rect(self.MX, y_cur, TBL_W, 1.5, fill=1, stroke=0)
+            y_cur -= 3 * mm
+
+            PROW_H    = 6 * mm
+            PCELL_GAP = 3 * mm
+            PCELL_W   = (TBL_W - PCELL_GAP) / 2
+            PCT_W     = 14 * mm
+            BAR_H_P   = 3 * mm
+
+            for pidx, proy in enumerate(proyectos):
+                col_in_row = pidx % 2
+                if col_in_row == 0 and y_cur - PROW_H < BOTTOM:
+                    break
+                p_pct  = float(proy.get('cumplimiento', 0))
+                p_col  = color_semaforo(p_pct)
+                cell_x = self.MX + col_in_row * (PCELL_W + PCELL_GAP)
+                cell_y = y_cur - PROW_H
+
+                cell_bg = C_TABLE_ROW_ALT if (pidx // 2) % 2 == 0 else C_WHITE
+                self.c.setFillColor(cell_bg)
+                self.c.rect(cell_x, cell_y, PCELL_W, PROW_H, fill=1, stroke=0)
+                self.c.setFillColor(col_linea)
+                self.c.rect(cell_x, cell_y, 3, PROW_H, fill=1, stroke=0)
+                self.c.setStrokeColor(TABLE_BORDER)
+                self.c.setLineWidth(0.3)
+                self.c.rect(cell_x, cell_y, PCELL_W, PROW_H, fill=0, stroke=1)
+
+                p_nm = limpiar(str(proy.get('nombre', '')))
+                max_pc = int((PCELL_W - PCT_W - 6) / 3.5)
+                p_nm = p_nm[:max_pc] + ('…' if len(p_nm) > max_pc else '')
+                self.c.setFont('Helvetica', 5.5)
+                self.c.setFillColor(C_DARK)
+                self.c.drawString(cell_x + 4, cell_y + 1.8 * mm, p_nm)
+
+                mbx = cell_x + PCELL_W - PCT_W - 2 * mm
+                mbw = PCT_W - 12 * mm
+                mby = cell_y + (PROW_H - BAR_H_P) / 2
+                self.c.setFillColor(TABLE_BORDER)
+                self.c.roundRect(mbx, mby, mbw, BAR_H_P, 1, fill=1, stroke=0)
+                self.c.setFillColor(p_col)
+                self.c.roundRect(mbx, mby, mbw * min(p_pct / 100, 1.0),
+                                 BAR_H_P, 1, fill=1, stroke=0)
+
+                self.c.setFont('Helvetica-Bold', 6)
+                self.c.setFillColor(p_col)
+                self.c.drawRightString(cell_x + PCELL_W - 2 * mm,
+                                       cell_y + 1.8 * mm, f'{p_pct:.0f}%')
+
+                if col_in_row == 1:
+                    y_cur -= PROW_H
+            # Si quedó en columna 0 sin par, avanzar una fila
+            if len(proyectos) % 2 == 1:
+                y_cur -= PROW_H
+
+        y_cur -= 6 * mm
+
+        # ── SECCIÓN: LOGROS DE PROYECTOS (área en blanco) ─────────────
+        LOGROS_H = max(y_cur - BOTTOM - 3 * mm, 30 * mm)
+        if LOGROS_H > 15 * mm:
+            self.c.setFont('Helvetica-Bold', 9)
+            self.c.setFillColor(NAVY_DARK)
+            self.c.drawString(self.MX, y_cur, '\u2605 Logros de Proyectos')
+            y_cur -= 4 * mm
+
+            self.c.setFillColor(col_linea)
+            self.c.rect(self.MX, y_cur, TBL_W, 1.5, fill=1, stroke=0)
+            y_cur -= 2 * mm
+
+            logros_box_h = y_cur - BOTTOM
+            if logros_box_h > 8 * mm:
+                self.c.setFillColor(_light_color(col_linea, 0.94))
+                self.c.roundRect(self.MX, BOTTOM, TBL_W, logros_box_h,
+                                 2 * mm, fill=1, stroke=0)
+                self.c.setStrokeColor(_light_color(col_linea, 0.75))
+                self.c.setLineWidth(0.5)
+                self.c.roundRect(self.MX, BOTTOM, TBL_W, logros_box_h,
+                                 2 * mm, fill=0, stroke=1)
 
         self._new_page()
 
@@ -2821,6 +2914,26 @@ def _build_sin_meta(df_unificado: pd.DataFrame, nom: str, año: int) -> list:
     return sin_meta
 
 
+def _cargar_retos(base_dir: str) -> tuple:
+    """
+    Carga Plan de retos.xlsx y retorna (df_retos_linea, df_planes).
+    df_retos_linea: columnas Línea Estratégica, Año, Meta, Ejecución, Cumplimiento
+    df_planes:      columnas Año, Nº
+    """
+    ruta = os.path.join(base_dir, 'data', 'Retos', 'Plan de retos.xlsx')
+    if not os.path.exists(ruta):
+        return pd.DataFrame(), pd.DataFrame()
+    try:
+        xl = pd.ExcelFile(ruta, engine='openpyxl')
+        df_lin   = xl.parse('Linea')
+        df_plan  = xl.parse('Planes')
+        df_lin.columns  = [str(c).strip() for c in df_lin.columns]
+        df_plan.columns = [str(c).strip() for c in df_plan.columns]
+        return df_lin, df_plan
+    except Exception:
+        return pd.DataFrame(), pd.DataFrame()
+
+
 def exportar_informe_pdf_poli(
     metricas: Dict[str, Any],
     df_lineas: pd.DataFrame,
@@ -2853,6 +2966,20 @@ def exportar_informe_pdf_poli(
         bytes del PDF generado.
     """
     pdf = PDFReportePOLI(año)
+
+    # Cargar datos de Retos
+    _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    df_retos_linea, df_planes = _cargar_retos(_base_dir)
+    _total_retos_año = 0
+    if not df_planes.empty:
+        for _c in df_planes.columns:
+            if 'a' in _c.lower() and df_planes[_c].dtype in ['int64', 'float64', 'object']:
+                _row = df_planes[pd.to_numeric(df_planes[_c], errors='coerce') == año]
+                if not _row.empty:
+                    _nc = [c for c in df_planes.columns if c != _c]
+                    if _nc:
+                        _total_retos_año = int(float(_row.iloc[0][_nc[0]]))
+                    break
 
     # 1. Portada
     portada_path = os.path.join(
@@ -2940,6 +3067,37 @@ def exportar_informe_pdf_poli(
                             analisis_txt = v
                             break
 
+            # Buscar datos de retos para esta línea
+            _retos_data = {'meta': 1.0, 'ejecucion': 0.0, 'cumplimiento': 0.0}
+            if not df_retos_linea.empty:
+                _col_lin = next((c for c in df_retos_linea.columns
+                                 if 'nea' in c.lower() or 'linea' in c.lower()), None)
+                _col_a   = next((c for c in df_retos_linea.columns
+                                 if 'a' in c.lower() and c != _col_lin), None)
+                if _col_lin and _col_a:
+                    _mask_r = (df_retos_linea[_col_lin].astype(str).str.strip()
+                               .apply(_norm) == _norm(nom)) & \
+                              (pd.to_numeric(df_retos_linea[_col_a], errors='coerce') == año)
+                    _df_r = df_retos_linea[_mask_r]
+                    if not _df_r.empty:
+                        _row_r = _df_r.iloc[0]
+                        _retos_data = {
+                            'meta':        float(_row_r.get('Meta',        _row_r.get('meta',        1.0)) or 1.0),
+                            'ejecucion':   float(_row_r.get('Ejecuci\u00f3n', _row_r.get('Ejecucion', 0.0)) or 0.0),
+                            'cumplimiento':float(_row_r.get('Cumplimiento', _row_r.get('cumplimiento',0.0)) or 0.0),
+                        }
+
+            # Página 1: Retos + Proyectos + Logros en blanco
+            pdf.pagina_linea_retos(
+                nombre=nom,
+                cumplimiento=cumpl,
+                total_ind=n_ind,
+                proyectos=proyectos,
+                retos_data=_retos_data,
+                total_retos_año=_total_retos_año,
+            )
+
+            # Página 2: Indicadores + Stand By + IA
             pdf.pagina_linea(
                 nombre=nom,
                 cumplimiento=cumpl,
