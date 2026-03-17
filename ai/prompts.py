@@ -120,33 +120,26 @@ def prompt_analisis_linea(
     return f"""Eres analista estratégico del Politécnico Grancolombiano. \
 La línea "{nombre_linea}" {ctx}
 
-**Datos reales del corte actual:**
-- Indicadores totales: {total_indicadores}
-- Cumplimiento promedio de la línea: {cumplimiento_promedio:.1f}%
+Cumplimiento promedio de la línea: {cumplimiento_promedio:.1f}% sobre {total_indicadores} indicadores.
 
-**Objetivos y su cumplimiento:**
-{objetivos_texto}{indicadores_section}
+**Indicadores con sus datos reales:**
+{indicadores_section}
 
-**Reglas de redacción (incumplirlas invalida la respuesta):**
-- Máximo 220 palabras en 4 párrafos sin títulos, sin asteriscos, sin markdown.
-- Cada afirmación debe ir acompañada de su número exacto (%, meta, ejecución o brecha).
-- Prohibido usar: "se evidencia", "se recomienda fortalecer", "es importante", \
-"se debe trabajar en", "continuar con los esfuerzos". Usa verbos de acción directa.
-- Escribe en español.
+**Instrucción:** Genera UN insight de 1 a 2 oraciones por cada indicador listado arriba. \
+Formato exacto por indicador (sin asteriscos, sin markdown, en español):
 
-PÁRRAFO 1 — SITUACIÓN ACTUAL: Cumplimiento global de la línea y cuántos indicadores \
-alcanzaron la meta. Cita el indicador con mayor y menor cumplimiento con sus valores exactos.
+[Nombre exacto del indicador]: [insight específico que mencione su cumplimiento, \
+su brecha meta−ejecución si la tiene, y una acción concreta o alerta]
 
-PÁRRAFO 2 — BRECHAS CRÍTICAS: Para cada indicador por debajo del 80%, indica su nombre, \
-meta, ejecución y brecha absoluta (meta − ejecución). Si no hay indicadores en rojo, \
-describe los que están entre 80–99% con su gap específico.
-
-PÁRRAFO 3 — LOGROS DESTACADOS: Si algún indicador superó el 110%, menciona su nombre y \
-valor. Si todos están bajo 100%, identifica el que más se acercó y cuánto le faltó.
-
-PÁRRAFO 4 — ACCIÓN CONCRETA: Propón una única acción medible para el próximo período, \
-vinculada al indicador con mayor brecha. Especifica qué métrica ajustar, en qué magnitud \
-y con qué frecuencia de seguimiento."""
+Reglas:
+- Copia el nombre del indicador exactamente como aparece en la lista.
+- Cada insight debe citar al menos un número real (%, meta, ejecución o brecha).
+- Si el indicador está ≥100%: resalta el logro con el valor superado.
+- Si está entre 80–99%: menciona cuánto le falta para cerrar y qué palanca actuar.
+- Si está <80%: genera alerta con la brecha absoluta (meta − ejecución) y propón acción inmediata.
+- Prohibido usar: "se evidencia", "es importante", "continuar esfuerzos", "fortalecer". \
+Usa verbos directos: ajustar, revisar, escalar, reducir, mantener, cerrar brecha.
+- No escribas un párrafo introductorio ni cierre. Solo la lista de indicadores con sus insights."""
 
 
 def prompt_analisis_indicador(
