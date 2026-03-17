@@ -823,27 +823,34 @@ class PDFReportePOLI:
                 bar_cols.append(f'#{int(col.red*255):02x}'
                                 f'{int(col.green*255):02x}'
                                 f'{int(col.blue*255):02x}')
+            import matplotlib.colors as mcolors
+
             fig, ax = plt.subplots(figsize=(w_pt / 72, h_pt / 72))
             fig.patch.set_alpha(0)
             ax.set_facecolor('none')
-            y_pos = range(len(noms))
-            bars = ax.barh(y_pos, cumps, color=bar_cols, height=0.55, zorder=2)
-            ax.axvline(100, color='#b71c1c', linestyle='--', linewidth=1,
-                       alpha=0.8, zorder=3)
-            # Value labels
-            for bar, val in zip(bars, cumps):
-                ax.text(bar.get_width() + 1, bar.get_y() + bar.get_height() / 2,
-                        f'{val:.0f}%', va='center', fontsize=6.5,
-                        color='#212529', fontfamily='DejaVu Sans')
-            ax.set_yticks(list(y_pos))
-            ax.set_yticklabels(noms, fontsize=7)
-            ax.set_xlim(0, max(125, max(cumps, default=0) + 15))
-            ax.set_xlabel('Cumplimiento (%)', fontsize=7)
-            ax.grid(axis='x', alpha=0.25, zorder=1)
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.spines['left'].set_visible(False)
-            fig.tight_layout(pad=0.3)
+            y_pos = list(range(len(noms)))
+
+            bg_extent = max(107, (max(cumps, default=0) + 5))
+            BAR_H = 0.52
+
+            for i, (nom, val, col_hex) in enumerate(zip(noms, cumps, bar_cols)):
+                light = mcolors.to_rgba(col_hex, alpha=0.18)
+                ax.barh(i, bg_extent, color=light, height=BAR_H, zorder=1, edgecolor='none')
+                ax.barh(i, val, color=col_hex, height=BAR_H, zorder=2, edgecolor='none')
+                ax.text(bg_extent + 1.5, i, f'{val:.0f}%',
+                        va='center', ha='left', fontsize=7,
+                        color='#333333', fontfamily='DejaVu Sans', fontweight='bold')
+
+            ax.axvline(100, color='#555555', linestyle='--', linewidth=0.9, alpha=0.7, zorder=3)
+            ax.set_yticks(y_pos)
+            ax.set_yticklabels(noms, fontsize=7.5, color='#333333')
+            ax.set_xlim(0, bg_extent + 14)
+            ax.set_xlabel('')
+            ax.tick_params(axis='x', bottom=False, labelbottom=False)
+            ax.tick_params(axis='y', length=0)
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            fig.tight_layout(pad=0.4)
             img = fig_to_image(fig)
             plt.close(fig)
             return img
