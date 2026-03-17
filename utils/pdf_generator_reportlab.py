@@ -128,7 +128,7 @@ GLOSARIO = {
 
 def _norm(s: str) -> str:
     """Normalize string: remove accents, lowercase, strip."""
-    return unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode().lower().strip()
+    return unicodedata.normalize('NFD', str(s)).encode('ascii', 'ignore').decode().lower().strip().replace('_', ' ')
 
 
 def is_light_color(c: colors.Color) -> bool:
@@ -361,12 +361,12 @@ def _header_linea(c, W: float, H: float, MX: float,
     sw = stat_zone_w / 4
     for i, (val, lbl) in enumerate(stats):
         sx = stat_zone_x + i * sw + sw / 2
-        c.setFont('Helvetica-Bold', 9 if len(val) <= 6 else 7)
+        c.setFont('Helvetica-Bold', 11 if len(val) <= 6 else 9)
         c.setFillColor(val_col)
         c.drawCentredString(sx, y0 + HEADER_H * 0.58, val)
-        c.setFont('Helvetica', 5.5)
+        c.setFont('Helvetica', 7)
         c.setFillColor(lbl_col)
-        c.drawCentredString(sx, y0 + HEADER_H * 0.28, lbl)
+        c.drawCentredString(sx, y0 + HEADER_H * 0.26, lbl)
     return y0 - 2 * mm
 
 
@@ -831,13 +831,13 @@ class PDFReportePOLI:
             ax.set_facecolor('none')
             y_pos = list(range(len(noms)))
 
-            bg_extent = max(112, (max(cumps, default=0) + 5))
+            bg_extent = 108  # fixed track width: 100% line at ~93% of track
             BAR_H = 0.42
 
             for i, (nom, val, col_hex) in enumerate(zip(noms, cumps, bar_cols)):
                 light = mcolors.to_rgba(col_hex, alpha=0.18)
                 ax.barh(i, bg_extent, color=light, height=BAR_H, zorder=1, edgecolor='none')
-                # Cap filled bar to bg_extent so it never overflows the track
+                # Cap filled bar to track width so it never overflows
                 ax.barh(i, min(val, bg_extent), color=col_hex, height=BAR_H,
                         zorder=2, edgecolor='none')
                 ax.text(bg_extent + 1.5, i, f'{val:.0f}%',
@@ -1370,7 +1370,7 @@ class PDFReportePOLI:
         _ai_line_w = self.W - 2 * self.MX - 16 * mm
         _chars_per_line = max(1, int(_ai_line_w / 3.8))
         _ai_lines = max(1, len(analisis or '') // _chars_per_line + 1) if analisis else 0
-        AI_H      = max(38 * mm, min(_ai_lines * 8 + int(16 * mm), 70 * mm))
+        AI_H      = max(38 * mm, min(_ai_lines * 8 + int(16 * mm), 90 * mm))
         AI_TOP    = AI_BOTTOM + AI_H
         TABLE_BOTTOM = AI_TOP + 4 * mm
         y_cur = cont_top - 4 * mm
