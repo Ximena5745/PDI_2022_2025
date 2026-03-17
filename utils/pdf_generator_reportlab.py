@@ -106,8 +106,8 @@ COLOR_LINEAS: Dict[str, colors.Color] = {
     'Calidad':                           colors.HexColor('#EC0677'),
     'Experiencia':                       colors.HexColor('#1FB2DE'),
     'Sostenibilidad':                    colors.HexColor('#A6CE38'),
-    'Educación para toda la vida':       colors.HexColor('#0F385A'),
-    'Educacion para toda la vida':       colors.HexColor('#0F385A'),
+    'Educación para toda la vida':       colors.HexColor('#6B7280'),
+    'Educacion para toda la vida':       colors.HexColor('#6B7280'),
 }
 
 GLOSARIO = {
@@ -1553,8 +1553,8 @@ class PDFReportePOLI:
 
                         cy_ind = y_cur - ROW_H / 2
 
-                        # Dot semáforo izquierdo
-                        self.c.setFillColor(ind_scol)
+                        # Dot color línea izquierdo
+                        self.c.setFillColor(col_linea)
                         self.c.circle(self.MX + 5 * mm, cy_ind, 1.5, fill=1, stroke=0)
 
                         # Nombre indicador (col 0, desde 9mm)
@@ -1596,7 +1596,7 @@ class PDFReportePOLI:
                                          bar_h3 / 2, fill=1, stroke=0)
                         fill_w3 = bar_w3 * min(ind_pct / 100.0, 1.0)
                         if fill_w3 > 0:
-                            self.c.setFillColor(ind_scol)
+                            self.c.setFillColor(col_linea)
                             self.c.roundRect(bar_x3, bar_y3, fill_w3, bar_h3,
                                              bar_h3 / 2, fill=1, stroke=0)
                         self.c.setFont('Helvetica-Bold', 5.5)
