@@ -101,13 +101,13 @@ ORDEN_LINEAS: List[str] = [
 COLOR_LINEAS: Dict[str, colors.Color] = {
     'Expansión':                         colors.HexColor('#FBAF17'),
     'Expansion':                         colors.HexColor('#FBAF17'),
-    'Transformación Organizacional':     colors.HexColor('#42F2F2'),
-    'Transformacion Organizacional':     colors.HexColor('#42F2F2'),
+    'Transformación Organizacional':     colors.HexColor('#00B4CC'),
+    'Transformacion Organizacional':     colors.HexColor('#00B4CC'),
     'Calidad':                           colors.HexColor('#EC0677'),
     'Experiencia':                       colors.HexColor('#1FB2DE'),
     'Sostenibilidad':                    colors.HexColor('#A6CE38'),
-    'Educación para toda la vida':       colors.HexColor('#6B7280'),
-    'Educacion para toda la vida':       colors.HexColor('#6B7280'),
+    'Educación para toda la vida':       colors.HexColor('#9CA3AF'),
+    'Educacion para toda la vida':       colors.HexColor('#9CA3AF'),
 }
 
 GLOSARIO = {
@@ -348,7 +348,8 @@ def _header_linea(c, W: float, H: float, MX: float,
     c.setFillColor(colors.HexColor('#c8d8f0'))
     c.drawString(MX, y0 + HEADER_H * 0.22, f'Plan de Desarrollo Institucional {año}')
     # 4 stats in right trapezoid zone
-    txt_col = darken(col_linea, 0.55) if is_light_color(col_linea) else colors.white
+    val_col = NAVY_DARK if is_light_color(col_linea) else colors.white
+    lbl_col = darken(col_linea, 0.45) if is_light_color(col_linea) else colors.HexColor('#c8d8f0')
     stats = [
         (f'{cumplimiento:.1f}%', 'Cumplimiento'),
         (str(total_ind),         'Indicadores'),
@@ -361,10 +362,10 @@ def _header_linea(c, W: float, H: float, MX: float,
     for i, (val, lbl) in enumerate(stats):
         sx = stat_zone_x + i * sw + sw / 2
         c.setFont('Helvetica-Bold', 9 if len(val) <= 6 else 7)
-        c.setFillColor(txt_col)
+        c.setFillColor(val_col)
         c.drawCentredString(sx, y0 + HEADER_H * 0.58, val)
         c.setFont('Helvetica', 5.5)
-        c.setFillColor(darken(col_linea, 0.3) if is_light_color(col_linea) else colors.HexColor('#c8d8f0'))
+        c.setFillColor(lbl_col)
         c.drawCentredString(sx, y0 + HEADER_H * 0.28, lbl)
     return y0 - 2 * mm
 
@@ -830,27 +831,30 @@ class PDFReportePOLI:
             ax.set_facecolor('none')
             y_pos = list(range(len(noms)))
 
-            bg_extent = max(107, (max(cumps, default=0) + 5))
-            BAR_H = 0.52
+            bg_extent = max(112, (max(cumps, default=0) + 5))
+            BAR_H = 0.42
 
             for i, (nom, val, col_hex) in enumerate(zip(noms, cumps, bar_cols)):
                 light = mcolors.to_rgba(col_hex, alpha=0.18)
                 ax.barh(i, bg_extent, color=light, height=BAR_H, zorder=1, edgecolor='none')
-                ax.barh(i, val, color=col_hex, height=BAR_H, zorder=2, edgecolor='none')
+                # Cap filled bar to bg_extent so it never overflows the track
+                ax.barh(i, min(val, bg_extent), color=col_hex, height=BAR_H,
+                        zorder=2, edgecolor='none')
                 ax.text(bg_extent + 1.5, i, f'{val:.0f}%',
-                        va='center', ha='left', fontsize=7,
-                        color='#333333', fontfamily='DejaVu Sans', fontweight='bold')
+                        va='center', ha='left', fontsize=7.5,
+                        color='#222222', fontfamily='DejaVu Sans', fontweight='bold')
 
-            ax.axvline(100, color='#555555', linestyle='--', linewidth=0.9, alpha=0.7, zorder=3)
+            ax.axvline(100, color='#555555', linestyle='--', linewidth=0.9, alpha=0.65, zorder=3)
             ax.set_yticks(y_pos)
             ax.set_yticklabels(noms, fontsize=7.5, color='#333333')
-            ax.set_xlim(0, bg_extent + 14)
+            ax.set_xlim(0, bg_extent + 16)
+            ax.margins(y=0.25)
             ax.set_xlabel('')
             ax.tick_params(axis='x', bottom=False, labelbottom=False)
             ax.tick_params(axis='y', length=0)
             for spine in ax.spines.values():
                 spine.set_visible(False)
-            fig.tight_layout(pad=0.4)
+            fig.tight_layout(pad=0.5)
             img = fig_to_image(fig)
             plt.close(fig)
             return img
@@ -1630,7 +1634,7 @@ class PDFReportePOLI:
                 self.c.setFillColor(colors.HexColor('#F0F2F5'))
                 self.c.roundRect(self.MX, y_cur - PHDR_H, IND_TBL_W, PHDR_H,
                                  1.5 * mm, fill=1, stroke=0)
-                self.c.setFillColor(AMBER_SOLID)
+                self.c.setFillColor(col_linea)
                 self.c.rect(self.MX, y_cur - PHDR_H, IND_TBL_W, 2, fill=1, stroke=0)
                 self.c.setFont('Helvetica-Bold', 5.5)
                 self.c.setFillColor(NAVY_DARK)
@@ -1640,11 +1644,11 @@ class PDFReportePOLI:
                 for sidx, si in enumerate(sin_meta[:10]):
                     if y_cur - PROW_H < TABLE_BOTTOM:
                         break
-                    si_bg = AMBER_BG if sidx % 2 == 0 else C_WHITE
+                    si_bg = _light_color(col_linea, 0.92) if sidx % 2 == 0 else C_WHITE
                     self.c.setFillColor(si_bg)
                     self.c.rect(self.MX, y_cur - PROW_H, IND_TBL_W, PROW_H,
                                 fill=1, stroke=0)
-                    self.c.setFillColor(AMBER_SOLID)
+                    self.c.setFillColor(col_linea)
                     self.c.rect(self.MX, y_cur - PROW_H, 2, PROW_H, fill=1, stroke=0)
                     si_nm = limpiar(str(si.get('nombre', '')))[:int(IND_TBL_W / 3.5)]
                     self.c.setFont('Helvetica', 5.5)
@@ -1680,8 +1684,8 @@ class PDFReportePOLI:
                     cell_bg = C_TABLE_ROW_ALT if (pidx // 2) % 2 == 0 else C_WHITE
                     self.c.setFillColor(cell_bg)
                     self.c.rect(cell_x, cell_y, PCELL_W, PROW_H, fill=1, stroke=0)
-                    # Acento izquierdo color semáforo
-                    self.c.setFillColor(p_col)
+                    # Acento izquierdo color línea
+                    self.c.setFillColor(col_linea)
                     self.c.rect(cell_x, cell_y, 3, PROW_H, fill=1, stroke=0)
                     # Borde celda
                     self.c.setStrokeColor(TABLE_BORDER)
