@@ -959,7 +959,7 @@ class PDFReportePOLI:
         bar_bw = card_w - 8 * mm
         self.c.setFillColor(NAVY_MID)
         self.c.roundRect(MX + 4 * mm, bar_y, bar_bw, bar_h, bar_h / 2, fill=1, stroke=0)
-        fill_frac = min(cumpl / 100.0, 1.2)
+        fill_frac = min(cumpl / 100.0, 1.0)
         self.c.setFillColor(TEAL_ACCENT)
         self.c.roundRect(MX + 4 * mm, bar_y, bar_bw * fill_frac, bar_h, bar_h / 2, fill=1, stroke=0)
 
