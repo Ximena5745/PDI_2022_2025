@@ -112,9 +112,13 @@ COLOR_LINEAS: Dict[str, colors.Color] = {
     'Calidad':                           colors.HexColor('#EC0677'),
     'Experiencia':                       colors.HexColor('#1FB2DE'),
     'Sostenibilidad':                    colors.HexColor('#A6CE38'),
-    'Educación para toda la vida':       colors.HexColor('#9CA3AF'),
-    'Educacion para toda la vida':       colors.HexColor('#9CA3AF'),
+    # EduVida: #0F385A en gráficas/gauges; gris #9CA3AF en header y página de línea
+    'Educación para toda la vida':       colors.HexColor('#0F385A'),
+    'Educacion para toda la vida':       colors.HexColor('#0F385A'),
 }
+
+# Color para header/trapecio y página de línea de EduVida (gris institucional)
+_EDUVIDA_HEADER_COL = colors.HexColor('#9CA3AF')
 
 GLOSARIO = {
     'PDI':    'Plan de Desarrollo Institucional',
@@ -179,6 +183,9 @@ def texto_estado(pct: float) -> str:
     return 'ATENCIÓN'
 
 
+_EDUVIDA_NORM = 'educacion para toda la vida'
+
+
 def color_linea(nombre: str) -> colors.Color:
     """Return brand color for a strategic line (accent-insensitive)."""
     n = _norm(nombre)
@@ -189,6 +196,14 @@ def color_linea(nombre: str) -> colors.Color:
         if _norm(key) in n or n in _norm(key):
             return col
     return C_ACCENT
+
+
+def color_linea_header(nombre: str) -> colors.Color:
+    """Color for header trapezoid and page backgrounds.
+    EduVida uses institutional gray (#9CA3AF) instead of the chart navy."""
+    if _EDUVIDA_NORM in _norm(nombre):
+        return _EDUVIDA_HEADER_COL
+    return color_linea(nombre)
 
 
 def limpiar(txt: str) -> str:
@@ -235,7 +250,7 @@ def fig_to_image(fig, w_pt: float = None, h_pt: float = None):
     if not MATPLOTLIB_AVAILABLE:
         return None
     buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=150, bbox_inches='tight',
+    fig.savefig(buf, format='png', dpi=220, bbox_inches='tight',
                 transparent=True)
     buf.seek(0)
     return ImageReader(buf)
@@ -329,14 +344,16 @@ def _pil_get_font(size: int, bold: bool = False):
     if not PIL_AVAILABLE:
         return None
     paths_bold = [
+        'C:/Windows/Fonts/segoeuib.ttf',   # Segoe UI Bold — Unicode completo
+        'C:/Windows/Fonts/calibrib.ttf',
         '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
         'C:/Windows/Fonts/arialbd.ttf',
-        'C:/Windows/Fonts/Arial Bold.ttf',
     ]
     paths_reg = [
+        'C:/Windows/Fonts/segoeui.ttf',    # Segoe UI — Unicode completo
+        'C:/Windows/Fonts/calibri.ttf',
         '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
         'C:/Windows/Fonts/arial.ttf',
-        'C:/Windows/Fonts/Arial.ttf',
     ]
     for p in (paths_bold if bold else paths_reg):
         try:
@@ -366,16 +383,16 @@ def _crear_grafico_lineas_pil(datos, meta=100, w_px=800, h_px=420):
         W, H = w_px, h_px
 
         # Márgenes proporcionales al tamaño de imagen
-        ml   = int(W * 0.30)   # left: zona etiquetas
+        ml   = int(W * 0.29)   # left: zona etiquetas
         mr   = int(W * 0.13)   # right: zona pill %
-        mt   = int(H * 0.05)   # top
-        mb   = int(H * 0.04)   # bottom
+        mt   = int(H * 0.03)   # top (mínimo)
+        mb   = int(H * 0.03)   # bottom
 
         bar_area_w = W - ml - mr
         row_h      = (H - mt - mb) // n
-        bar_h      = max(int(row_h * 0.40), 10)
-        font_sz    = max(int(row_h * 0.28), 11)
-        pill_sz    = max(int(row_h * 0.28), 11)
+        bar_h      = max(int(row_h * 0.50), 12)   # barra más gruesa
+        font_sz    = max(int(row_h * 0.30), 12)
+        pill_sz    = max(int(row_h * 0.30), 12)
 
         max_val   = max(d[1] for d in datos) if datos else 100
         scale_max = max(max_val, meta) * 1.10  # pequeño margen visual
@@ -1429,7 +1446,7 @@ class PDFReportePOLI:
                     # ── Semicircular gauge ────────────────────────────────
                     # Arc polygon: outer radius=0.82, inner=0.54, center=(0,0)
                     R_OUT, R_IN = 0.82, 0.54
-                    theta_full = _np.linspace(_math.pi, 0, 300)
+                    theta_full = _np.linspace(_math.pi, 0, 500)
                     xs_out = R_OUT * _np.cos(theta_full)
                     ys_out = R_OUT * _np.sin(theta_full)
                     xs_in  = R_IN  * _np.cos(theta_full[::-1])
@@ -1441,7 +1458,7 @@ class PDFReportePOLI:
                     # Value arc (up to 125% max = full sweep)
                     val_frac = min(pct / 125.0, 1.0)
                     theta_v  = _np.linspace(_math.pi,
-                                            _math.pi - _math.pi * val_frac, 300)
+                                            _math.pi - _math.pi * val_frac, 500)
                     xs_ov = R_OUT * _np.cos(theta_v)
                     ys_ov = R_OUT * _np.sin(theta_v)
                     xs_iv = R_IN  * _np.cos(theta_v[::-1])
@@ -1572,7 +1589,7 @@ class PDFReportePOLI:
           - SECCIÓN: Proyectos estratégicos
           - FINAL: Tarjeta de análisis IA (anclada al fondo)
         """
-        col_linea = color_linea(nombre)
+        col_linea = color_linea_header(nombre)   # gray for EduVida, brand color otherwise
         nom_d     = nombre_display(nombre)
 
         # Collect all level-4 indicators for stats
