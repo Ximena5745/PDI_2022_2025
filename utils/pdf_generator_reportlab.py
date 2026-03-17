@@ -28,6 +28,12 @@ try:
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
 
+try:
+    from PIL import Image, ImageDraw, ImageFont
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm, cm
@@ -233,6 +239,208 @@ def fig_to_image(fig, w_pt: float = None, h_pt: float = None):
                 transparent=True)
     buf.seek(0)
     return ImageReader(buf)
+
+
+# ============================================================
+# PIL CHART HELPERS
+# ============================================================
+
+def _pil_lighten(hex_color: str, factor: float) -> str:
+    h = hex_color.lstrip('#')
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    r = int(r + (255 - r) * factor)
+    g = int(g + (255 - g) * factor)
+    b = int(b + (255 - b) * factor)
+    return f'#{r:02x}{g:02x}{b:02x}'
+
+
+def _pil_darken(hex_color: str, factor: float) -> str:
+    h = hex_color.lstrip('#')
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    r = int(r * (1 - factor))
+    g = int(g * (1 - factor))
+    b = int(b * (1 - factor))
+    return f'#{r:02x}{g:02x}{b:02x}'
+
+
+def _pil_rounded_rect(draw, xy, radius, fill=None, outline=None, width=1):
+    x1, y1, x2, y2 = xy
+    r = radius
+    draw.ellipse([x1, y1, x1+2*r, y1+2*r], fill=fill)
+    draw.ellipse([x2-2*r, y1, x2, y1+2*r], fill=fill)
+    draw.ellipse([x1, y2-2*r, x1+2*r, y2], fill=fill)
+    draw.ellipse([x2-2*r, y2-2*r, x2, y2], fill=fill)
+    draw.rectangle([x1+r, y1, x2-r, y2], fill=fill)
+    draw.rectangle([x1, y1+r, x2, y2-r], fill=fill)
+    if outline:
+        draw.line([(x1+r, y1), (x2-r, y1)], fill=outline, width=width)
+        draw.line([(x1+r, y2), (x2-r, y2)], fill=outline, width=width)
+        draw.line([(x1, y1+r), (x1, y2-r)], fill=outline, width=width)
+        draw.line([(x2, y1+r), (x2, y2-r)], fill=outline, width=width)
+
+
+def _pil_capsule(draw, x, y, width, height, color, highlight=True):
+    """Barra tipo cápsula con efecto 3D (brillo superior)."""
+    r = height // 2
+    # Sombra
+    sy = y + 2
+    draw.ellipse([x, sy, x+height, sy+height], fill='#d0d0d0')
+    draw.ellipse([x+width-height, sy, x+width, sy+height], fill='#d0d0d0')
+    draw.rectangle([x+r, sy, x+width-r, sy+height], fill='#d0d0d0')
+    # Cuerpo
+    draw.ellipse([x, y, x+height, y+height], fill=color)
+    draw.ellipse([x+width-height, y, x+width, y+height], fill=color)
+    draw.rectangle([x+r, y, x+width-r, y+height], fill=color)
+    # Brillo 3D
+    if highlight and width > height:
+        hl_h = max(height // 3, 4)
+        hl_y = y + 2
+        hl_c = _pil_lighten(color, 0.38)
+        hl_r = hl_h // 2
+        hx1, hx2 = x + 4, x + width - 4
+        draw.ellipse([hx1, hl_y, hx1+hl_h, hl_y+hl_h], fill=hl_c)
+        draw.ellipse([hx2-hl_h, hl_y, hx2, hl_y+hl_h], fill=hl_c)
+        draw.rectangle([hx1+hl_r, hl_y, hx2-hl_r, hl_y+hl_h], fill=hl_c)
+
+
+def _pil_pill_label(draw, x, y, text, bg_color, text_color, font):
+    """Etiqueta tipo pill redondeada con texto."""
+    try:
+        bbox = font.getbbox(text)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    except Exception:
+        tw, th = len(text) * 7, 12
+    pad_x, pad_y = 12, 5
+    pw = tw + pad_x * 2
+    ph = th + pad_y * 2
+    pr = ph // 2
+    px, py = x, y - ph // 2
+    draw.ellipse([px, py, px+ph, py+ph], fill=bg_color)
+    draw.ellipse([px+pw-ph, py, px+pw, py+ph], fill=bg_color)
+    draw.rectangle([px+pr, py, px+pw-pr, py+ph], fill=bg_color)
+    tx = px + (pw - tw) // 2
+    ty = py + (ph - th) // 2 - 1
+    draw.text((tx, ty), text, fill=text_color, font=font)
+    return pw
+
+
+def _pil_get_font(size: int, bold: bool = False):
+    """Load DejaVu font, fallback to default."""
+    if not PIL_AVAILABLE:
+        return None
+    paths_bold = [
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+        'C:/Windows/Fonts/arialbd.ttf',
+        'C:/Windows/Fonts/Arial Bold.ttf',
+    ]
+    paths_reg = [
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        'C:/Windows/Fonts/arial.ttf',
+        'C:/Windows/Fonts/Arial.ttf',
+    ]
+    for p in (paths_bold if bold else paths_reg):
+        try:
+            return ImageFont.truetype(p, size)
+        except Exception:
+            pass
+    try:
+        return ImageFont.load_default()
+    except Exception:
+        return None
+
+
+def _crear_grafico_lineas_pil(datos, meta=100, ancho=700):
+    """
+    Genera el gráfico de barras cápsula por línea estratégica usando Pillow.
+    Retorna ImageReader para ReportLab o None si PIL no está disponible.
+
+    datos: list of (nombre, valor_float, color_hex)
+    """
+    if not PIL_AVAILABLE:
+        return None
+    try:
+        n = len(datos)
+        margin_left  = 190
+        margin_right = 90
+        margin_top   = 55
+        row_height   = 80
+        bar_height   = 28
+        alto = margin_top + n * row_height + 25
+
+        bar_area_w = ancho - margin_left - margin_right
+        max_val    = max(d[1] for d in datos) if datos else 100
+        scale_max  = max(max_val, meta) * 1.12
+
+        img  = Image.new('RGB', (ancho, alto), 'white')
+        draw = ImageDraw.Draw(img)
+
+        font_title = _pil_get_font(15, bold=True)
+        font_label = _pil_get_font(12)
+        font_pct   = _pil_get_font(12, bold=True)
+
+        # Borde tarjeta
+        _pil_rounded_rect(draw, [3, 3, ancho-4, alto-4],
+                          radius=14, fill='white', outline='#c8ddf0', width=2)
+
+        # Título
+        titulo = 'Cumplimiento por Línea Estratégica'
+        try:
+            tb = font_title.getbbox(titulo)
+            tw = tb[2] - tb[0]
+        except Exception:
+            tw = len(titulo) * 9
+        draw.text(((ancho - tw) // 2, 18), titulo, fill='#1a2340', font=font_title)
+
+        for i, (nombre, valor, col_hex) in enumerate(datos):
+            row_y  = margin_top + i * row_height
+            row_cy = row_y + row_height // 2
+
+            # Fondo alternado
+            bg = '#f0f7ff' if i % 2 == 0 else '#ffffff'
+            draw.rectangle([12, row_y+4, ancho-13, row_y+row_height-4], fill=bg)
+
+            # Etiqueta nombre
+            try:
+                lb = font_label.getbbox(nombre)
+                lh = lb[3] - lb[1]
+            except Exception:
+                lh = 14
+            draw.text((22, row_cy - lh // 2 - 1), nombre, fill='#333333', font=font_label)
+
+            # Barra cápsula — track de fondo (100% width)
+            track_w = int((meta / scale_max) * bar_area_w) + int(bar_area_w * 0.06)
+            _pil_capsule(draw, margin_left, row_cy - bar_height//2,
+                         track_w, bar_height, _pil_lighten(col_hex, 0.72), highlight=False)
+
+            # Barra cápsula — fill capped at 100%
+            fill_val = min(valor, 100)
+            bar_w = max(int((fill_val / scale_max) * bar_area_w), bar_height + 4)
+            _pil_capsule(draw, margin_left, row_cy - bar_height//2,
+                         bar_w, bar_height, col_hex, highlight=True)
+
+            # Pill de porcentaje
+            pill_bg  = _pil_lighten(col_hex, 0.82)
+            pill_fg  = _pil_darken(col_hex, 0.40)
+            pill_x   = margin_left + track_w + 10
+            _pil_pill_label(draw, pill_x, row_cy,
+                            f'{valor:.0f}%', pill_bg, pill_fg, font_pct)
+
+        # Línea de meta punteada
+        meta_x   = margin_left + int((meta / scale_max) * bar_area_w)
+        y_start  = margin_top + 4
+        y_end    = margin_top + n * row_height - 4
+        y_cur    = y_start
+        while y_cur < y_end:
+            draw.line([(meta_x, y_cur), (meta_x, min(y_cur+7, y_end))],
+                      fill='#888888', width=2)
+            y_cur += 13
+
+        buf = io.BytesIO()
+        img.save(buf, 'PNG')
+        buf.seek(0)
+        return ImageReader(buf)
+    except Exception:
+        return None
 
 
 # ============================================================
@@ -806,8 +1014,8 @@ class PDFReportePOLI:
 
     def _bar_chart_lineas_buf(self, df_lineas: 'pd.DataFrame',
                               w_pt: float, h_pt: float):
-        """Return ImageReader of horizontal bar chart per strategic line."""
-        if not MATPLOTLIB_AVAILABLE or df_lineas is None or df_lineas.empty:
+        """Return ImageReader of horizontal capsule bar chart per strategic line (PIL)."""
+        if df_lineas is None or df_lineas.empty:
             return None
         try:
             nom_col = next((c for c in ['Linea', 'Línea'] if c in df_lineas.columns),
@@ -815,50 +1023,52 @@ class PDFReportePOLI:
             cum_col = next((c for c in ['Cumplimiento'] if c in df_lineas.columns),
                            df_lineas.columns[1])
 
-            # Sort rows by ORDEN_LINEAS; barh plots bottom-to-top so reverse for top-down order
             def _bc_sort(row):
                 n = _norm(str(row.get(nom_col, '')))
                 for i, ol in enumerate(ORDEN_LINEAS):
                     if _norm(ol) == n or _norm(ol)[:8] == n[:8]:
                         return i
                 return 99
-            rows_sorted = sorted(df_lineas.to_dict('records'), key=_bc_sort, reverse=True)
+            rows_sorted = sorted(df_lineas.to_dict('records'), key=_bc_sort)
 
-            # Replace underscores, truncate display names
-            noms  = [nombre_display(str(r.get(nom_col, '')))[:28] for r in rows_sorted]
-            cumps = [float(r.get(cum_col, 0) or 0) for r in rows_sorted]
-            bar_cols = []
+            datos = []
             for r in rows_sorted:
+                nom = nombre_display(str(r.get(nom_col, '')))[:26]
+                val = float(r.get(cum_col, 0) or 0)
                 col = color_linea(str(r.get(nom_col, '')))
-                bar_cols.append(f'#{int(col.red*255):02x}'
-                                f'{int(col.green*255):02x}'
-                                f'{int(col.blue*255):02x}')
-            import matplotlib.colors as mcolors
+                col_hex = f'#{int(col.red*255):02x}{int(col.green*255):02x}{int(col.blue*255):02x}'
+                datos.append((nom, val, col_hex))
 
+            # PIL chart (primary)
+            ancho_px = max(600, int(w_pt * 1.5))
+            img_reader = _crear_grafico_lineas_pil(datos, meta=100, ancho=ancho_px)
+            if img_reader is not None:
+                return img_reader
+
+            # Fallback: matplotlib
+            if not MATPLOTLIB_AVAILABLE:
+                return None
+            import matplotlib.colors as mcolors
+            noms  = [d[0] for d in datos]
+            cumps = [d[1] for d in datos]
+            bar_cols = [d[2] for d in datos]
             fig, ax = plt.subplots(figsize=(w_pt / 72, h_pt / 72))
             fig.patch.set_alpha(0)
             ax.set_facecolor('none')
             y_pos = list(range(len(noms)))
-
-            bg_extent = 108  # fixed track width: 100% line at ~93% of track
+            bg_extent = 108
             BAR_H = 0.42
-
             for i, (nom, val, col_hex) in enumerate(zip(noms, cumps, bar_cols)):
                 light = mcolors.to_rgba(col_hex, alpha=0.18)
                 ax.barh(i, bg_extent, color=light, height=BAR_H, zorder=1, edgecolor='none')
-                # Cap filled bar to track width so it never overflows
-                ax.barh(i, min(val, 100), color=col_hex, height=BAR_H,
-                        zorder=2, edgecolor='none')
-                ax.text(bg_extent + 1.5, i, f'{val:.0f}%',
-                        va='center', ha='left', fontsize=7.5,
-                        color='#222222', fontfamily='DejaVu Sans', fontweight='bold')
-
+                ax.barh(i, min(val, 100), color=col_hex, height=BAR_H, zorder=2, edgecolor='none')
+                ax.text(bg_extent+1.5, i, f'{val:.0f}%', va='center', ha='left',
+                        fontsize=7.5, color='#222222', fontweight='bold')
             ax.axvline(100, color='#555555', linestyle='--', linewidth=0.9, alpha=0.65, zorder=3)
             ax.set_yticks(y_pos)
             ax.set_yticklabels(noms, fontsize=7.5, color='#333333')
             ax.set_xlim(0, bg_extent + 16)
             ax.margins(y=0.25)
-            ax.set_xlabel('')
             ax.tick_params(axis='x', bottom=False, labelbottom=False)
             ax.tick_params(axis='y', length=0)
             for spine in ax.spines.values():
