@@ -2606,6 +2606,20 @@ def exportar_informe_pdf_reportlab(
     """
     pdf = PDFReportePOLI(año)
 
+    # Cargar datos de Retos
+    _base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    df_retos_linea, df_planes = _cargar_retos(_base_dir)
+    _total_retos_año = 0
+    if not df_planes.empty:
+        for _c in df_planes.columns:
+            if 'a' in _c.lower() and df_planes[_c].dtype in ['int64', 'float64', 'object']:
+                _row = df_planes[pd.to_numeric(df_planes[_c], errors='coerce') == año]
+                if not _row.empty:
+                    _nc = [c for c in df_planes.columns if c != _c]
+                    if _nc:
+                        _total_retos_año = int(float(_row.iloc[0][_nc[0]]))
+                    break
+
     # 1. Portada
     portada_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -2792,6 +2806,37 @@ def exportar_informe_pdf_reportlab(
                             analisis_txt = v
                             break
 
+            # Buscar datos de retos para esta línea
+            _retos_data = {'meta': 1.0, 'ejecucion': 0.0, 'cumplimiento': 0.0}
+            if not df_retos_linea.empty:
+                _col_lin = next((c for c in df_retos_linea.columns
+                                 if 'nea' in c.lower() or 'linea' in c.lower()), None)
+                _col_a   = next((c for c in df_retos_linea.columns
+                                 if 'a' in c.lower() and c != _col_lin), None)
+                if _col_lin and _col_a:
+                    _mask_r = (df_retos_linea[_col_lin].astype(str).str.strip()
+                               .apply(_norm) == _norm(nom)) & \
+                              (pd.to_numeric(df_retos_linea[_col_a], errors='coerce') == año)
+                    _df_r = df_retos_linea[_mask_r]
+                    if not _df_r.empty:
+                        _row_r = _df_r.iloc[0]
+                        _retos_data = {
+                            'meta':        float(_row_r.get('Meta',        _row_r.get('meta',        1.0)) or 1.0),
+                            'ejecucion':   float(_row_r.get('Ejecuci\u00f3n', _row_r.get('Ejecucion', 0.0)) or 0.0),
+                            'cumplimiento':float(_row_r.get('Cumplimiento', _row_r.get('cumplimiento',0.0)) or 0.0),
+                        }
+
+            # Página 1: Retos + Proyectos + Logros en blanco
+            pdf.pagina_linea_retos(
+                nombre=nom,
+                cumplimiento=cumpl,
+                total_ind=n_ind,
+                proyectos=proyectos,
+                retos_data=_retos_data,
+                total_retos_año=_total_retos_año,
+            )
+
+            # Página 2: Indicadores + Stand By + IA
             pdf.pagina_linea(
                 nombre=nom,
                 cumplimiento=cumpl,
