@@ -423,22 +423,26 @@ def _ai_block(c, x: float, y: float, w: float, h: float,
     c.setFillColor(TEXT_MUTED)
     c.drawRightString(x + w - 3 * mm, badge_y + badge_h / 2 - 2,
                       'Generado con Inteligencia Artificial')
-    # Text
+    # Text — clip to card so it never overflows into footer
     if texto:
         style = ParagraphStyle(
             'ai_ml',
-            fontSize=8,
+            fontSize=7.5,
             fontName='Helvetica-Oblique',
-            leading=10.8,
+            leading=10.2,
             textColor=AI_TEXT_COL,
         )
         safe_txt = limpiar(texto).replace('\n', '<br/>')
         p = Paragraph(safe_txt, style)
         txt_y_top = badge_y - 2.5 * mm
-        avail_h = txt_y_top - y - 2 * mm
         avail_w = w - 10 * mm
-        _, actual_h = p.wrap(avail_w, avail_h)
+        _, actual_h = p.wrap(avail_w, 9999)  # natural height
+        c.saveState()
+        cp = c.beginPath()
+        cp.rect(x, y + 1, w, h - 1)
+        c.clipPath(cp, stroke=0, fill=0)
         p.drawOn(c, x + 6 * mm, txt_y_top - actual_h)
+        c.restoreState()
 
 
 # ============================================================
@@ -669,19 +673,24 @@ class PDFReportePOLI:
         self.c.setFillColor(TEXT_MUTED)
         self.c.drawRightString(x + w - 3 * mm, badge_y + badge_h / 2 - 2,
                                'Generado con Inteligencia Artificial')
-        # Text content: italic 8.5pt #334155
+        # Text content — clip to card so it never overflows
         if texto:
             txt_y_top = badge_y - 2.5 * mm
+            self.c.saveState()
+            cp = self.c.beginPath()
+            cp.rect(x, y + 1, w, h - 1)
+            self.c.clipPath(cp, stroke=0, fill=0)
             self._wrap_paragraph(
                 texto,
                 x=x + 6 * mm,
                 y_top=txt_y_top,
                 max_w=w - 10 * mm,
-                max_h=txt_y_top - y - 2 * mm,
+                max_h=9999,
                 font='Helvetica-Oblique',
-                size=8,
+                size=7.5,
                 color=AI_TEXT_COL,
             )
+            self.c.restoreState()
 
     def _donut_chart_buf(self, cumpl_n: int, en_prog: int, atenc: int, total: int):
         """Return ImageReader of a 3-segment donut chart using matplotlib."""
@@ -838,7 +847,7 @@ class PDFReportePOLI:
                 light = mcolors.to_rgba(col_hex, alpha=0.18)
                 ax.barh(i, bg_extent, color=light, height=BAR_H, zorder=1, edgecolor='none')
                 # Cap filled bar to track width so it never overflows
-                ax.barh(i, min(val, bg_extent), color=col_hex, height=BAR_H,
+                ax.barh(i, min(val, 100), color=col_hex, height=BAR_H,
                         zorder=2, edgecolor='none')
                 ax.text(bg_extent + 1.5, i, f'{val:.0f}%',
                         va='center', ha='left', fontsize=7.5,
@@ -1367,10 +1376,14 @@ class PDFReportePOLI:
 
         # ── Inicio del contenido ──────────────────────────────────────
         AI_BOTTOM = self.H_FOOTER + 3 * mm
-        _ai_line_w = self.W - 2 * self.MX - 16 * mm
-        _chars_per_line = max(1, int(_ai_line_w / 3.8))
-        _ai_lines = max(1, len(analisis or '') // _chars_per_line + 1) if analisis else 0
-        AI_H      = max(38 * mm, min(_ai_lines * 8 + int(16 * mm), 90 * mm))
+        if analisis:
+            _est_style = ParagraphStyle(
+                '_ai_est', fontSize=7.5, fontName='Helvetica-Oblique', leading=10.2)
+            _est_para = Paragraph(limpiar(analisis).replace('\n', '<br/>'), _est_style)
+            _, _ai_txt_h = _est_para.wrap(self.W - 2 * self.MX - 10 * mm, 9999)
+            AI_H = max(38 * mm, min(_ai_txt_h + 22 * mm, 105 * mm))
+        else:
+            AI_H = 38 * mm
         AI_TOP    = AI_BOTTOM + AI_H
         TABLE_BOTTOM = AI_TOP + 4 * mm
         y_cur = cont_top - 4 * mm
