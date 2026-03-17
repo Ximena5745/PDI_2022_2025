@@ -42,12 +42,25 @@ class AIService:
         cumplimiento_por_linea: list[dict],
     ) -> str:
         if self._gemini.is_available():
+            # Texto resumido para el encabezado del prompt
             lineas_texto = "\n".join(
                 f"- {i['linea']}: {i['cumplimiento']:.1f}% ({i['indicadores']} indicadores)"
                 for i in cumplimiento_por_linea
             ) or "No hay datos disponibles"
+
+            # Detalle enriquecido: agrega cumplidos y atención si están disponibles
+            lineas_detalle = []
+            for i in cumplimiento_por_linea:
+                lineas_detalle.append({
+                    "linea":        i.get("linea", ""),
+                    "cumplimiento": float(i.get("cumplimiento", 0)),
+                    "indicadores":  int(i.get("indicadores", 0)),
+                    "cumplidos":    int(i.get("cumplidos", 0)),
+                    "atencion":     int(i.get("atencion", i.get("no_cumplidos", 0))),
+                })
+
             resultado = self._gemini.generate(
-                prompt_analisis_general(metricas, lineas_texto)
+                prompt_analisis_general(metricas, lineas_texto, lineas_detalle)
             )
             if resultado:
                 return resultado
@@ -77,27 +90,45 @@ class AIService:
                 en_prog     = [i for i in indicadores_data if 80 <= float(i.get("cumplimiento", 0)) < 100]
                 en_atencion = [i for i in indicadores_data if float(i.get("cumplimiento", 0)) < 80]
 
-                def _fmt(ind):
-                    nombre = ind.get("nombre", "Indicador")[:60]
-                    cumpl = float(ind.get("cumplimiento", 0))
-                    meta = ind.get("meta")
-                    ejec = ind.get("ejecucion")
+                def _gap(ind) -> float:
+                    """Brecha absoluta meta − ejecución (0 si no disponible)."""
+                    try:
+                        return float(ind.get("meta", 0) or 0) - float(ind.get("ejecucion", 0) or 0)
+                    except Exception:
+                        return 0.0
+
+                def _fmt(ind, show_gap: bool = False) -> str:
+                    nombre = ind.get("nombre", "Indicador")[:65]
+                    cumpl  = float(ind.get("cumplimiento", 0))
+                    meta   = ind.get("meta")
+                    ejec   = ind.get("ejecucion")
                     partes = [f"{nombre}: {cumpl:.1f}%"]
                     if meta is not None and ejec is not None:
                         try:
-                            partes.append(f"(Meta: {float(meta):.1f}, Ejec: {float(ejec):.1f})")
+                            m, e = float(meta), float(ejec)
+                            partes.append(f"(Meta {m:.1f} → Ejec {e:.1f}")
+                            if show_gap:
+                                partes.append(f"| brecha {m - e:+.1f})")
+                            else:
+                                partes.append(")")
                         except Exception:
                             pass
                     return " ".join(partes)
 
+                # Ordenar atención por mayor brecha (más críticos primero)
+                en_atencion_sorted = sorted(en_atencion, key=_gap, reverse=True)
+
                 lineas_inds = []
                 if cumplidos:
-                    lineas_inds += [f"CUMPLIDOS ({len(cumplidos)}):"] + [f"  ✓ {_fmt(i)}" for i in cumplidos[:5]]
+                    lineas_inds += [f"CUMPLIDOS ({len(cumplidos)}):"] + \
+                                   [f"  ✓ {_fmt(i)}" for i in cumplidos[:6]]
                 if en_prog:
-                    lineas_inds += [f"EN PROGRESO ({len(en_prog)}):"] + [f"  ⚠ {_fmt(i)}" for i in en_prog[:5]]
-                if en_atencion:
-                    lineas_inds += [f"REQUIEREN ATENCIÓN ({len(en_atencion)}):"] + [f"  ✗ {_fmt(i)}" for i in en_atencion[:5]]
-                indicadores_section = f"\n\n**Detalle de Indicadores:**\n" + "\n".join(lineas_inds)
+                    lineas_inds += [f"EN PROGRESO — 80 a 99% ({len(en_prog)}):"] + \
+                                   [f"  ⚠ {_fmt(i, show_gap=True)}" for i in en_prog[:6]]
+                if en_atencion_sorted:
+                    lineas_inds += [f"REQUIEREN ATENCIÓN — <80% ({len(en_atencion_sorted)}, ordenados por brecha):"] + \
+                                   [f"  ✗ {_fmt(i, show_gap=True)}" for i in en_atencion_sorted[:8]]
+                indicadores_section = "\n\n**Detalle de Indicadores:**\n" + "\n".join(lineas_inds)
 
             resultado = self._gemini.generate(
                 prompt_analisis_linea(
